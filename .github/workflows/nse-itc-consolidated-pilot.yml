@@ -1,0 +1,135 @@
+name: NSE ITC consolidated real XBRL pilot
+
+on:
+  push:
+    branches:
+      - research/free-fundamental-sources
+    paths:
+      - ".github/workflows/nse-itc-consolidated-pilot.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  download-parse-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install isolated parser dependency
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/xbrl-deps" --no-save --no-package-lock fast-xml-parser@5.12.1
+          mkdir -p node_modules
+          ln -s "$RUNNER_TEMP/xbrl-deps/node_modules/fast-xml-parser" node_modules/fast-xml-parser
+      - name: Resolve official ITC consolidated filing
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          curl --fail --location --show-error --retry 3 --retry-all-errors --retry-delay 2 \
+            --connect-timeout 20 --max-time 120 \
+            --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36" \
+            --referer "https://www.nseindia.in/companies-listing/corporate-integrated-filing" \
+            --header "Accept: application/json, text/plain, */*" \
+            --get "https://www.nseindia.in/api/integrated-filing-results" \
+            --data-urlencode "index=equities" \
+            --data-urlencode "symbol=ITC" \
+            --data-urlencode "type=Integrated Filing- Financials" \
+            --data-urlencode "page=1" \
+            --data-urlencode "size=100" \
+            --output artifacts/ITC_integrated_filing_api.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path("artifacts/ITC_integrated_filing_api.json").read_text())
+          rows=data.get("data", [])
+          matches=[r for r in rows if r.get("symbol")=="ITC" and r.get("qe_Date")=="30-SEP-2026" and r.get("type_Sub")=="Original" and r.get("consolidated")=="Consolidated" and r.get("type")=="Integrated Filing- Financials"]
+          if len(matches)!=1:
+              raise SystemExit(f"Expected exactly one original ITC consolidated 30-SEP-2026 filing, got {len(matches)}")
+          row=matches[0]
+          if not row.get("xbrl"):
+              raise SystemExit("Selected NSE filing row has no XBRL URL")
+          fields=["symbol","smName","seq_Id","qe_Date","type","type_Sub","audited","consolidated","broadcast_Date","creation_Date","revised_Date","revision_Remark","ixbrl","ixbrlFileSize","xbrl","xbrlFileSize"]
+          meta={k:row.get(k) for k in fields}
+          Path("artifacts/ITC_filing_metadata.json").write_text(json.dumps(meta,indent=2))
+          Path("artifacts/ITC_original_xbrl_url.txt").write_text(row["xbrl"])
+          print(json.dumps(meta,indent=2))
+          PY
+      - name: Download original XML and parse using research TypeScript extractor
+        shell: bash
+        run: |
+          set -euo pipefail
+          xbrl_url="$(cat artifacts/ITC_original_xbrl_url.txt)"
+          file_url_json="$(python -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$xbrl_url")"
+          cookie_jar="artifacts/itc-nse-cookies.txt"
+          ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+          downloaded=""
+          for site in www.nseindia.in www.nseindia.com; do
+            curl --silent --show-error --location --max-time 60 --user-agent "$ua" --cookie-jar "$cookie_jar" --output /dev/null "https://$site/companies-listing/corporate-integrated-filing" || true
+            out="artifacts/${site}-itc-download.response"
+            curl --silent --show-error --location --max-time 120 --user-agent "$ua" --cookie "$cookie_jar" \
+              --referer "https://$site/companies-listing/corporate-integrated-filing" \
+              --header "Accept: application/xml,text/xml,*/*" --get "https://$site/api/download_xbrl" \
+              --data-urlencode "fileUrl=$xbrl_url" --dump-header "artifacts/${site}-itc-download.headers" --output "$out" || true
+            if grep -Eqi '<([[:alnum:]_]+:)?xbrl([ >])' "$out"; then cp "$out" artifacts/ITC_2026-09-30_original_consolidated_NSE_XBRL.xml; downloaded="yes"; break; fi
+          done
+          if [ -z "$downloaded" ]; then
+            for host in nsearchives.nseindia.in nsearchives.nseindia.com; do
+              out="artifacts/${host}-itc-direct.response"
+              curl --silent --show-error --location --max-time 120 --user-agent "$ua" --cookie "$cookie_jar" \
+                --referer "https://www.nseindia.in/companies-listing/corporate-integrated-filing" \
+                --header "Accept: application/xml,text/xml,application/octet-stream,*/*" \
+                --output "$out" "https://$host/corporate/xbrl/${xbrl_url##*/}" || true
+              if grep -Eqi '<([[:alnum:]_]+:)?xbrl([ >])' "$out"; then cp "$out" artifacts/ITC_2026-09-30_original_consolidated_NSE_XBRL.xml; downloaded="yes"; break; fi
+            done
+          fi
+          if [ -z "$downloaded" ]; then
+            echo "Could not obtain original XML from official NSE routes" >&2
+            for f in artifacts/*itc*.response; do echo "### $f"; head -c 500 "$f" || true; echo; done
+            exit 1
+          fi
+          node --experimental-strip-types --input-type=module -e '
+            import fs from "node:fs";
+            import { extractXbrl } from "./research/fundamental_pilot/xbrl_extract.ts";
+            const path="artifacts/ITC_2026-09-30_original_consolidated_NSE_XBRL.xml";
+            const xml=fs.readFileSync(path,"utf8");
+            const out=extractXbrl(xml);
+            if(out.contextCount<1 || out.factCount<1 || Object.keys(out.units).length<1) throw new Error("Parser returned empty contexts/facts/units");
+            const meta=JSON.parse(fs.readFileSync("artifacts/ITC_filing_metadata.json","utf8"));
+            if(meta.symbol!=="ITC" || meta.consolidated!=="Consolidated" || meta.qe_Date!=="30-SEP-2026") throw new Error("Filing identity/basis assertion failed");
+            const candidates=["RevenueFromOperations","ProfitLossForPeriod","CashFlowsFromUsedInOperatingActivities","Equity","BorrowingsCurrent","BorrowingsNoncurrent","FinanceCosts","ProfitBeforeTax","TaxExpense"];
+            const facts=out.facts.filter(f=>candidates.some(c=>f.concept.toLowerCase().endsWith(":"+c.toLowerCase()) || f.concept.toLowerCase()===c.toLowerCase()));
+            const report={
+              status:"PARSE_PASS",
+              filing:{symbol:meta.symbol,company:meta.smName,quarterEnd:meta.qe_Date,submission:meta.type_Sub,audit:meta.audited,basis:meta.consolidated,sequenceId:meta.seq_Id,broadcast:meta.broadcast_Date},
+              sourceFileBytes:Buffer.byteLength(xml),
+              contexts:out.contextCount,
+              facts:out.factCount,
+              units:out.units,
+              warnings:out.warnings,
+              durationContexts:Object.values(out.contexts).filter(c=>c.periodStart&&c.periodEnd),
+              instantContexts:Object.values(out.contexts).filter(c=>c.instant),
+              targetMetricCandidateFacts:facts,
+              targetMetricCandidateFactCount:facts.length,
+              note:"Parser success confirms XML extraction only. It does not validate accounting semantics, metric mapping, period selection or ratios."
+            };
+            fs.writeFileSync("artifacts/ITC_parser_audit.json",JSON.stringify(report,null,2));
+            console.log(JSON.stringify(report,null,2));
+          '
+          sha256sum artifacts/ITC_2026-09-30_original_consolidated_NSE_XBRL.xml | tee artifacts/ITC-XBRL-SHA256.txt
+      - name: Upload ITC consolidated pilot artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nse-itc-consolidated-real-xbrl-pilot
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 7
