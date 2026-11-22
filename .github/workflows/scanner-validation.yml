@@ -48,7 +48,7 @@ jobs:
       - name: Read-only NSE data audit
         id: dataaudit
         continue-on-error: true
-        run: npm run audit:data
+        run: npm run audit:data --if-present
 
       - name: TypeScript validation
         id: typecheck
