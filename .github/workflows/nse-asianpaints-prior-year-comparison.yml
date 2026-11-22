@@ -1,0 +1,162 @@
+# Research-only rerun: exact ASIANPAINT current/prior original filing comparison for smart XBRL candidate pipeline validation.
+name: NSE Asian Paints prior-year comparable XBRL audit
+# Research-only: compares original filings with the exact same consolidated reporting basis.
+
+on:
+  push:
+    branches:
+      - research/free-fundamental-sources
+    paths:
+      - ".github/workflows/nse-asianpaints-prior-year-comparison.yml"
+      - "research/fundamental_pilot/xbrl_extract.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prior-year-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install isolated parser dependency
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/xbrl-deps" --no-save --no-package-lock fast-xml-parser@5.12.1
+          mkdir -p node_modules
+          ln -s "$RUNNER_TEMP/xbrl-deps/node_modules/fast-xml-parser" node_modules/fast-xml-parser
+      - name: Resolve exact official NSE original consolidated filings
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          # Metadata is fetched and paginated by the shared TypeScript NSE client below.
+          node --experimental-strip-types --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import { resolveOriginalNseFilingPair } from './research/fundamental_pilot/nse_filing_pair.ts';
+          import { selectNseIssuerPeriodHistory, fetchNseIntegratedFilingRows } from './research/fundamental_pilot/nse_integrated_filing_client.ts';
+          const fetched=await fetchNseIntegratedFilingRows({symbol:'ASIANPAINT',pageSize:100,maxPages:20,maxRetries:3,timeoutMs:45000});
+          if (!fetched.complete) throw new Error('Asian Paints NSE metadata pagination incomplete: '+JSON.stringify({pagesFetched:fetched.pagesFetched,rows:fetched.rows.length,warnings:fetched.warnings}));
+          const rows=fetched.rows;
+          const selected=resolveOriginalNseFilingPair(rows,{
+            symbol:'ASIANPAINT',
+            basis:'Consolidated',
+            currentPeriod:'30-SEP-2026',
+            priorPeriod:'30-SEP-2025',
+          });
+          const currentHistory=selectNseIssuerPeriodHistory(rows,{symbol:'ASIANPAINT',period:'30-SEP-2026',basis:'Consolidated'});
+          const priorHistory=selectNseIssuerPeriodHistory(rows,{symbol:'ASIANPAINT',period:'30-SEP-2025',basis:'Consolidated'});
+          const historyIsUnambiguous=['ORIGINAL_ONLY','REVISION_HISTORY'].includes(currentHistory.status)
+            && ['ORIGINAL_ONLY','REVISION_HISTORY'].includes(priorHistory.status);
+          if (!historyIsUnambiguous) throw new Error('ASIANPAINT revision history selection blocked: '+JSON.stringify({current:currentHistory.status,prior:priorHistory.status}));
+          if (currentHistory.original.seq_Id!==selected.current.seq_Id || priorHistory.original.seq_Id!==selected.prior.seq_Id) {
+            throw new Error('Original filing resolver and full history resolver disagree on selected sequence IDs');
+          }
+          const metadata={};
+          for (const [key,row] of Object.entries(selected)) {
+            metadata[key]=Object.fromEntries(['symbol','smName','seq_Id','qe_Date','type','type_Sub','audited','consolidated','broadcast_Date','creation_Date','revised_Date','revision_Remark','ixbrl','xbrl'].map(field=>[field,row[field] ?? null]));
+            fs.writeFileSync(`artifacts/ASIANPAINT_${key}_xbrl_url.txt`,row.xbrl);
+          }
+          const historyMetadata={current:{status:currentHistory.status,originalSequenceId:currentHistory.original.seq_Id,revisionSequenceIds:currentHistory.revisions.map(r=>r.seq_Id)},prior:{status:priorHistory.status,originalSequenceId:priorHistory.original.seq_Id,revisionSequenceIds:priorHistory.revisions.map(r=>r.seq_Id)},paginationComplete:fetched.complete};
+          fs.writeFileSync('artifacts/ASIANPAINT_pair_metadata.json',JSON.stringify({filings:metadata,revisionHistories:historyMetadata},null,2));
+          console.log(JSON.stringify({filings:metadata,revisionHistories:historyMetadata},null,2));
+          JS
+      - name: Download both official original XML instances
+        shell: bash
+        run: |
+          set -euo pipefail
+          cookie_jar="artifacts/asianpaints-nse-cookies.txt"
+          ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36"
+          for key in current prior; do
+            xbrl_url="$(cat "artifacts/ASIANPAINT_${key}_xbrl_url.txt")"
+            downloaded=""
+            for site in www.nseindia.in www.nseindia.com; do
+              curl --silent --show-error --location --max-time 60 --user-agent "$ua" --cookie-jar "$cookie_jar" --output /dev/null "https://$site/companies-listing/corporate-integrated-filing" || true
+              out="artifacts/${site}-${key}-download.response"
+              curl --silent --show-error --location --max-time 120 --user-agent "$ua" --cookie "$cookie_jar" \
+                --referer "https://$site/companies-listing/corporate-integrated-filing" \
+                --header "Accept: application/xml,text/xml,*/*" --get "https://$site/api/download_xbrl" \
+                --data-urlencode "fileUrl=$xbrl_url" --output "$out" || true
+              if grep -Eqi '<([[:alnum:]_]+:)?xbrl([ >])' "$out"; then cp "$out" "artifacts/ASIANPAINT_${key}.xml"; downloaded="yes"; break; fi
+            done
+            if [ -z "$downloaded" ]; then
+              for host in nsearchives.nseindia.in nsearchives.nseindia.com; do
+                out="artifacts/${host}-${key}-direct.response"
+                curl --silent --show-error --location --max-time 120 --user-agent "$ua" --cookie "$cookie_jar" \
+                  --referer "https://www.nseindia.in/companies-listing/corporate-integrated-filing" \
+                  --header "Accept: application/xml,text/xml,application/octet-stream,*/*" \
+                  --output "$out" "https://$host/corporate/xbrl/${xbrl_url##*/}" || true
+                if grep -Eqi '<([[:alnum:]_]+:)?xbrl([ >])' "$out"; then cp "$out" "artifacts/ASIANPAINT_${key}.xml"; downloaded="yes"; break; fi
+              done
+            fi
+            if [ -z "$downloaded" ]; then echo "Unable to download official NSE XML for $key" >&2; exit 1; fi
+            sha256sum "artifacts/ASIANPAINT_${key}.xml" | tee "artifacts/ASIANPAINT_${key}_SHA256.txt"
+          done
+      - name: Parse both filings and compare exact prior-year contexts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import { extractXbrl } from './research/fundamental_pilot/xbrl_extract.ts';
+          import { buildSevenMetricXbrlPipeline } from './research/fundamental_pilot/seven_metric_xbrl_pipeline.ts';
+          const pair=JSON.parse(fs.readFileSync('artifacts/ASIANPAINT_pair_metadata.json','utf8'));
+          const meta=pair.filings;
+          const candidates=['RevenueFromOperations','ProfitLossForPeriod','ProfitBeforeTax','FinanceCosts','CashFlowsFromUsedInOperatingActivities'];
+          const outputs={};
+          const parsedByKey={};
+          for (const key of ['current','prior']) {
+            const xml=fs.readFileSync(`artifacts/ASIANPAINT_${key}.xml`,'utf8');
+            const out=extractXbrl(xml);
+            parsedByKey[key]=out;
+            if (!out.contextCount || !out.factCount || !Object.keys(out.units).length) throw new Error(`Empty parse for ${key}`);
+            const durationContexts=Object.values(out.contexts).filter(c=>c.periodStart&&c.periodEnd);
+            const instantContexts=Object.values(out.contexts).filter(c=>c.instant);
+            const facts=out.facts.filter(f=>candidates.some(c=>f.concept.toLowerCase().endsWith(':'+c.toLowerCase()) || f.concept.toLowerCase()===c.toLowerCase()));
+            outputs[key]={metadata:meta[key],bytes:Buffer.byteLength(xml),contexts:out.contextCount,factCount:out.factCount,units:out.units,warnings:out.warnings,durationContexts,instantContexts,candidateFacts:facts.map(f=>({...f,context:out.contexts[f.contextRef]??null,unitMeasures:f.unitRef?out.units[f.unitRef]??null:null}))};
+          }
+          const currentPeriodFacts=outputs.current.candidateFacts.filter(f=>f.context?.periodEnd==='2026-09-30' && f.context?.periodStart);
+          const priorPeriodFacts=outputs.prior.candidateFacts.filter(f=>f.context?.periodEnd==='2025-09-30' && f.context?.periodStart);
+          const compact=(f)=>({concept:f.concept,periodStart:f.context?.periodStart,periodEnd:f.context?.periodEnd,instant:f.context?.instant,dimensions:f.context?.dimensions??[],unit:f.unitMeasures,rawValue:f.rawValue,numericValue:f.numericValue,isNil:f.isNil});
+          const currentFacts=currentPeriodFacts.map(compact);
+          const priorFacts=priorPeriodFacts.map(compact);
+          const periodShape=(f)=>[f.periodStart?.slice(5),f.periodEnd?.slice(5)];
+          const index=(arr)=>new Map(arr.map(f=>[JSON.stringify([f.concept,periodShape(f),f.dimensions,f.unit]),f]));
+          const a=index(currentFacts), b=index(priorFacts);
+          const keys=[...new Set([...a.keys(),...b.keys()])];
+          const matched=keys.filter(k=>a.has(k)&&b.has(k));
+          const comparison=matched.map(k=>({key:JSON.parse(k),currentFilingComparative:a.get(k),priorOriginal:b.get(k),sameRawValue:a.get(k).rawValue===b.get(k).rawValue,sameNumericValue:a.get(k).numericValue===b.get(k).numericValue}));
+          const growthChecks=comparison.filter(x=>['in-capmkt:RevenueFromOperations','in-capmkt:ProfitLossForPeriod'].includes(x.currentFilingComparative.concept)).map(x=>({concept:x.currentFilingComparative.concept,periodShape:x.key[1],currentValueINR:x.currentFilingComparative.numericValue,priorValueINR:x.priorOriginal.numericValue,mechanicalYoYChangePercent:x.priorOriginal.numericValue!==0?Number(((x.currentFilingComparative.numericValue/x.priorOriginal.numericValue-1)*100).toFixed(2)):null,interpretation:'Mechanical same-concept YoY only; not a certified comparable-growth conclusion'}));
+          const mainResultsPbtByShape={};
+          const segmentResultsPbtByShape={};
+          const associatesShareByShape={};
+          const pbtReconciliation=comparison.filter(x=>x.currentFilingComparative.concept==='in-capmkt:ProfitBeforeTax').map(x=>{const shape=x.key[1].join('|');const main=mainResultsPbtByShape[shape];const segment=segmentResultsPbtByShape[shape];const associates=associatesShareByShape[shape];const candidate=x.currentFilingComparative.numericValue;return {periodShape:x.key[1],xbrlCandidateCurrentINR:candidate,mainFinancialResultsPbtINR:main,segmentResultsPbtINR:segment,associatesShareIncludedInSegmentBridgeINR:associates,matchesMainResults:main!==undefined&&candidate===main,segmentBridgeReconciles:segment!==undefined&&main+associates===segment,status:'DEFINITION_VARIANT_REQUIRES_POLICY',metricMappingApproved:false};});
+          const revisionGatePassed=pair.revisionHistories.paginationComplete
+            && pair.revisionHistories.current.status==='ORIGINAL_ONLY'
+            && pair.revisionHistories.prior.status==='ORIGINAL_ONLY';
+          const sevenMetricXbrlPipeline=revisionGatePassed ? buildSevenMetricXbrlPipeline('NON_FINANCIAL',
+            {extraction:parsedByKey.current,periodType:'YTD',periodStart:'2026-04-01',periodEnd:'2026-09-30',basis:'CONSOLIDATED',filingBasis:'CONSOLIDATED'},
+            {extraction:parsedByKey.prior,periodType:'YTD',periodStart:'2025-04-01',periodEnd:'2025-09-30',basis:'CONSOLIDATED',filingBasis:'CONSOLIDATED'},
+            {revenue:'in-capmkt:RevenueFromOperations',profit:'in-capmkt:ProfitLossForPeriod',operatingCashFlow:'in-capmkt:CashFlowsFromUsedInOperatingActivities'}) : null;
+          const pipelineStatus=revisionGatePassed?'CANDIDATE_ONLY':'REVISION_REVIEW_REQUIRED';
+
+          if (matched.length===0) throw new Error('No exact prior-year concept/period/dimension/unit keys matched; issuer taxonomy mapping requires review');
+          const report={status:'ASIANPAINT_XBRL_PARSE_AND_PERIOD_MATCH_RESEARCH_ONLY',revisionHistories:pair.revisionHistories,pipelineStatus,sevenMetricXbrlPipeline,company:'ASIANPAINT Limited',symbol:'ASIANPAINT',basis:'Consolidated',periodEndCurrent:'2026-09-30',periodEndPrior:'2025-09-30',files:outputs,priorPeriodCandidateFactCounts:{currentYearQuarterAndYtdFacts:currentFacts.length,priorYearOriginalQuarterAndYtdFacts:priorFacts.length},matchedFactCount:matched.length,unmatchedKeyCount:keys.length-matched.length,matchedComparisons:comparison,growthChecks,pbtReconciliation,note:'Current 2026 duration facts are matched to the 2025 original filing by concept, matching calendar period shape (quarter or YTD), dimensions and unit. Growth percentages are mechanical only. ASIANPAINT disclosures about acquisitions and GST/cess changes mean comparability must be qualified before interpreting growth.'};
+          fs.writeFileSync('artifacts/ASIANPAINT_prior_year_comparison.json',JSON.stringify(report,null,2));
+          console.log(JSON.stringify({status:report.status,files:Object.fromEntries(Object.entries(outputs).map(([k,v])=>[k,{seqId:v.metadata.seq_Id,broadcast:v.metadata.broadcast_Date,contexts:v.contexts,facts:v.factCount,warnings:v.warnings.length}])),priorPeriodCandidateFactCounts:report.priorPeriodCandidateFactCounts,matchedFactCount:report.matchedFactCount,unmatchedKeyCount:report.unmatchedKeyCount,growthChecks,revisionHistories:pair.revisionHistories,pipelineStatus,sevenMetricXbrlPipeline:sevenMetricXbrlPipeline?{currentSelections:Object.fromEntries(Object.entries(sevenMetricXbrlPipeline.currentSelections).map(([k,v])=>[k,v.status])),priorSelections:Object.fromEntries(Object.entries(sevenMetricXbrlPipeline.priorSelections).map(([k,v])=>[k,v.status])),candidates:sevenMetricXbrlPipeline.candidateReport.candidates,auditMatrix:sevenMetricXbrlPipeline.candidateReport.auditMatrix}:null},null,2));
+          JS
+      - name: Upload original and prior-year comparison artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nse-asianpaints-prior-year-xbrl-comparison
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 7
