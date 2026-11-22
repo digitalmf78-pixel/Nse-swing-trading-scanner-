@@ -5,14 +5,14 @@ const root = process.cwd();
 const warnings = [];
 const errors = [];
 const report = [];
-const add = (label, value) => report.push(\`- \${label}: \${value}\`);
+const add = (label, value) => report.push(`- ${label}: ${value}`);
 const warn = (message) => warnings.push(message);
 const fail = (message) => errors.push(message);
 
 function readText(relativePath) {
   const fullPath = path.join(root, relativePath);
   if (!fs.existsSync(fullPath)) {
-    fail(\`Missing required file: \${relativePath}\`);
+    fail(`Missing required file: ${relativePath}`);
     return '';
   }
   return fs.readFileSync(fullPath, 'utf8');
@@ -57,7 +57,7 @@ function bhavDate(value) {
   const m = value.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{4})$/);
   if (!m) return '';
   const months = { jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12' };
-  return months[m[2].toLowerCase()] ? \`\${m[3]}-\${months[m[2].toLowerCase()]}-\${m[1].padStart(2,'0')}\` : '';
+  return months[m[2].toLowerCase()] ? `${m[3]}-${months[m[2].toLowerCase()]}-${m[1].padStart(2,'0')}` : '';
 }
 function istToday() {
   return new Intl.DateTimeFormat('en-CA', { timeZone:'Asia/Kolkata', year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date());
@@ -68,7 +68,7 @@ function expectedSessions(calendar, count = 5) {
     for (const d of year.holidays || []) holidays.add(d);
     for (const d of Object.keys(year.special_sessions || {})) special.add(d);
   }
-  const dates = [], cursor = new Date(\`\${istToday()}T00:00:00Z\`);
+  const dates = [], cursor = new Date(`${istToday()}T00:00:00Z`);
   for (let i = 0; i < 370 && dates.length < count; i++) {
     const d = cursor.toISOString().slice(0,10), day = cursor.getUTCDay(), isSpecial = special.has(d);
     if ((day !== 0 && day !== 6 || isSpecial) && (!holidays.has(d) || isSpecial)) dates.push(d);
@@ -87,20 +87,20 @@ else {
   const headers = new Set(Object.keys(fundamental[0]));
   const required = ['TckrSymb','AsOfDate','FinancialPeriodEnd','RevenueGrowthPct','ProfitGrowthPct','ROEPercent','ROCEPercent','DebtToEquity','InterestCoverage','OperatingCashFlowINR','FreeCashFlowINR'];
   const missing = required.filter((h) => !headers.has(h));
-  if (missing.length) fail(\`Fundamental CSV missing required columns: \${missing.join(', ')}\`);
+  if (missing.length) fail(`Fundamental CSV missing required columns: ${missing.join(', ')}`);
   const symbols = fundamental.map((r) => r.TckrSymb).filter(Boolean);
   const dupes = symbols.length - new Set(symbols).size;
-  if (dupes) warn(\`Fundamental CSV has \${dupes} duplicate ticker rows.\`);
+  if (dupes) warn(`Fundamental CSV has ${dupes} duplicate ticker rows.`);
   const missingDateColumns = fundamentalDateFields.filter((h) => !headers.has(h));
   const dateCoverage = Object.fromEntries(fundamentalDateFields.map((h) => [h, fundamental.filter((r) => Boolean(r[h])).length]));
-  if (missingDateColumns.length) warn(\`Fundamental CSV lacks per-metric period-date columns: \${missingDateColumns.join(', ')}.\`);
+  if (missingDateColumns.length) warn(`Fundamental CSV lacks per-metric period-date columns: ${missingDateColumns.join(', ')}.`);
   const unknownBasis = fundamental.filter((r) => r.MetricCalculationBasis === 'LEGACY_CACHE_BASIS_UNKNOWN').length;
-  if (unknownBasis) warn(\`\${unknownBasis} rows have LEGACY_CACHE_BASIS_UNKNOWN calculation basis.\`);
+  if (unknownBasis) warn(`${unknownBasis} rows have LEGACY_CACHE_BASIS_UNKNOWN calculation basis.`);
   const ic999 = fundamental.filter((r) => num(r.InterestCoverage) === 999).length;
-  if (ic999) warn(\`\${ic999} rows have InterestCoverage=999; verify whether this is a provider sentinel.\`);
+  if (ic999) warn(`${ic999} rows have InterestCoverage=999; verify whether this is a provider sentinel.`);
   const yieldOver100 = fundamental.filter((r) => (num(r.DividendYieldPct) ?? 0) > 100).length;
-  if (yieldOver100) warn(\`\${yieldOver100} rows have DividendYieldPct above 100; review provider scaling.\`);
-  add('Fundamental rows / unique tickers', \`\${fundamental.length} / \${new Set(symbols).size}\`);
+  if (yieldOver100) warn(`${yieldOver100} rows have DividendYieldPct above 100; review provider scaling.`);
+  add('Fundamental rows / unique tickers', `${fundamental.length} / ${new Set(symbols).size}`);
   add('Fundamental latest AsOfDate', maxDate(fundamental.map((r) => r.AsOfDate)));
   add('Fundamental latest FinancialPeriodEnd', maxDate(fundamental.map((r) => r.FinancialPeriodEnd)));
   add('Per-metric period-date population', JSON.stringify(dateCoverage));
@@ -111,13 +111,13 @@ if (thresholdText) {
   try {
     const t = JSON.parse(thresholdText);
     for (const k of ['min_revenue_growth_pct','min_profit_growth_pct','min_roe_pct','min_roce_pct','max_debt_to_equity','min_interest_coverage','max_data_age_days']) {
-      if (!Number.isFinite(Number(t[k]))) fail(\`Invalid numeric threshold: \${k}\`);
+      if (!Number.isFinite(Number(t[k]))) fail(`Invalid numeric threshold: ${k}`);
     }
     for (const k of ['require_positive_operating_cash_flow','require_positive_free_cash_flow']) {
-      if (typeof t[k] !== 'boolean') fail(\`Threshold must be boolean: \${k}\`);
+      if (typeof t[k] !== 'boolean') fail(`Threshold must be boolean: ${k}`);
     }
     add('Fundamental thresholds', 'valid JSON and required field types');
-  } catch (e) { fail(\`Invalid fundamental_thresholds.json: \${e.message}\`); }
+  } catch (e) { fail(`Invalid fundamental_thresholds.json: ${e.message}`); }
 }
 
 const overrideText = readText('data/research/live_fundamental_overrides.json');
@@ -130,7 +130,7 @@ if (overrideText) {
     add('Live override records', rows.length);
     add('Live overrides latest AsOfDate', maxDate(rows.map((r) => r.asOfDate || '')));
     add('Live override period-date population', JSON.stringify(dateCoverage));
-  } catch (e) { fail(\`Invalid live_fundamental_overrides.json: \${e.message}\`); }
+  } catch (e) { fail(`Invalid live_fundamental_overrides.json: ${e.message}`); }
 }
 
 const deliveryDir = path.join(root,'data','cache','delivery');
@@ -138,7 +138,7 @@ const deliveryFiles = fs.existsSync(deliveryDir) ? fs.readdirSync(deliveryDir)
   .filter((f) => /^sec_bhavdata_full_\d{8}\.csv$/i.test(f))
   .map((filename) => {
     const m = filename.match(/_(\d{2})(\d{2})(\d{4})\.csv$/i);
-    return { filename, date: m ? \`\${m[3]}-\${m[2]}-\${m[1]}\` : '' };
+    return { filename, date: m ? `${m[3]}-${m[2]}-${m[1]}` : '' };
   }).filter((x) => x.date).sort((a,b) => a.date.localeCompare(b.date)) : [];
 if (!deliveryFiles.length) fail('No delivery bhavcopy CSV files found.');
 else {
@@ -147,10 +147,10 @@ else {
   let expected = [];
   if (calendarText) {
     try { expected = expectedSessions(JSON.parse(calendarText), 5); }
-    catch (e) { fail(\`Invalid NSE trading calendar: \${e.message}\`); }
+    catch (e) { fail(`Invalid NSE trading calendar: ${e.message}`); }
   }
   const missing = expected.filter((d) => !allDates.includes(d));
-  if (missing.length) warn(\`Delivery bhavcopy missing recent expected sessions: \${missing.join(', ')}.\`);
+  if (missing.length) warn(`Delivery bhavcopy missing recent expected sessions: ${missing.join(', ')}.`);
   let totalRows = 0, invalidPct = 0, qtyExceeds = 0, duplicateKeys = 0, badDates = 0;
   for (const file of deliveryFiles) {
     const rows = parseCsv(fs.readFileSync(path.join(deliveryDir,file.filename),'utf8'));
@@ -159,7 +159,7 @@ else {
     for (const r of rows) {
       const d = bhavDate(r.DATE1 || '');
       if (!d || d !== file.date) badDates++;
-      const key = \`\${r.SYMBOL}|\${r.SERIES}|\${d}\`;
+      const key = `${r.SYMBOL}|${r.SERIES}|${d}`;
       if (seen.has(key)) duplicateKeys++;
       seen.add(key);
       const pct = num(r.DELIV_PER), dq = num(r.DELIV_QTY), tq = num(r.TTL_TRD_QNTY);
@@ -167,27 +167,27 @@ else {
       if (dq !== null && tq !== null && dq > tq) qtyExceeds++;
     }
   }
-  if (invalidPct) warn(\`\${invalidPct} delivery rows have DELIV_PER outside 0-100.\`);
-  if (qtyExceeds) warn(\`\${qtyExceeds} rows have DELIV_QTY greater than TTL_TRD_QNTY.\`);
-  if (duplicateKeys) warn(\`\${duplicateKeys} duplicate SYMBOL/SERIES/DATE1 rows found.\`);
-  if (badDates) warn(\`\${badDates} delivery rows have missing or filename-mismatched DATE1.\`);
-  add('Delivery files / total rows', \`\${deliveryFiles.length} / \${totalRows}\`);
+  if (invalidPct) warn(`${invalidPct} delivery rows have DELIV_PER outside 0-100.`);
+  if (qtyExceeds) warn(`${qtyExceeds} rows have DELIV_QTY greater than TTL_TRD_QNTY.`);
+  if (duplicateKeys) warn(`${duplicateKeys} duplicate SYMBOL/SERIES/DATE1 rows found.`);
+  if (badDates) warn(`${badDates} delivery rows have missing or filename-mismatched DATE1.`);
+  add('Delivery files / total rows', `${deliveryFiles.length} / ${totalRows}`);
   add('Latest delivery date', allDates.at(-1));
   add('Expected last 5 sessions', expected.join(', '));
   add('Missing recent sessions', missing.length ? missing.join(', ') : 'None');
-  add('Delivery row checks', \`invalid %=\${invalidPct}; qty>traded=\${qtyExceeds}; duplicate keys=\${duplicateKeys}; bad dates=\${badDates}\`);
+  add('Delivery row checks', `invalid %=${invalidPct}; qty>traded=${qtyExceeds}; duplicate keys=${duplicateKeys}; bad dates=${badDates}`);
 }
 
 const streakRows = parseCsv(readText('data/cache/delivery/v8_delivery_scan_streak_state.csv'));
 const streakDate = maxDate(streakRows.map((r) => r.LastScanDate));
 const latestDelivery = deliveryFiles.map((x) => x.date).sort().at(-1) || '';
-if (streakDate && latestDelivery && streakDate < latestDelivery) warn(\`Streak state is behind delivery files: \${streakDate} vs \${latestDelivery}.\`);
-add('Streak-state rows / latest scan date', \`\${streakRows.length} / \${streakDate || 'missing'}\`);
+if (streakDate && latestDelivery && streakDate < latestDelivery) warn(`Streak state is behind delivery files: ${streakDate} vs ${latestDelivery}.`);
+add('Streak-state rows / latest scan date', `${streakRows.length} / ${streakDate || 'missing'}`);
 
-report.push('', \`Warnings (\${warnings.length}):\`, ...(warnings.length ? warnings.map((x) => \`- WARNING: \${x}\`) : ['- None']));
-report.push('', \`Errors (\${errors.length}):\`, ...(errors.length ? errors.map((x) => \`- ERROR: \${x}\`) : ['- None']));
+report.push('', `Warnings (${warnings.length}):`, ...(warnings.length ? warnings.map((x) => `- WARNING: ${x}`) : ['- None']));
+report.push('', `Errors (${errors.length}):`, ...(errors.length ? errors.map((x) => `- ERROR: ${x}`) : ['- None']));
 report.push('', 'Read-only audit: no scanner filters, scoring, ranking, cache data, or market records are modified.');
-const output = \`# NSE Scanner Data Audit\n\n- Audit time UTC: \${new Date().toISOString()}\n- Branch: \${process.env.GITHUB_REF_NAME || 'local'}\n- Commit: \${process.env.GITHUB_SHA || 'unknown'}\n\n\${report.join('\n')}\n\`;
+const output = `# NSE Scanner Data Audit\n\n- Audit time UTC: ${new Date().toISOString()}\n- Branch: ${process.env.GITHUB_REF_NAME || 'local'}\n- Commit: ${process.env.GITHUB_SHA || 'unknown'}\n\n${report.join('\n')}\n`;
 const outDir = path.join(root,'validation-artifact');
 fs.mkdirSync(outDir,{recursive:true});
 fs.writeFileSync(path.join(outDir,'data-audit-report.md'),output,'utf8');
