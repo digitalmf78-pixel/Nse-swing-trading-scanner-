@@ -789,16 +789,12 @@ async function fetchAndParseNseXbrl(filing: XbrlFiling): Promise<ParsedXbrlMetri
     }
   }
 
-  const firstVal = (m: Map<string, number>): number | null => {
-    for (const v of m.values()) return v;
-    return null;
-  };
-
-  const rawDe = currQtr && deMap.has(currQtr.id) ? deMap.get(currQtr.id)! : firstVal(deMap);
+  // Ratios must come from the selected current-quarter context.
+  // Falling back to the first XML value can silently select an older/comparative period.
+  const rawDe = currQtr ? (deMap.get(currQtr.id) ?? null) : null;
   const debtToEquity = rawDe !== null && rawDe >= 0 ? rawDe : null;
 
-  let interestCoverage =
-    currQtr && icMap.has(currQtr.id) ? icMap.get(currQtr.id)! : firstVal(icMap);
+  let interestCoverage = currQtr ? (icMap.get(currQtr.id) ?? null) : null;
   if (interestCoverage === null || interestCoverage <= 0.1) {
     let computedIc: number | null = null;
     if (currQtr) {
