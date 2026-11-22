@@ -134,3 +134,5 @@ jobs:
           path: artifacts/
           if-no-files-found: error
           retention-days: 7
+
+# Revision comparison intentionally preserves original and revised payloads separately.
