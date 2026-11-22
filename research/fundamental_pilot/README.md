@@ -5,6 +5,7 @@ This folder is isolated from the scanner runtime. The intended production implem
 ## Current TypeScript extractor
 
 - `xbrl_extract.ts` extracts raw XBRL/iXBRL facts, contexts, entity identifiers, periods, dimensions, units, nil flags, decimals, inline scale/sign, and basic inline fractions.
+- `nse_filing_pair.ts` is the shared TypeScript resolver for exactly one official NSE Original filing per period and basis. It rejects ambiguous pairs, wrong basis/version, and non-official archive URLs. The ITC, HDFC Bank and KSHINTL workflows now use it instead of Python metadata selection.
 - It uses `fast-xml-parser` (MIT; TypeScript declarations; ESM/CommonJS support) and rejects DTD/entity declarations.
 - It has a 25 MB input limit and intentionally rejects ZIP input; archive decompression is a separate ingestion step.
 - It fails closed for numeric facts with missing/unresolved contexts or units, duplicate context/unit IDs, unsupported scale/sign attributes, Inline XBRL format transformations, and unresolved continuation chains. Warnings must be treated as a validation failure by the issuer-pilot workflows.
@@ -12,7 +13,7 @@ This folder is isolated from the scanner runtime. The intended production implem
 - `sector_metric_policy.test.ts` covers bank-sector exclusions and exact period/basis/group-context checks.
 - `group_fact_selection.ts` selects only one unique undimensioned group fact after exact context checks; segment facts cannot be added to manufacture a group total. Its dedicated tests cover ambiguity, wrong periods and unresolved contexts.
 - `statement_reconciliation.test.ts` covers named statement-presentation variants and fail-closed mapping decisions.
-- The isolated GitHub Actions test workflow runs every `research/fundamental_pilot/*.test.ts` file. Latest verified run: 30 tests passed, 0 failed. The package script `npm run test:fundamental-pilot` currently runs only `xbrl_extract.test.ts`, not the complete research test suite.
+- The isolated GitHub Actions test workflow runs every `research/fundamental_pilot/*.test.ts` file. Latest verified run: 41 tests passed, 0 failed. The package script `npm run test:fundamental-pilot` currently runs only `xbrl_extract.test.ts`, not the complete research test suite.
 
 ## Sector and context safety gates
 
