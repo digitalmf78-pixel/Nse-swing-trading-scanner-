@@ -1,0 +1,157 @@
+name: NSE ARSSINFRA original revision XBRL comparison
+
+on:
+  push:
+    branches:
+      - research/free-fundamental-sources
+    paths:
+      - ".github/workflows/nse-arssinfra-revision-pair-pilot.yml"
+      - "research/fundamental_pilot/xbrl_extract.ts"
+      - "research/fundamental_pilot/nse_revision_pair.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  revision-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/free-fundamental-sources
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install isolated parser dependency
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/xbrl-deps" --no-save --no-package-lock fast-xml-parser@5.12.1
+          mkdir -p node_modules
+          ln -s "$RUNNER_TEMP/xbrl-deps/node_modules/fast-xml-parser" node_modules/fast-xml-parser
+      - name: Resolve exact official NSE original and revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          curl --fail --location --show-error --retry 3 --retry-all-errors --retry-delay 2 \
+            --connect-timeout 20 --max-time 120 \
+            --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36" \
+            --referer "https://www.nseindia.in/companies-listing/corporate-integrated-filing" \
+            --header "Accept: application/json, text/plain, */*" \
+            --get "https://www.nseindia.in/api/integrated-filing-results" \
+            --data-urlencode "index=equities" --data-urlencode "symbol=ARSSINFRA" \
+            --data-urlencode "type=Integrated Filing- Financials" --data-urlencode "page=1" \
+            --data-urlencode "size=100" --output artifacts/ARSSINFRA_integrated_filing_api.json
+          node --experimental-strip-types --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import { resolveOriginalRevisionHistory } from './research/fundamental_pilot/nse_revision_pair.ts';
+          const rows=JSON.parse(fs.readFileSync('artifacts/ARSSINFRA_integrated_filing_api.json','utf8')).data ?? [];
+          const history=resolveOriginalRevisionHistory(rows,{symbol:'ARSSINFRA',period:'30-JUN-2026',basis:'Standalone'});
+          const fields=['symbol','smName','seq_Id','qe_Date','type','type_Sub','audited','consolidated','broadcast_Date','creation_Date','revised_Date','revision_Remark','ixbrl','xbrl'];
+          const toMetadata=row=>Object.fromEntries(fields.map(field=>[field,row[field] ?? null]));
+          const metadata={original:toMetadata(history.original),revisionKinds:[],revisions:[]};
+          fs.writeFileSync('artifacts/ARSSINFRA_original_xbrl_url.txt',history.original.xbrl);
+          history.revisions.forEach((row,index)=>{
+            const kind=`revision_${index+1}`;
+            metadata.revisionKinds.push(kind);
+            metadata.revisions.push({kind,...toMetadata(row)});
+            fs.writeFileSync(`artifacts/ARSSINFRA_${kind}_xbrl_url.txt`,row.xbrl);
+          });
+          fs.writeFileSync('artifacts/ARSSINFRA_revision_kinds.txt',metadata.revisionKinds.join('\n')+'\n');
+          fs.writeFileSync('artifacts/ARSSINFRA_pair_metadata.json',JSON.stringify(metadata,null,2));
+          console.log(JSON.stringify(metadata,null,2));
+          JS
+      - name: Download both official XBRL instances
+        shell: bash
+        run: |
+          set -euo pipefail
+          ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36"
+          mapfile -t revision_kinds < artifacts/ARSSINFRA_revision_kinds.txt
+          for kind in original "${revision_kinds[@]}"; do
+            xbrl_url="$(cat "artifacts/ARSSINFRA_${kind}_xbrl_url.txt")"
+            cookie_jar="artifacts/arssinfra-${kind}-cookies.txt"
+            downloaded=""
+            for site in www.nseindia.in www.nseindia.com; do
+              curl --silent --show-error --location --max-time 60 --user-agent "$ua" --cookie-jar "$cookie_jar" --output /dev/null "https://$site/companies-listing/corporate-integrated-filing" || true
+              out="artifacts/${site}-arssinfra-${kind}.response"
+              curl --silent --show-error --location --max-time 120 --user-agent "$ua" --cookie "$cookie_jar" \
+                --referer "https://$site/companies-listing/corporate-integrated-filing" \
+                --header "Accept: application/xml,text/xml,*/*" --get "https://$site/api/download_xbrl" \
+                --data-urlencode "fileUrl=$xbrl_url" --output "$out" || true
+              if grep -Eqi '<([[:alnum:]_]+:)?xbrl([ >])' "$out"; then cp "$out" "artifacts/ARSSINFRA_${kind}.xml"; downloaded=yes; break; fi
+            done
+            if [ -z "$downloaded" ]; then
+              for host in nsearchives.nseindia.in nsearchives.nseindia.com; do
+                out="artifacts/${host}-arssinfra-${kind}.response"
+                curl --silent --show-error --location --max-time 120 --user-agent "$ua" --cookie "$cookie_jar" \
+                  --referer "https://www.nseindia.in/companies-listing/corporate-integrated-filing" \
+                  --header "Accept: application/xml,text/xml,application/octet-stream,*/*" \
+                  --output "$out" "https://$host/corporate/xbrl/${xbrl_url##*/}" || true
+                if grep -Eqi '<([[:alnum:]_]+:)?xbrl([ >])' "$out"; then cp "$out" "artifacts/ARSSINFRA_${kind}.xml"; downloaded=yes; break; fi
+              done
+            fi
+            if [ -z "$downloaded" ]; then echo "Unable to download ARSSINFRA $kind XBRL" >&2; exit 1; fi
+            sha256sum "artifacts/ARSSINFRA_${kind}.xml" | tee "artifacts/ARSSINFRA_${kind}_SHA256.txt"
+          done
+      - name: Parse and compare original versus revision facts without overwriting
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import { extractXbrl } from './research/fundamental_pilot/xbrl_extract.ts';
+          const metadata=JSON.parse(fs.readFileSync('artifacts/ARSSINFRA_pair_metadata.json','utf8'));
+          const kinds=['original',...metadata.revisionKinds];
+          const parsed={};
+          for(const kind of kinds){
+            const xml=fs.readFileSync(`artifacts/ARSSINFRA_${kind}.xml`,'utf8');
+            const out=extractXbrl(xml);
+            if(!out.contextCount||!out.factCount||!Object.keys(out.units).length) throw new Error(`Empty parse for ${kind}`);
+            const facts=out.facts.flatMap(f=>{
+              const ctx=f.contextRef?out.contexts[f.contextRef]:null;
+              if(!ctx) return [];
+              return [{concept:f.concept,periodStart:ctx.periodStart,periodEnd:ctx.periodEnd,instant:ctx.instant,dimensions:[...ctx.dimensions].sort(),unit:f.unitRef?out.units[f.unitRef]??null:null,rawValue:f.rawValue,numericValue:f.numericValue,isNil:f.isNil}];
+            });
+            parsed[kind]={bytes:Buffer.byteLength(xml),contexts:out.contextCount,factCount:out.factCount,warnings:out.warnings,facts};
+          }
+          const key=f=>JSON.stringify([f.concept,f.periodStart,f.periodEnd,f.instant,f.dimensions,f.unit]);
+          const index=items=>{const m=new Map();for(const fact of items){const k=key(fact);if(!m.has(k))m.set(k,[]);m.get(k).push(fact);}return m;};
+          const compare=(left,right)=>{
+            const a=index(parsed[left].facts),b=index(parsed[right].facts);
+            const all=[...new Set([...a.keys(),...b.keys()])];
+            const common=all.filter(k=>a.has(k)&&b.has(k));
+            const ambiguous=common.filter(k=>a.get(k).length!==1||b.get(k).length!==1);
+            const changed=common.filter(k=>a.get(k).length===1&&b.get(k).length===1).flatMap(k=>{
+              const x=a.get(k)[0],y=b.get(k)[0];
+              return x.rawValue!==y.rawValue||x.numericValue!==y.numericValue||x.isNil!==y.isNil?[{key:JSON.parse(k),original:{rawValue:x.rawValue,numericValue:x.numericValue,isNil:x.isNil},revision:{rawValue:y.rawValue,numericValue:y.numericValue,isNil:y.isNil}}]:[];
+            });
+            return {commonFactKeys:common.length,unmatchedLeftKeys:all.filter(k=>a.has(k)&&!b.has(k)).length,unmatchedRightKeys:all.filter(k=>!a.has(k)&&b.has(k)).length,ambiguousKeys:ambiguous.length,changedCommonFacts:changed};
+          };
+          const originalMeta=metadata.original;
+          if(originalMeta.symbol!=='ARSSINFRA'||originalMeta.qe_Date!=='30-JUN-2026'||originalMeta.consolidated!=='Standalone'||originalMeta.type_Sub!=='Original') throw new Error('Original filing identity check failed');
+          const revisionReports={};
+          for(const kind of metadata.revisionKinds){
+            const meta=metadata.revisions.find(row=>row.kind===kind);
+            if(!meta||meta.symbol!=='ARSSINFRA'||meta.qe_Date!=='30-JUN-2026'||meta.consolidated!=='Standalone'||meta.type_Sub!=='Revision'||String(meta.seq_Id)===String(originalMeta.seq_Id)) throw new Error(`Revision identity check failed for ${kind}`);
+            revisionReports[kind]={sequenceId:meta.seq_Id,revisedDate:meta.revised_Date,revisionRemark:meta.revision_Remark,bytes:parsed[kind].bytes,contexts:parsed[kind].contexts,facts:parsed[kind].factCount,warnings:parsed[kind].warnings,versusOriginal:compare('original',kind)};
+          }
+          const warnings=kinds.flatMap(kind=>parsed[kind].warnings.map(w=>({kind,warning:w})));
+          const ambiguous=Object.entries(revisionReports).filter(([,r])=>r.versusOriginal.ambiguousKeys>0);
+          if(warnings.length||ambiguous.length) throw new Error('Parser warnings or ambiguous fact keys present; pair cannot be accepted');
+          const report={status:'ORIGINAL_AND_ALL_REVISIONS_PARSE_PASS',identity:{symbol:'ARSSINFRA',company:originalMeta.smName,period:'30-JUN-2026',basis:'Standalone',audit:originalMeta.audited},original:{sequenceId:originalMeta.seq_Id,broadcast:originalMeta.broadcast_Date,bytes:parsed.original.bytes,contexts:parsed.original.contexts,facts:parsed.original.factCount,warnings:parsed.original.warnings},revisions:revisionReports,revisionCount:metadata.revisionKinds.length,note:'All NSE original and revision rows are retained independently and compared to the original by concept, exact period, dimensions and unit. No latest revision is silently selected. Revision remarks and changed facts require accounting review; this parser comparison does not approve revised metric values.'};
+          fs.writeFileSync('artifacts/ARSSINFRA_original_revision_comparison.json',JSON.stringify(report,null,2));
+          console.log(JSON.stringify({status:report.status,original:report.original,revisionCount:report.revisionCount,revisions:Object.fromEntries(Object.entries(revisionReports).map(([k,v])=>[k,{sequenceId:v.sequenceId,revisedDate:v.revisedDate,revisionRemark:v.revisionRemark,commonFactKeys:v.versusOriginal.commonFactKeys,changedCommonFactCount:v.versusOriginal.changedCommonFacts.length,unmatchedLeftKeys:v.versusOriginal.unmatchedLeftKeys,unmatchedRightKeys:v.versusOriginal.unmatchedRightKeys,ambiguousKeys:v.versusOriginal.ambiguousKeys,warnings:v.warnings.length}]))},null,2));
+          JS
+      - name: Upload original and revision evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nse-arssinfra-original-revision-xbrl-pair
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 7
+
+# Revision comparison intentionally preserves original and revised payloads separately.
