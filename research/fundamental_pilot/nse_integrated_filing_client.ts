@@ -218,6 +218,15 @@ export function selectNseIssuerPeriodHistory(
         reason: `Filing sequence ${String(row.seq_Id)} has a missing or non-official XBRL/iXBRL archive URL`,
       };
     }
+    const hasTimestamp = row.type_Sub === 'Revision'
+      ? Boolean(row.revised_Date?.trim() || row.creation_Date?.trim() || row.broadcast_Date?.trim())
+      : Boolean(row.broadcast_Date?.trim() || row.creation_Date?.trim());
+    if (!hasTimestamp) {
+      return {
+        status: 'BLOCKED', original: null, revisions: [], exactDuplicateRows: 0,
+        reason: `Filing sequence ${String(row.seq_Id)} has no usable publication/revision timestamp`,
+      };
+    }
   }
 
   let deduplicated: ReturnType<typeof deduplicateRows>;
