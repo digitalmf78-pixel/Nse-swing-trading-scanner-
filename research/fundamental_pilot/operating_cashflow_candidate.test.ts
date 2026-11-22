@@ -9,7 +9,7 @@ const fact=(overrides:Partial<ComparableMetricFact>={}):ComparableMetricFact=>({
   periodType:'YTD',basis:'CONSOLIDATED',...overrides,
 });
 
-test('KSHINTL H1 OCF candidate preserves negative-to-positive direction and withholds percentage',()=>{
+test('generic OCF candidate preserves negative-to-positive direction and withholds percentage',()=>{
   const r=calculateOcfCandidate(fact({numericValue:42.571}),fact({numericValue:-45.685,periodStart:'2025-04-01',periodEnd:'2025-09-30'}));
   assert.equal(r.status,'CANDIDATE_ONLY');
   assert.equal(r.currentDirection,'POSITIVE');
