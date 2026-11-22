@@ -6,7 +6,7 @@ const metricKeys: FundamentalMetric[] = ['REVENUE_GROWTH','PROFIT_GROWTH','ROE',
 const filing = {
   exchange:'NSE' as const, symbol:'KSHINTL', isin:'INE0XYZ01000', documentId:'doc-2026', sequenceId:'209920',
   sourceUrl:'https://nsearchives.nseindia.in/corporate/xbrl/test.xml', publishedAt:'2026-11-04T21:06:19+05:30',
-  submission:'ORIGINAL' as const, auditStatus:'UNAUDITED' as const, basis:'STANDALONE' as const, periodEnd:'2026-09-30',
+  submission:'ORIGINAL' as const, revisedAt:null, revisionRemark:null, auditStatus:'UNAUDITED' as const, basis:'STANDALONE' as const, periodEnd:'2026-09-30',
 };
 const fact = {
   documentId:'doc-2026', concept:'in-capmkt:RevenueFromOperations', contextRef:'ctx-q2',
@@ -20,7 +20,7 @@ function makeProfile(): FundamentalProfile {
     formulaId:null,formulaVersion:null,validationNotes:['Awaiting source and formula validation'],
   }])) as FundamentalProfile['metrics'];
   metrics.REVENUE_GROWTH={
-    metric:'REVENUE_GROWTH',status:'VALIDATED',value:12.5,currency:'INR',unit:'PERCENT',
+    metric:'REVENUE_GROWTH',status:'VALIDATED',value:12.5,currency:null,unit:'PERCENT',
     periodType:'QUARTER',periodStart:'2026-07-01',periodEnd:'2026-09-30',
     filings:[filing],rawFacts:[fact],formulaId:'revenue-growth-yoy',formulaVersion:'1.0.0',validationNotes:[],
   };
@@ -87,4 +87,22 @@ test('rejects instant facts carrying a duration start date',()=>{
   const p=makeProfile();
   p.metrics.REVENUE_GROWTH.periodType='INSTANT';
   assert.ok(validateFundamentalProfile(p).some(x=>x.code==='INSTANT_HAS_START'));
+});
+
+test('rejects impossible calendar dates instead of normalizing them',()=>{
+  const p=makeProfile();
+  p.periodEnd='2026-02-30';
+  assert.ok(validateFundamentalProfile(p).some(x=>x.code==='INVALID_DATE'));
+});
+
+test('requires revision timestamp and remark for revision provenance',()=>{
+  const p=makeProfile();
+  p.metrics.REVENUE_GROWTH.filings[0]={...filing,submission:'REVISION',revisedAt:null,revisionRemark:null};
+  assert.ok(validateFundamentalProfile(p).some(x=>x.code==='REVISION_METADATA_REQUIRED'));
+});
+
+test('rejects currency labels on percentage metrics',()=>{
+  const p=makeProfile();
+  p.metrics.REVENUE_GROWTH.currency='INR';
+  assert.ok(validateFundamentalProfile(p).some(x=>x.code==='CURRENCY_UNIT_MISMATCH'));
 });
