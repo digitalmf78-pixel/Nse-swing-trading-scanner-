@@ -3,6 +3,7 @@ import express from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
 import { nsePipeline } from './server/nsePipeline.ts';
+import { collectNseFilingHistoryForSymbols } from './server/nseFilingHistoryCache.ts';
 import { evaluateRiskControls } from './server/riskControls.ts';
 import { runEcmsGeminiResearch } from './server/geminiResearch.ts';
 import {
@@ -489,6 +490,15 @@ async function startServer() {
             : 'MISSING_OR_OLD';
 
         const targets = nsePipeline.getAuditCollectionTargets(scope);
+        if (scope === 'BHAVCOPY') {
+          const report = await collectNseFilingHistoryForSymbols(targets);
+          return res.json({
+            started: false,
+            mode: 'NSE_OFFICIAL_FILING_HISTORY_ONLY',
+            ...report,
+            note: 'Official NSE filing metadata is staged separately; no Yahoo fundamental values are written to the main cache.',
+          });
+        }
         if (targets.length === 0) {
           return res.json({
             started: false,
@@ -584,6 +594,15 @@ async function startServer() {
       const limit = Number.isFinite(limitNum) && limitNum > 0 ? Math.min(3000, limitNum) : undefined;
 
       const targets = nsePipeline.getAuditCollectionTargets(scope, limit);
+      if (scope === 'BHAVCOPY') {
+        const report = await collectNseFilingHistoryForSymbols(targets);
+        return res.json({
+          running: false,
+          mode: 'NSE_OFFICIAL_FILING_HISTORY_ONLY',
+          ...report,
+          note: 'Official NSE filing metadata is staged separately; no Yahoo fundamental values are written to the main cache.',
+        });
+      }
       if (targets.length === 0) {
         return res.json({
           ...getCollectionJobStatus(),
