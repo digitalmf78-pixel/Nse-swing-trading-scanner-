@@ -1,0 +1,136 @@
+name: NSE GAIL original revision XBRL comparison
+
+on:
+  push:
+    branches:
+      - research/free-fundamental-sources
+    paths:
+      - ".github/workflows/nse-gail-revision-pair-pilot.yml"
+      - "research/fundamental_pilot/xbrl_extract.ts"
+      - "research/fundamental_pilot/nse_revision_pair.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  revision-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/free-fundamental-sources
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install isolated parser dependency
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/xbrl-deps" --no-save --no-package-lock fast-xml-parser@5.12.1
+          mkdir -p node_modules
+          ln -s "$RUNNER_TEMP/xbrl-deps/node_modules/fast-xml-parser" node_modules/fast-xml-parser
+      - name: Resolve exact official NSE original and revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          curl --fail --location --show-error --retry 3 --retry-all-errors --retry-delay 2 \
+            --connect-timeout 20 --max-time 120 \
+            --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36" \
+            --referer "https://www.nseindia.in/companies-listing/corporate-integrated-filing" \
+            --header "Accept: application/json, text/plain, */*" \
+            --get "https://www.nseindia.in/api/integrated-filing-results" \
+            --data-urlencode "index=equities" --data-urlencode "symbol=GAIL" \
+            --data-urlencode "type=Integrated Filing- Financials" --data-urlencode "page=1" \
+            --data-urlencode "size=100" --output artifacts/GAIL_integrated_filing_api.json
+          node --experimental-strip-types --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import { resolveOriginalRevisionPair } from './research/fundamental_pilot/nse_revision_pair.ts';
+          const rows=JSON.parse(fs.readFileSync('artifacts/GAIL_integrated_filing_api.json','utf8')).data ?? [];
+          const pair=resolveOriginalRevisionPair(rows,{symbol:'GAIL',period:'30-JUN-2026',basis:'Consolidated'});
+          const metadata={};
+          for (const [kind,row] of Object.entries(pair)) {
+            metadata[kind]=Object.fromEntries(['symbol','smName','seq_Id','qe_Date','type','type_Sub','audited','consolidated','broadcast_Date','creation_Date','revised_Date','revision_Remark','ixbrl','xbrl'].map(field=>[field,row[field] ?? null]));
+            fs.writeFileSync(`artifacts/GAIL_${kind}_xbrl_url.txt`,row.xbrl);
+          }
+          fs.writeFileSync('artifacts/GAIL_pair_metadata.json',JSON.stringify(metadata,null,2));
+          console.log(JSON.stringify(metadata,null,2));
+          JS
+      - name: Download both official XBRL instances
+        shell: bash
+        run: |
+          set -euo pipefail
+          ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36"
+          for kind in original revision; do
+            xbrl_url="$(cat "artifacts/GAIL_${kind}_xbrl_url.txt")"
+            cookie_jar="artifacts/gail-${kind}-cookies.txt"
+            downloaded=""
+            for site in www.nseindia.in www.nseindia.com; do
+              curl --silent --show-error --location --max-time 60 --user-agent "$ua" --cookie-jar "$cookie_jar" --output /dev/null "https://$site/companies-listing/corporate-integrated-filing" || true
+              out="artifacts/${site}-gail-${kind}.response"
+              curl --silent --show-error --location --max-time 120 --user-agent "$ua" --cookie "$cookie_jar" \
+                --referer "https://$site/companies-listing/corporate-integrated-filing" \
+                --header "Accept: application/xml,text/xml,*/*" --get "https://$site/api/download_xbrl" \
+                --data-urlencode "fileUrl=$xbrl_url" --output "$out" || true
+              if grep -Eqi '<([[:alnum:]_]+:)?xbrl([ >])' "$out"; then cp "$out" "artifacts/GAIL_${kind}.xml"; downloaded=yes; break; fi
+            done
+            if [ -z "$downloaded" ]; then
+              for host in nsearchives.nseindia.in nsearchives.nseindia.com; do
+                out="artifacts/${host}-gail-${kind}.response"
+                curl --silent --show-error --location --max-time 120 --user-agent "$ua" --cookie "$cookie_jar" \
+                  --referer "https://www.nseindia.in/companies-listing/corporate-integrated-filing" \
+                  --header "Accept: application/xml,text/xml,application/octet-stream,*/*" \
+                  --output "$out" "https://$host/corporate/xbrl/${xbrl_url##*/}" || true
+                if grep -Eqi '<([[:alnum:]_]+:)?xbrl([ >])' "$out"; then cp "$out" "artifacts/GAIL_${kind}.xml"; downloaded=yes; break; fi
+              done
+            fi
+            if [ -z "$downloaded" ]; then echo "Unable to download GAIL $kind XBRL" >&2; exit 1; fi
+            sha256sum "artifacts/GAIL_${kind}.xml" | tee "artifacts/GAIL_${kind}_SHA256.txt"
+          done
+      - name: Parse and compare original versus revision facts without overwriting
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import { extractXbrl } from './research/fundamental_pilot/xbrl_extract.ts';
+          const metadata=JSON.parse(fs.readFileSync('artifacts/GAIL_pair_metadata.json','utf8'));
+          const parsed={};
+          for(const kind of ['original','revision']){
+            const xml=fs.readFileSync(`artifacts/GAIL_${kind}.xml`,'utf8');
+            const out=extractXbrl(xml);
+            if(!out.contextCount||!out.factCount||!Object.keys(out.units).length) throw new Error(`Empty parse for ${kind}`);
+            const facts=out.facts.flatMap(f=>{
+              const c=f.contextRef?out.contexts[f.contextRef]:null;
+              if(!c) return [];
+              return [{concept:f.concept,periodStart:c.periodStart,periodEnd:c.periodEnd,instant:c.instant,dimensions:[...c.dimensions].sort(),unit:f.unitRef?out.units[f.unitRef]??null:null,rawValue:f.rawValue,numericValue:f.numericValue,isNil:f.isNil,contextRef:f.contextRef}];
+            });
+            parsed[kind]={metadata:metadata[kind],bytes:Buffer.byteLength(xml),contexts:out.contextCount,factCount:out.factCount,warnings:out.warnings,facts};
+          }
+          const key=f=>JSON.stringify([f.concept,f.periodStart,f.periodEnd,f.instant,f.dimensions,f.unit]);
+          const index=items=>{const m=new Map();for(const f of items){const k=key(f);if(!m.has(k))m.set(k,[]);m.get(k).push(f);}return m;};
+          const a=index(parsed.original.facts),b=index(parsed.revision.facts);
+          const allKeys=[...new Set([...a.keys(),...b.keys()])];
+          const common=allKeys.filter(k=>a.has(k)&&b.has(k));
+          const ambiguous=common.filter(k=>a.get(k).length!==1||b.get(k).length!==1);
+          const changed=common.filter(k=>a.get(k).length===1&&b.get(k).length===1).flatMap(k=>{
+            const x=a.get(k)[0],y=b.get(k)[0];
+            return x.rawValue!==y.rawValue||x.numericValue!==y.numericValue||x.isNil!==y.isNil?[{key:JSON.parse(k),original:{rawValue:x.rawValue,numericValue:x.numericValue,isNil:x.isNil},revision:{rawValue:y.rawValue,numericValue:y.numericValue,isNil:y.isNil}}]:[];
+          });
+          if(metadata.original.symbol!=='GAIL'||metadata.revision.symbol!=='GAIL'||metadata.original.qe_Date!=='30-JUN-2026'||metadata.revision.qe_Date!=='30-JUN-2026'||metadata.original.consolidated!=='Consolidated'||metadata.revision.consolidated!=='Consolidated'||metadata.original.type_Sub!=='Original'||metadata.revision.type_Sub!=='Revision') throw new Error('Issuer, period, basis or filing-version identity check failed');
+          if(parsed.original.warnings.length||parsed.revision.warnings.length) throw new Error('Parser warnings present; do not accept pair');
+          if(ambiguous.length) throw new Error(`Ambiguous duplicate fact keys found: ${ambiguous.length}`);
+          const report={status:'ORIGINAL_REVISION_PAIR_PARSE_PASS',identity:{symbol:'GAIL',company:metadata.original.smName,period:'30-JUN-2026',basis:'Consolidated',audit:metadata.original.audited},original:{sequenceId:metadata.original.seq_Id,broadcast:metadata.original.broadcast_Date,bytes:parsed.original.bytes,contexts:parsed.original.contexts,facts:parsed.original.factCount,warnings:parsed.original.warnings},revision:{sequenceId:metadata.revision.seq_Id,broadcast:metadata.revision.broadcast_Date,revisedDate:metadata.revision.revised_Date,revisionRemark:metadata.revision.revision_Remark,bytes:parsed.revision.bytes,contexts:parsed.revision.contexts,facts:parsed.revision.factCount,warnings:parsed.revision.warnings},commonFactKeys:common.length,unmatchedOriginalKeys:allKeys.filter(k=>a.has(k)&&!b.has(k)).length,unmatchedRevisionKeys:allKeys.filter(k=>!a.has(k)&&b.has(k)).length,ambiguousKeys:ambiguous.length,changedCommonFacts:changed,note:'Original and revision are preserved independently. Changed facts are surfaced for review; this does not certify that the revised figures are economically or accounting-correct. Revision remarks must be inspected before metric use.'};
+          fs.writeFileSync('artifacts/GAIL_original_revision_comparison.json',JSON.stringify(report,null,2));
+          console.log(JSON.stringify({status:report.status,original:report.original,revision:report.revision,commonFactKeys:report.commonFactKeys,unmatchedOriginalKeys:report.unmatchedOriginalKeys,unmatchedRevisionKeys:report.unmatchedRevisionKeys,ambiguousKeys:report.ambiguousKeys,changedCommonFactCount:changed.length,revisionRemark:report.revision.revisionRemark},null,2));
+          JS
+      - name: Upload original and revision evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nse-gail-original-revision-xbrl-pair
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 7
