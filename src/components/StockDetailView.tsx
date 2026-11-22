@@ -1177,7 +1177,7 @@ export const StockDetailView: React.FC<StockDetailViewProps> = ({
             </div>
           )}
 
-          {/* 30-Day Cumulative Institutional Flow (Delivery Quantity Trends) */}
+          {/* 30-Day Cumulative Delivery Flow */}
           <InstitutionalFlowChart symbol={data.summary.symbol} history={data.history} />
 
           {/* EPS Drop Active Rejection Banner */}
