@@ -4,6 +4,7 @@ import type { NseRevisionRow } from './nse_revision_pair.ts';
 import { extractXbrl, type XbrlExtraction } from './xbrl_extract.ts';
 import { buildSevenMetricXbrlPipeline, type IssuerMetricConceptMap, type SevenMetricXbrlPipelineReport } from './seven_metric_xbrl_pipeline.ts';
 import type { IssuerSector } from './sector_metric_policy.ts';
+import { resolveNseConceptMap } from './nse_concept_map_resolver.ts';
 
 export interface NseFundamentalPeriodRequest {
   periodType: 'QUARTER' | 'YTD' | 'FY';
@@ -15,7 +16,7 @@ export interface NseFundamentalPeriodRequest {
 export interface NseFundamentalIssuerRequest {
   symbol: string;
   sector: IssuerSector;
-  conceptMap: IssuerMetricConceptMap;
+  conceptMap?: IssuerMetricConceptMap;
   current: NseFundamentalPeriodRequest;
   prior: NseFundamentalPeriodRequest;
 }
@@ -159,6 +160,15 @@ async function processIssuer(
       fetchOriginal(symbol, request.current, fetchImpl, filingQuery),
       fetchOriginal(symbol, request.prior, fetchImpl, filingQuery),
     ]);
+    const mapping = request.conceptMap
+      ? { status: 'MAPPED' as const, conceptMap: request.conceptMap }
+      : resolveNseConceptMap(request.sector, request.current.basis, current.extraction, prior.extraction);
+    if (mapping.status !== 'MAPPED' || !mapping.conceptMap) {
+      const reasons = 'metrics' in mapping
+        ? Object.values(mapping.metrics).filter(item => item.status !== 'MAPPED').map(item => `${item.metric}: ${item.status} — ${item.explanation}`)
+        : ['No usable concept map was supplied'];
+      throw new Error(`${symbol}: automatic NSE concept mapping blocked: ${reasons.join('; ')}`);
+    }
     const candidateReport = buildSevenMetricXbrlPipeline(
       request.sector,
       {
@@ -177,7 +187,7 @@ async function processIssuer(
         basis: request.prior.basis,
         filingBasis: prior.filing.consolidated === 'Standalone' ? 'STANDALONE' : 'CONSOLIDATED',
       },
-      request.conceptMap,
+      mapping.conceptMap,
     );
     const hasRevisionHistory = current.revisionRows.length > 0 || prior.revisionRows.length > 0;
     const warnings = [
