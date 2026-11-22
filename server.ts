@@ -452,7 +452,7 @@ async function startServer() {
     }
   });
 
-  // Automatic & Explicit Fundamental Save-to-Cache (Single Symbol or Full NSE Universe)
+  // Automatic & Explicit Fundamental Save-to-Cache (Single Symbol or Bhavcopy Universe)
   app.post('/api/fundamentals/save-to-cache', async (req, res) => {
     try {
       const symbol =
@@ -493,7 +493,7 @@ async function startServer() {
           return res.json({
             started: false,
             ...getCollectionJobStatus(),
-            message: 'All NSE stocks in selected scope are already saved & up to date in cache.',
+            message: 'All Bhavcopy symbols in the selected scope are already saved & up to date in cache.',
           });
         }
 
@@ -572,7 +572,7 @@ async function startServer() {
     }
   });
 
-  // Full-Universe Multi-Source Fundamental Collection (NSE XBRL + YFinance .NS + BSE .BO)
+  // Bhavcopy-Universe Fundamental Collection (only symbols present in the latest Bhavcopy when scope=BHAVCOPY)
   app.post('/api/fundamentals/collect-all', (req, res) => {
     try {
       const rawScope = typeof req.body?.scope === 'string' ? req.body.scope.toUpperCase() : 'MISSING_OR_OLD';
@@ -587,7 +587,7 @@ async function startServer() {
       if (targets.length === 0) {
         return res.json({
           ...getCollectionJobStatus(),
-          message: 'All stocks in selected scope already have latest fundamentals.',
+          message: 'All Bhavcopy symbols in the selected scope already have latest fundamentals.',
         });
       }
 
