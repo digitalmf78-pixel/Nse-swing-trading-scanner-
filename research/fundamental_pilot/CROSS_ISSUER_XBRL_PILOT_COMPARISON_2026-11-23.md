@@ -111,3 +111,7 @@ Still not approved:
 ## Next test
 
 Use the two real filing pairs to build context-selection regression cases, then add a third issuer with a revised filing and one alternate sector taxonomy. Keep all work on the research branch until the source and calculation rules are repeatably validated.
+
+## CI coverage note
+
+The isolated research workflow now runs every TypeScript `*.test.ts` file and the independent Python XBRL extractor `test_*.py` suite. This coverage change is research-only; the scanner runtime and production data paths are untouched.
