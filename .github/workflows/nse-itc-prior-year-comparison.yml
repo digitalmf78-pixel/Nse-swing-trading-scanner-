@@ -49,6 +49,7 @@ jobs:
           node --experimental-strip-types --input-type=module <<'JS'
           import fs from 'node:fs';
           import { resolveOriginalNseFilingPair } from './research/fundamental_pilot/nse_filing_pair.ts';
+          import { selectNseIssuerPeriodHistory } from './research/fundamental_pilot/nse_integrated_filing_client.ts';
           const rows=JSON.parse(fs.readFileSync('artifacts/ITC_integrated_filing_api.json','utf8')).data ?? [];
           const selected=resolveOriginalNseFilingPair(rows,{
             symbol:'ITC',
@@ -56,13 +57,22 @@ jobs:
             currentPeriod:'30-SEP-2026',
             priorPeriod:'30-SEP-2025',
           });
+          const currentHistory=selectNseIssuerPeriodHistory(rows,{symbol:'ITC',period:'30-SEP-2026',basis:'Consolidated'});
+          const priorHistory=selectNseIssuerPeriodHistory(rows,{symbol:'ITC',period:'30-SEP-2025',basis:'Consolidated'});
+          const historyIsUnambiguous=['ORIGINAL_ONLY','REVISION_HISTORY'].includes(currentHistory.status)
+            && ['ORIGINAL_ONLY','REVISION_HISTORY'].includes(priorHistory.status);
+          if (!historyIsUnambiguous) throw new Error('ITC revision history selection blocked: '+JSON.stringify({current:currentHistory.status,prior:priorHistory.status}));
+          if (currentHistory.original.seq_Id!==selected.current.seq_Id || priorHistory.original.seq_Id!==selected.prior.seq_Id) {
+            throw new Error('Original filing resolver and full history resolver disagree on selected sequence IDs');
+          }
           const metadata={};
           for (const [key,row] of Object.entries(selected)) {
             metadata[key]=Object.fromEntries(['symbol','smName','seq_Id','qe_Date','type','type_Sub','audited','consolidated','broadcast_Date','creation_Date','revised_Date','revision_Remark','ixbrl','xbrl'].map(field=>[field,row[field] ?? null]));
             fs.writeFileSync(`artifacts/ITC_${key}_xbrl_url.txt`,row.xbrl);
           }
-          fs.writeFileSync('artifacts/ITC_pair_metadata.json',JSON.stringify(metadata,null,2));
-          console.log(JSON.stringify(metadata,null,2));
+          const historyMetadata={current:{status:currentHistory.status,originalSequenceId:currentHistory.original.seq_Id,revisionSequenceIds:currentHistory.revisions.map(r=>r.seq_Id)},prior:{status:priorHistory.status,originalSequenceId:priorHistory.original.seq_Id,revisionSequenceIds:priorHistory.revisions.map(r=>r.seq_Id)},paginationComplete:rows.length<100};
+          fs.writeFileSync('artifacts/ITC_pair_metadata.json',JSON.stringify({filings:metadata,revisionHistories:historyMetadata},null,2));
+          console.log(JSON.stringify({filings:metadata,revisionHistories:historyMetadata},null,2));
           JS
       - name: Download both official original XML instances
         shell: bash
@@ -103,7 +113,8 @@ jobs:
           import fs from 'node:fs';
           import { extractXbrl } from './research/fundamental_pilot/xbrl_extract.ts';
           import { buildSevenMetricXbrlPipeline } from './research/fundamental_pilot/seven_metric_xbrl_pipeline.ts';
-          const meta=JSON.parse(fs.readFileSync('artifacts/ITC_pair_metadata.json','utf8'));
+          const pair=JSON.parse(fs.readFileSync('artifacts/ITC_pair_metadata.json','utf8'));
+          const meta=pair.filings;
           const candidates=['RevenueFromOperations','ProfitLossForPeriod','ProfitBeforeTax','FinanceCosts','CashFlowsFromUsedInOperatingActivities'];
           const outputs={};
           const parsedByKey={};
@@ -133,16 +144,20 @@ jobs:
           const segmentResultsPbtByShape={'07-01|09-30':56946200000,'04-01|09-30':115554700000};
           const associatesShareByShape={'07-01|09-30':969600000,'04-01|09-30':1828700000};
           const pbtReconciliation=comparison.filter(x=>x.currentFilingComparative.concept==='in-capmkt:ProfitBeforeTax').map(x=>{const shape=x.key[1].join('|');const main=mainResultsPbtByShape[shape];const segment=segmentResultsPbtByShape[shape];const associates=associatesShareByShape[shape];const candidate=x.currentFilingComparative.numericValue;return {periodShape:x.key[1],xbrlCandidateCurrentINR:candidate,mainFinancialResultsPbtINR:main,segmentResultsPbtINR:segment,associatesShareIncludedInSegmentBridgeINR:associates,matchesMainResults:main!==undefined&&candidate===main,segmentBridgeReconciles:segment!==undefined&&main+associates===segment,status:'DEFINITION_VARIANT_REQUIRES_POLICY',metricMappingApproved:false};});
-          const sevenMetricXbrlPipeline=buildSevenMetricXbrlPipeline('NON_FINANCIAL',
+          const revisionGatePassed=pair.revisionHistories.paginationComplete
+            && pair.revisionHistories.current.status==='ORIGINAL_ONLY'
+            && pair.revisionHistories.prior.status==='ORIGINAL_ONLY';
+          const sevenMetricXbrlPipeline=revisionGatePassed ? buildSevenMetricXbrlPipeline('NON_FINANCIAL',
             {extraction:parsedByKey.current,periodType:'YTD',periodStart:'2026-04-01',periodEnd:'2026-09-30',basis:'CONSOLIDATED',filingBasis:'CONSOLIDATED'},
             {extraction:parsedByKey.prior,periodType:'YTD',periodStart:'2025-04-01',periodEnd:'2025-09-30',basis:'CONSOLIDATED',filingBasis:'CONSOLIDATED'},
-            {revenue:'in-capmkt:RevenueFromOperations',profit:'in-capmkt:ProfitLossForPeriod',operatingCashFlow:'in-capmkt:CashFlowsFromUsedInOperatingActivities'});
+            {revenue:'in-capmkt:RevenueFromOperations',profit:'in-capmkt:ProfitLossForPeriod',operatingCashFlow:'in-capmkt:CashFlowsFromUsedInOperatingActivities'}) : null;
+          const pipelineStatus=revisionGatePassed?'CANDIDATE_ONLY':'REVISION_REVIEW_REQUIRED';
 
           if (matched.length!==9 || keys.length!==9) throw new Error(`Expected 9 exact concept/period/dimension/unit matches, got matched=${matched.length}, keys=${keys.length}`);
           if (pbtReconciliation.length!==2 || pbtReconciliation.some(x=>!x.matchesMainResults || !x.segmentBridgeReconciles || x.metricMappingApproved)) throw new Error('Expected both PBT presentation variants to reconcile while keeping metric mapping blocked');
-          const report={status:'PARSE_MATCH_PASS_PBT_DEFINITION_VARIANT_BLOCKED',sevenMetricXbrlPipeline,company:'ITC Limited',symbol:'ITC',basis:'Consolidated',periodEndCurrent:'2026-09-30',periodEndPrior:'2025-09-30',files:outputs,priorPeriodCandidateFactCounts:{currentYearQuarterAndYtdFacts:currentFacts.length,priorYearOriginalQuarterAndYtdFacts:priorFacts.length},matchedFactCount:matched.length,unmatchedKeyCount:keys.length-matched.length,matchedComparisons:comparison,growthChecks,pbtReconciliation,note:'Current 2026 duration facts are matched to the 2025 original filing by concept, matching calendar period shape (quarter or YTD), dimensions and unit. Growth percentages are mechanical only. ITC disclosures about acquisitions and GST/cess changes mean comparability must be qualified before interpreting growth.'};
+          const report={status:'PARSE_MATCH_PASS_PBT_DEFINITION_VARIANT_BLOCKED',revisionHistories:pair.revisionHistories,pipelineStatus,sevenMetricXbrlPipeline,company:'ITC Limited',symbol:'ITC',basis:'Consolidated',periodEndCurrent:'2026-09-30',periodEndPrior:'2025-09-30',files:outputs,priorPeriodCandidateFactCounts:{currentYearQuarterAndYtdFacts:currentFacts.length,priorYearOriginalQuarterAndYtdFacts:priorFacts.length},matchedFactCount:matched.length,unmatchedKeyCount:keys.length-matched.length,matchedComparisons:comparison,growthChecks,pbtReconciliation,note:'Current 2026 duration facts are matched to the 2025 original filing by concept, matching calendar period shape (quarter or YTD), dimensions and unit. Growth percentages are mechanical only. ITC disclosures about acquisitions and GST/cess changes mean comparability must be qualified before interpreting growth.'};
           fs.writeFileSync('artifacts/ITC_prior_year_comparison.json',JSON.stringify(report,null,2));
-          console.log(JSON.stringify({status:report.status,files:Object.fromEntries(Object.entries(outputs).map(([k,v])=>[k,{seqId:v.metadata.seq_Id,broadcast:v.metadata.broadcast_Date,contexts:v.contexts,facts:v.factCount,warnings:v.warnings.length}])),priorPeriodCandidateFactCounts:report.priorPeriodCandidateFactCounts,matchedFactCount:report.matchedFactCount,unmatchedKeyCount:report.unmatchedKeyCount,growthChecks,sevenMetricXbrlPipeline:{currentSelections:Object.fromEntries(Object.entries(sevenMetricXbrlPipeline.currentSelections).map(([k,v])=>[k,v.status])),priorSelections:Object.fromEntries(Object.entries(sevenMetricXbrlPipeline.priorSelections).map(([k,v])=>[k,v.status])),candidates:sevenMetricXbrlPipeline.candidateReport.candidates,auditMatrix:sevenMetricXbrlPipeline.candidateReport.auditMatrix}},null,2));
+          console.log(JSON.stringify({status:report.status,files:Object.fromEntries(Object.entries(outputs).map(([k,v])=>[k,{seqId:v.metadata.seq_Id,broadcast:v.metadata.broadcast_Date,contexts:v.contexts,facts:v.factCount,warnings:v.warnings.length}])),priorPeriodCandidateFactCounts:report.priorPeriodCandidateFactCounts,matchedFactCount:report.matchedFactCount,unmatchedKeyCount:report.unmatchedKeyCount,growthChecks,revisionHistories:pair.revisionHistories,pipelineStatus,sevenMetricXbrlPipeline:sevenMetricXbrlPipeline?{currentSelections:Object.fromEntries(Object.entries(sevenMetricXbrlPipeline.currentSelections).map(([k,v])=>[k,v.status])),priorSelections:Object.fromEntries(Object.entries(sevenMetricXbrlPipeline.priorSelections).map(([k,v])=>[k,v.status])),candidates:sevenMetricXbrlPipeline.candidateReport.candidates,auditMatrix:sevenMetricXbrlPipeline.candidateReport.auditMatrix}:null},null,2));
           JS
       - name: Upload original and prior-year comparison artifacts
         if: always()
