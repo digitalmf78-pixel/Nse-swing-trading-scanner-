@@ -1,0 +1,147 @@
+name: NSE smart filing metadata ingestion
+
+on:
+  push:
+    branches:
+      - research/free-fundamental-sources
+    paths:
+      - ".github/workflows/nse-smart-filing-ingestion.yml"
+      - "research/fundamental_pilot/nse_integrated_filing_client.ts"
+      - "research/fundamental_pilot/nse_revision_pair.ts"
+  workflow_dispatch:
+    inputs:
+      symbol:
+        description: NSE symbol
+        required: true
+        default: ITC
+        type: string
+      period:
+        description: Filing period end as NSE API date, e.g. 30-SEP-2026
+        required: true
+        default: 30-SEP-2026
+        type: string
+      basis:
+        description: Filing basis
+        required: true
+        default: Consolidated
+        type: choice
+        options:
+          - Consolidated
+          - Standalone
+
+permissions:
+  contents: read
+
+jobs:
+  ingest-official-filing-metadata:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          ref: research/free-fundamental-sources
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Fetch every page from official NSE Integrated Filing API
+        shell: bash
+        env:
+          SYMBOL: ${{ inputs.symbol || 'ITC' }}
+          PERIOD: ${{ inputs.period || '30-SEP-2026' }}
+          BASIS: ${{ inputs.basis || 'Consolidated' }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          symbol="$(printf '%s' "$SYMBOL" | tr '[:lower:]' '[:upper:]')"
+          if [[ ! "$symbol" =~ ^[A-Z0-9&.-]{1,24}$ ]]; then echo "Invalid NSE symbol" >&2; exit 1; fi
+          if [[ ! "$PERIOD" =~ ^[0-9]{2}-[A-Z]{3}-[0-9]{4}$ ]]; then echo "Invalid NSE period" >&2; exit 1; fi
+          if [[ "$BASIS" != "Standalone" && "$BASIS" != "Consolidated" ]]; then echo "Invalid basis" >&2; exit 1; fi
+          : > artifacts/filing-rows.jsonl
+          complete=false
+          pages=0
+          for page in $(seq 1 20); do
+            curl --fail --location --show-error --retry 3 --retry-all-errors --retry-delay 2 \
+              --connect-timeout 20 --max-time 90 \
+              --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36" \
+              --referer "https://www.nseindia.in/companies-listing/corporate-integrated-filing" \
+              --header "Accept: application/json, text/plain, */*" \
+              --get "https://www.nseindia.in/api/integrated-filing-results" \
+              --data-urlencode "index=equities" \
+              --data-urlencode "symbol=$symbol" \
+              --data-urlencode "type=Integrated Filing- Financials" \
+              --data-urlencode "page=$page" \
+              --data-urlencode "size=100" \
+              --output "artifacts/page-$page.json"
+            jq -e '.data | type == "array"' "artifacts/page-$page.json" >/dev/null
+            count="$(jq '.data | length' "artifacts/page-$page.json")"
+            jq -c '.data[]' "artifacts/page-$page.json" >> artifacts/filing-rows.jsonl
+            pages="$page"
+            if [ "$count" -lt 100 ]; then complete=true; break; fi
+          done
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          rows=[]
+          for line in Path("artifacts/filing-rows.jsonl").read_text().splitlines():
+              if line.strip(): rows.append(json.loads(line))
+          payload={
+              "symbol":os.environ["SYMBOL"].upper(),
+              "period":os.environ["PERIOD"],
+              "basis":os.environ["BASIS"],
+              "pagesFetched":int(os.environ["PAGES"]),
+              "paginationComplete":os.environ["COMPLETE"]=="true",
+              "rows":rows,
+          }
+          Path("artifacts/nse-filing-metadata.json").write_text(json.dumps(payload,indent=2))
+          print(json.dumps({k:v for k,v in payload.items() if k!="rows"} | {"rowCount":len(rows)},indent=2))
+          PY
+        env:
+          SYMBOL: ${{ inputs.symbol || 'ITC' }}
+          PERIOD: ${{ inputs.period || '30-SEP-2026' }}
+          BASIS: ${{ inputs.basis || 'Consolidated' }}
+          PAGES: ${{ env.pages }}
+          COMPLETE: ${{ env.complete }}
+      - name: Resolve exact Original and full Revision history with TypeScript
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import { selectNseIssuerPeriodHistory } from './research/fundamental_pilot/nse_integrated_filing_client.ts';
+          const input=JSON.parse(fs.readFileSync('artifacts/nse-filing-metadata.json','utf8'));
+          const rows=input.rows;
+          const selected=selectNseIssuerPeriodHistory(rows,{
+            symbol:input.symbol,period:input.period,basis:input.basis,
+          });
+          const status=input.paginationComplete ? selected.status : 'BLOCKED_PAGINATION_INCOMPLETE';
+          const output={
+            source:'NSE official Integrated Filing - Financials API',
+            symbol:input.symbol,period:input.period,basis:input.basis,
+            pagesFetched:input.pagesFetched,rowCount:rows.length,
+            paginationComplete:input.paginationComplete,
+            selectionStatus:status,
+            exactDuplicateRows:selected.exactDuplicateRows,
+            original:selected.original,
+            revisions:selected.revisions,
+            reason:selected.status==='BLOCKED'?selected.reason:null,
+            productionApproved:false,
+            note:'Metadata selection only. No financial metric is calculated or approved by this workflow.',
+          };
+          fs.writeFileSync('artifacts/filing-history-selection.json',JSON.stringify(output,null,2));
+          console.log(JSON.stringify(output,null,2));
+          if(!input.paginationComplete) {
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,'\n## BLOCKED: NSE filing pagination incomplete\n');
+          } else {
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,'\n## NSE filing metadata selection\n\n- Symbol: '+input.symbol+'\n- Period: '+input.period+'\n- Basis: '+input.basis+'\n- Status: '+status+'\n- Revisions: '+selected.revisions.length+'\n- Production approved: **false**\n');
+          }
+          JS
+      - name: Upload official NSE filing metadata and selection
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nse-smart-filing-metadata
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 14
