@@ -1312,6 +1312,39 @@ export function startFullFundamentalCollection(
   return getCollectionJobStatus();
 }
 
+interface NseTradingSessionCalendar {
+  holidays: Set<string>;
+  specialSessions: Set<string>;
+}
+
+function loadNseTradingSessionCalendar(): NseTradingSessionCalendar {
+  const calendarPath = path.join(process.cwd(), 'data', 'inputs', 'nse_trading_calendar.json');
+  const holidays = new Set<string>();
+  const specialSessions = new Set<string>();
+  try {
+    if (!fs.existsSync(calendarPath)) return { holidays, specialSessions };
+    const calendar = JSON.parse(fs.readFileSync(calendarPath, 'utf-8'));
+    for (const year of Object.values(calendar.years || {}) as Array<{
+      holidays?: string[];
+      special_sessions?: Record<string, string>;
+    }>) {
+      for (const date of year.holidays || []) holidays.add(date);
+      for (const date of Object.keys(year.special_sessions || {})) specialSessions.add(date);
+    }
+  } catch {
+    // Fall back to weekday-only behavior if the optional calendar cannot be read.
+  }
+  return { holidays, specialSessions };
+}
+
+function isNseTradingSessionIso(iso: string, calendar: NseTradingSessionCalendar): boolean {
+  const date = new Date(`${iso}T00:00:00Z`);
+  if (!Number.isFinite(date.getTime())) return false;
+  const day = date.getUTCDay();
+  const isSpecialSession = calendar.specialSessions.has(iso);
+  return isSpecialSession || (day !== 0 && day !== 6 && !calendar.holidays.has(iso));
+}
+
 export async function fetchNseBhavcopyForDate(
   targetIsoDate?: string
 ): Promise<{
@@ -1322,16 +1355,17 @@ export async function fetchNseBhavcopyForDate(
   message: string;
 }> {
   const candidates: string[] = [];
+  const sessionCalendar = loadNseTradingSessionCalendar();
   if (targetIsoDate && /^\d{4}-\d{2}-\d{2}$/.test(targetIsoDate)) {
     candidates.push(targetIsoDate);
   } else {
-    // Check IST today and walk back up to 5 calendar days for latest trading session
+    // Check IST today and walk back up to 5 calendar days using the NSE session calendar.
     const nowIst = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
     for (let offset = 0; offset < 6; offset++) {
       const d = new Date(nowIst.getTime() - offset * 24 * 60 * 60 * 1000);
-      const dayOfWeek = d.getUTCDay();
-      if (dayOfWeek === 0 || dayOfWeek === 6) continue;
-      candidates.push(d.toISOString().slice(0, 10));
+      const iso = d.toISOString().slice(0, 10);
+      if (!isNseTradingSessionIso(iso, sessionCalendar)) continue;
+      candidates.push(iso);
     }
   }
 
@@ -1427,13 +1461,14 @@ export async function syncLatestBhavcopiesCatchup(lookbackCalendarDays = 10): Pr
   const nowIst = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
   const todayIstIso = nowIst.toISOString().slice(0, 10);
 
-  // Build weekday candidates ordered oldest -> newest so multi-day catchup fills chronologically
+  // Build actual NSE session candidates oldest -> newest, including special weekend sessions.
+  const sessionCalendar = loadNseTradingSessionCalendar();
   const candidates: string[] = [];
   for (let offset = lookbackCalendarDays; offset >= 0; offset--) {
     const d = new Date(nowIst.getTime() - offset * 24 * 60 * 60 * 1000);
-    const dow = d.getUTCDay();
-    if (dow === 0 || dow === 6) continue;
-    candidates.push(d.toISOString().slice(0, 10));
+    const iso = d.toISOString().slice(0, 10);
+    if (!isNseTradingSessionIso(iso, sessionCalendar)) continue;
+    candidates.push(iso);
   }
 
   const downloadedDates: string[] = [];
@@ -1497,9 +1532,9 @@ export async function syncLatestBhavcopiesCatchup(lookbackCalendarDays = 10): Pr
     .sort();
   const latestCachedDate = cachedIsos[cachedIsos.length - 1] || '';
 
-  const isWeekdayToday = [1, 2, 3, 4, 5].includes(nowIst.getUTCDay());
+  const isTradingSessionToday = candidates.includes(todayIstIso);
   const pendingNote =
-    isWeekdayToday && !todayPublishedYet && latestCachedDate < todayIstIso
+    isTradingSessionToday && !todayPublishedYet && latestCachedDate < todayIstIso
       ? ` (Note: Today's ${todayIstIso} Bhavcopy is published by NSE after market close ~18:00 IST)`
       : '';
 
