@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - fix/delivery-30d-criteria-labels
+      - research/free-fundamental-sources
     paths:
       - "src/**"
       - "server/**"
