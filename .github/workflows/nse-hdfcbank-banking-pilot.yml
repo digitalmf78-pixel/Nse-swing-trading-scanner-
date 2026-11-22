@@ -1,0 +1,130 @@
+name: NSE HDFC Bank consolidated banking taxonomy pilot
+
+on:
+  push:
+    branches:
+      - research/free-fundamental-sources
+    paths:
+      - ".github/workflows/nse-hdfcbank-banking-pilot.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  download-parse-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/free-fundamental-sources
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install isolated parser dependency
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/xbrl-deps" --no-save --no-package-lock fast-xml-parser@5.12.1
+          mkdir -p node_modules
+          ln -s "$RUNNER_TEMP/xbrl-deps/node_modules/fast-xml-parser" node_modules/fast-xml-parser
+      - name: Resolve official HDFCBANK consolidated filing
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          curl --fail --location --show-error --retry 3 --retry-all-errors --retry-delay 2 \
+            --connect-timeout 20 --max-time 120 \
+            --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36" \
+            --referer "https://www.nseindia.in/companies-listing/corporate-integrated-filing" \
+            --header "Accept: application/json, text/plain, */*" \
+            --get "https://www.nseindia.in/api/integrated-filing-results" \
+            --data-urlencode "index=equities" --data-urlencode "symbol=HDFCBANK" \
+            --data-urlencode "type=Integrated Filing- Financials" \
+            --data-urlencode "page=1" --data-urlencode "size=100" \
+            --output artifacts/HDFCBANK_integrated_filing_api.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path("artifacts/HDFCBANK_integrated_filing_api.json").read_text())
+          rows=data.get("data", [])
+          matches=[r for r in rows if r.get("symbol")=="HDFCBANK" and r.get("qe_Date")=="30-SEP-2026" and r.get("type_Sub")=="Original" and r.get("consolidated")=="Consolidated" and r.get("type")=="Integrated Filing- Financials"]
+          if len(matches)!=1:
+              raise SystemExit(f"Expected exactly one original HDFCBANK consolidated 30-SEP-2026 filing, got {len(matches)}")
+          row=matches[0]
+          if not row.get("xbrl"): raise SystemExit("No original XBRL URL in official NSE row")
+          fields=["symbol","smName","seq_Id","qe_Date","type","type_Sub","audited","consolidated","broadcast_Date","creation_Date","revised_Date","revision_Remark","ixbrl","ixbrlFileSize","xbrl","xbrlFileSize"]
+          meta={k:row.get(k) for k in fields}
+          Path("artifacts/HDFCBANK_filing_metadata.json").write_text(json.dumps(meta,indent=2))
+          Path("artifacts/HDFCBANK_original_xbrl_url.txt").write_text(row["xbrl"])
+          print(json.dumps(meta,indent=2))
+          PY
+      - name: Download original XML and parse
+        shell: bash
+        run: |
+          set -euo pipefail
+          xbrl_url="$(cat artifacts/HDFCBANK_original_xbrl_url.txt)"
+          ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36"
+          cookie_jar="artifacts/hdfcbank-nse-cookies.txt"
+          downloaded=""
+          for site in www.nseindia.in www.nseindia.com; do
+            curl --silent --show-error --location --max-time 60 --user-agent "$ua" --cookie-jar "$cookie_jar" --output /dev/null "https://$site/companies-listing/corporate-integrated-filing" || true
+            out="artifacts/${site}-hdfcbank-download.response"
+            curl --silent --show-error --location --max-time 120 --user-agent "$ua" --cookie "$cookie_jar" \
+              --referer "https://$site/companies-listing/corporate-integrated-filing" \
+              --header "Accept: application/xml,text/xml,*/*" --get "https://$site/api/download_xbrl" \
+              --data-urlencode "fileUrl=$xbrl_url" --output "$out" || true
+            if grep -Eqi '<([[:alnum:]_]+:)?xbrl([ >])' "$out"; then cp "$out" artifacts/HDFCBANK_2026-09-30_original_consolidated_NSE_XBRL.xml; downloaded=yes; break; fi
+          done
+          if [ -z "$downloaded" ]; then
+            for host in nsearchives.nseindia.in nsearchives.nseindia.com; do
+              out="artifacts/${host}-hdfcbank-direct.response"
+              curl --silent --show-error --location --max-time 120 --user-agent "$ua" --cookie "$cookie_jar" \
+                --referer "https://www.nseindia.in/companies-listing/corporate-integrated-filing" \
+                --header "Accept: application/xml,text/xml,application/octet-stream,*/*" \
+                --output "$out" "https://$host/corporate/xbrl/${xbrl_url##*/}" || true
+              if grep -Eqi '<([[:alnum:]_]+:)?xbrl([ >])' "$out"; then cp "$out" artifacts/HDFCBANK_2026-09-30_original_consolidated_NSE_XBRL.xml; downloaded=yes; break; fi
+            done
+          fi
+          if [ -z "$downloaded" ]; then
+            echo "Could not download original HDFCBANK XML" >&2
+            for f in artifacts/*hdfcbank*.response; do echo "### $f"; head -c 500 "$f" || true; echo; done
+            exit 1
+          fi
+          node --experimental-strip-types --input-type=module -e '
+            import fs from "node:fs";
+            import { extractXbrl } from "./research/fundamental_pilot/xbrl_extract.ts";
+            const path="artifacts/HDFCBANK_2026-09-30_original_consolidated_NSE_XBRL.xml";
+            const xml=fs.readFileSync(path,"utf8");
+            const out=extractXbrl(xml);
+            if(out.contextCount<1 || out.factCount<1 || Object.keys(out.units).length<1) throw new Error("Parser returned empty contexts/facts/units");
+            const meta=JSON.parse(fs.readFileSync("artifacts/HDFCBANK_filing_metadata.json","utf8"));
+            if(meta.symbol!=="HDFCBANK" || meta.consolidated!=="Consolidated" || meta.qe_Date!=="30-SEP-2026") throw new Error("Filing identity/basis assertion failed");
+            const concepts=[...new Set(out.facts.map(f=>f.concept))].sort();
+            const report={
+              status:"PARSE_PASS",
+              filing:{symbol:meta.symbol,company:meta.smName,quarterEnd:meta.qe_Date,submission:meta.type_Sub,audit:meta.audited,basis:meta.consolidated,sequenceId:meta.seq_Id,broadcast:meta.broadcast_Date,xbrl:meta.xbrl,ixbrl:meta.ixbrl},
+              sourceFileBytes:Buffer.byteLength(xml),
+              contexts:out.contextCount,
+              facts:out.factCount,
+              units:out.units,
+              warnings:out.warnings,
+              namespaces:out.namespaces,
+              conceptCount:concepts.length,
+              conceptSample:concepts.slice(0,120),
+              durationContexts:Object.values(out.contexts).filter(c=>c.periodStart&&c.periodEnd),
+              instantContexts:Object.values(out.contexts).filter(c=>c.instant),
+              note:"Parser success confirms generic XML extraction only. Banking metrics require a separate approved banking taxonomy map and definitions; do not apply industrial-company ratios."
+            };
+            fs.writeFileSync("artifacts/HDFCBANK_parser_audit.json",JSON.stringify(report,null,2));
+            console.log(JSON.stringify(report,null,2));
+          '
+          sha256sum artifacts/HDFCBANK_2026-09-30_original_consolidated_NSE_XBRL.xml | tee artifacts/HDFCBANK-XBRL-SHA256.txt
+      - name: Upload HDFCBANK banking pilot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nse-hdfcbank-consolidated-banking-xbrl-pilot
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 7
