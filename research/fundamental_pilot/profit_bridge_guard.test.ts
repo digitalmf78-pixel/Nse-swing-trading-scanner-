@@ -19,7 +19,7 @@ test('blocks TEMBO-style profit candidate that subtracts negative tax', () => {
   const result = reconcileProfitAfterTaxBridge(fact(8747.86), fact(6701.60), fact(-2047.27), 0.01);
   assert.equal(result.status, 'REVIEW_REQUIRED');
   assert.equal(result.expectedProfitAfterTax, 4654.33);
-  assert.equal(result.difference, 4093.53);
+  assert.ok(Math.abs(result.difference! - 4093.53) < 1e-8);
   assert.equal(result.productionApproved, false);
 });
 
