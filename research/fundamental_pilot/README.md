@@ -87,3 +87,13 @@ NSE official references:
 - Do not mix consolidated and standalone data or quarter, YTD, FY, and TTM periods.
 - OCF must be sourced from the cash-flow statement's net cash from operating activities, not free cash flow, net cash movement, or profit.
 - Banks, NBFCs, and insurers need sector-specific ratio definitions; generic industrial formulas must not be forced onto them.
+
+
+## Automated NSE batch ingestion and concept mapping
+
+- `nse_fundamental_batch_engine.ts` now fetches exact-period NSE Integrated Filing metadata and Original XBRL for current/prior periods in bounded-concurrency batches. It preserves the complete revision row set, blocks incomplete pagination/parser warnings, enforces official archive URLs and keeps every result non-production.
+- `nse_concept_map_resolver.ts` automatically maps RevenueFromOperations, standalone ProfitLossForPeriod or consolidated ProfitOrLossAttributableToOwnersOfParent, and CashFlowsFromUsedInOperatingActivities only when each filing contains exactly one matching taxonomy QName and the same QName exists in both periods. It blocks missing, ambiguous, namespace-mismatched and sector-specific mappings instead of guessing.
+- The batch engine now invokes this resolver automatically when a per-issuer concept map is not supplied. An explicit mapping may still be passed for separately reviewed taxonomy cases. Bank, NBFC, insurance and unknown-sector automatic industrial mapping remains blocked.
+- OCF candidate validation accepts the exact CashFlowsFromUsedInOperatingActivities local concept name across taxonomy namespace prefixes; the resolver still requires the exact QName to match across current and prior filings.
+- New tests cover consolidated vs standalone profit attribution, ambiguous/missing taxonomy concepts, namespace changes, financial-sector blocking and namespace-qualified OCF.
+- These changes remain on `research/free-fundamental-sources`; no scanner runtime, live-price fetcher, ranking, filters, UI or Google AI Studio app integration has been changed. All batch outputs remain `productionApproved: false`.
