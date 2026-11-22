@@ -142,7 +142,7 @@ export const QuarterlyEpsValuationPanel: React.FC<QuarterlyEpsValuationPanelProp
   const strengthRemainingPct =
     rangePositionPct !== null ? Math.max(0, Math.min(100, 100 - rangePositionPct)) : null;
 
-  const rewardRiskRatio =
+  const valuationUpsideDownsideRatio =
     upsideInr !== null && downsideInr !== null && downsideInr > 0.01 && upsideInr > 0
       ? upsideInr / downsideInr
       : null;
@@ -184,7 +184,7 @@ export const QuarterlyEpsValuationPanel: React.FC<QuarterlyEpsValuationPanelProp
           upsidePct <= 0
             ? `Valuation Top Reached / Stretched (${upsidePct.toFixed(1)}% vs Top)`
             : `Limited Strength Left (+${upsidePct.toFixed(1)}% to Top Exhaustion Zone)`,
-        detail: `Price ₹${close.toFixed(2)} is right inside or above the Turnaround Top Zone (₹${activeTopZoneLow?.toFixed(0)}–₹${activeTopZoneHigh?.toFixed(0)}). Risk-reward favors caution / partial profit booking unless next quarter EPS accelerates.`,
+        detail: `Price ₹${close.toFixed(2)} is right inside or above the Turnaround Top Zone (₹${activeTopZoneLow?.toFixed(0)}–₹${activeTopZoneHigh?.toFixed(0)}). Valuation runway is limited; caution or partial profit booking may be considered unless next quarter EPS accelerates.`,
       };
     }
     return {
@@ -536,7 +536,7 @@ export const QuarterlyEpsValuationPanel: React.FC<QuarterlyEpsValuationPanelProp
             {strengthRemainingPct !== null && (
               <span className="font-mono font-bold text-slate-900 tabular-nums">
                 {strengthRemainingPct.toFixed(0)}% Runway Remaining
-                {rewardRiskRatio !== null ? ` · R:R ${rewardRiskRatio.toFixed(2)}:1` : ''}
+                {valuationUpsideDownsideRatio !== null ? ` · Valuation U/D ${valuationUpsideDownsideRatio.toFixed(2)}:1` : ''}
               </span>
             )}
           </div>
@@ -588,9 +588,9 @@ export const QuarterlyEpsValuationPanel: React.FC<QuarterlyEpsValuationPanelProp
                   </strong>
                 </div>
                 <div className="text-right text-slate-700">
-                  Reward : Risk:{' '}
+                  Valuation Upside : Downside:{' '}
                   <strong className="text-slate-900">
-                    {rewardRiskRatio !== null ? `${rewardRiskRatio.toFixed(2)} : 1` : '—'}
+                    {valuationUpsideDownsideRatio !== null ? `${valuationUpsideDownsideRatio.toFixed(2)} : 1` : '—'}
                   </strong>
                 </div>
               </div>
