@@ -77,3 +77,19 @@ test('preserves accounting-style parenthesized negatives', () => {
   const fact = out.facts.find((item) => item.concept.endsWith('Loss'));
   assert.equal(fact?.numericValue, -4500);
 });
+
+test('withholds numeric value for unsupported Inline XBRL format transformations', () => {
+  const xml = '<xbrli:xbrl><ix:nonFraction name="in:Revenue" contextRef="c" unitRef="INR" format="ixt:num-comma-decimal">1.234,56</ix:nonFraction></xbrli:xbrl>';
+  const out = extractXbrl(xml);
+  assert.equal(out.facts[0]?.numericValue, null);
+  assert.equal(out.facts[0]?.format, 'ixt:num-comma-decimal');
+  assert.match(out.warnings.join(' '), /unsupported Inline XBRL format transformation/);
+});
+
+test('withholds numeric value when Inline XBRL continuedAt chain is unresolved', () => {
+  const xml = '<xbrli:xbrl><ix:nonFraction name="in:Revenue" contextRef="c" unitRef="INR" continuedAt="cont1">123</ix:nonFraction><ix:continuation id="cont1">456</ix:continuation></xbrli:xbrl>';
+  const out = extractXbrl(xml);
+  assert.equal(out.facts[0]?.numericValue, null);
+  assert.equal(out.facts[0]?.continuedAt, 'cont1');
+  assert.match(out.warnings.join(' '), /continuedAt=cont1/);
+});
