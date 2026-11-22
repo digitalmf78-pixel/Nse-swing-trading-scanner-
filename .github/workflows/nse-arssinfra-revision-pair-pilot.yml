@@ -64,7 +64,7 @@ jobs:
           fs.writeFileSync('artifacts/ARSSINFRA_pair_metadata.json',JSON.stringify(metadata,null,2));
           console.log(JSON.stringify(metadata,null,2));
           JS
-      - name: Download both official XBRL instances
+      - name: Download original and every revision XBRL instance
         shell: bash
         run: |
           set -euo pipefail
