@@ -206,6 +206,39 @@ jobs:
             {extraction:files.current.parsed,periodType:'YTD',periodStart:periodStart(currentEnd),periodEnd:currentEnd,basis:meta.basis.toUpperCase(),filingBasis:meta.basis.toUpperCase()},
             {extraction:files.prior.parsed,periodType:'YTD',periodStart:periodStart(priorEnd),periodEnd:priorEnd,basis:meta.basis.toUpperCase(),filingBasis:meta.basis.toUpperCase()},
             {revenue:'in-capmkt:RevenueFromOperations',profit:meta.basis==='Consolidated'?'in-capmkt:ProfitOrLossAttributableToOwnersOfParent':'in-capmkt:ProfitLossForPeriod',profitAttribution:meta.basis==='Consolidated'?'OWNERS_OF_PARENT':'STANDALONE_ENTITY',operatingCashFlow:'in-capmkt:CashFlowsFromUsedInOperatingActivities'});
+          const rawOcfCandidate=pipeline.candidateReport.candidates.operatingCashFlow;
+          const officialPdfUrl='https://nsearchives.nseindia.in/content/debt/WDM/DEVIKA_30102026143622_UFR.pdf';
+          const statementTieOuts=meta.basis==='Consolidated' ? [
+            {metric:'Revenue from operations',currentXbrl:pipeline.currentSelections.revenue.fact?.numericValue??null,priorOriginalXbrl:pipeline.priorSelections.revenue.fact?.numericValue??null,pdfCurrent:886512100000,pdfPriorComparative:710860500000},
+            {metric:'Profit attributable to owners of parent',currentXbrl:pipeline.currentSelections.profit.fact?.numericValue??null,priorOriginalXbrl:pipeline.priorSelections.profit.fact?.numericValue??null,pdfCurrent:93850200000,pdfPriorComparative:43416100000},
+          ].map(x=>({...x,currentMatches:x.currentXbrl===x.pdfCurrent,priorMatches:x.priorOriginalXbrl===x.pdfPriorComparative,status:x.currentXbrl===x.pdfCurrent&&x.priorOriginalXbrl===x.pdfPriorComparative?'MATCHED_OFFICIAL_RESULTS_PDF':'PDF_XBRL_CONFLICT_REVIEW_REQUIRED'})) : [];
+          const ocfComparativeCheck=meta.basis==='Consolidated' ? {
+            currentXbrl:pipeline.currentSelections.operatingCashFlow.fact?.numericValue??null,
+            currentPdf:106025000000,
+            priorOriginalXbrl:pipeline.priorSelections.operatingCashFlow.fact?.numericValue??null,
+            currentPdfPriorComparative:58692200000,
+            priorOriginalPdf:57473400000,
+            priorDifferenceINR:58692200000-57473400000,
+            currentMatches:(pipeline.currentSelections.operatingCashFlow.fact?.numericValue??null)===106025000000,
+            priorOriginalMatchesCurrentPdfComparative:(pipeline.priorSelections.operatingCashFlow.fact?.numericValue??null)===58692200000,
+            status:(pipeline.currentSelections.operatingCashFlow.fact?.numericValue??null)===106025000000
+              && (pipeline.priorSelections.operatingCashFlow.fact?.numericValue??null)===58692200000
+              ? 'MATCHED_OFFICIAL_RESULTS_PDF' : 'RECLASSIFIED_COMPARATIVE_REVIEW_REQUIRED',
+            note:'The prior Original filing and the current H1 FY27 PDF comparative differ. Both PDFs state previous-period figures were regrouped/reclassified; do not use prior Original OCF as a comparable base until the ₹121.88 crore difference is reconciled.',
+          } : null;
+          const statementTieOutStatus=meta.basis==='Consolidated'
+            ? (statementTieOuts.every(x=>x.status==='MATCHED_OFFICIAL_RESULTS_PDF')?'REVENUE_AND_OWNER_PROFIT_MATCH':'REVENUE_OR_OWNER_PROFIT_REVIEW_REQUIRED')
+            : 'NOT_CHECKED_STANDALONE';
+          if(meta.basis==='Consolidated' && ocfComparativeCheck?.status==='RECLASSIFIED_COMPARATIVE_REVIEW_REQUIRED') {
+            pipeline.candidateReport.candidates.operatingCashFlow=null;
+            const ocfAudit=pipeline.candidateReport.auditMatrix.metrics.OPERATING_CASH_FLOW;
+            ocfAudit.sourceDataStatus='CONFLICT';
+            ocfAudit.decision='DATA_CONFLICT';
+            ocfAudit.explanation='Prior Original OCF differs from the current official results PDF comparative after prior-period regrouping/reclassification; OCF YoY withheld pending reconciliation.';
+            pipeline.candidateReport.auditMatrix.candidateCount-=1;
+            pipeline.candidateReport.auditMatrix.blockedCount+=1;
+          }
+
           const output={
             status:'REAL_NSE_XBRL_CANDIDATE_PIPELINE_COMPLETED',
             symbol:meta.symbol,sector:meta.sector,basis:meta.basis,currentPeriod:meta.currentPeriod,priorPeriod:meta.priorPeriod,
@@ -214,8 +247,9 @@ jobs:
             priorSelections:Object.fromEntries(Object.entries(pipeline.priorSelections).map(([k,v])=>[k,{status:v.status,eligibleCount:v.eligibleCount,rejectedContextCount:v.rejectedContextCount,explanation:v.explanation}])),
             candidates:pipeline.candidateReport.candidates,
             auditMatrix:pipeline.candidateReport.auditMatrix,
+            statementTieOutStatus,statementTieOuts,ocfComparativeCheck,rawOcfCandidateBeforeComparabilityGate:rawOcfCandidate,officialResultsPdf:officialPdfUrl,
             productionApproved:false,
-            note:'Mechanical same-period candidate results only. No PDF statement tie-out, accounting-definition approval or production approval is implied.',
+            note:'Revenue and owner-attributable profit are compared with the official results PDF for consolidated H1. OCF is withheld when prior Original differs from the current filing comparative. Remaining formula and comparability gates still apply; no production approval is implied.',
           };
           fs.writeFileSync('artifacts/seven-metric-pipeline-report.json',JSON.stringify(output,null,2));
           console.log(JSON.stringify(output,null,2));
