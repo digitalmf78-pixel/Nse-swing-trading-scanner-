@@ -113,3 +113,26 @@ test('warns when duplicate unit IDs would overwrite a unit', () => {
   const out = extractXbrl(xml);
   assert.match(out.warnings.join(' '), /Duplicate XBRL unit id u/);
 });
+
+test('withholds numeric values when a referenced context is unresolved', () => {
+  const xml = '<xbrli:xbrl><in:Revenue contextRef="missing" unitRef="INR">100</in:Revenue></xbrli:xbrl>';
+  const out = extractXbrl(xml);
+  assert.equal(out.facts[0]?.numericValue, null);
+  assert.match(out.warnings.join(' '), /unresolved context; numeric value withheld/);
+});
+
+test('withholds numeric values when a referenced unit is unresolved', () => {
+  const xml = '<xbrli:xbrl><xbrli:context id="c"><xbrli:period><xbrli:instant>2026-09-30</xbrli:instant></xbrli:period></xbrli:context><in:Revenue contextRef="c" unitRef="missing">100</in:Revenue></xbrli:xbrl>';
+  const out = extractXbrl(xml);
+  assert.equal(out.facts[0]?.numericValue, null);
+  assert.match(out.warnings.join(' '), /unresolved unit missing; numeric value withheld/);
+});
+
+test('withholds numeric values for unsupported scale or sign attributes', () => {
+  const xml = '<xbrli:xbrl><xbrli:context id="c"><xbrli:period><xbrli:instant>2026-09-30</xbrli:instant></xbrli:period></xbrli:context><xbrli:unit id="u"><xbrli:measure>iso4217:INR</xbrli:measure></xbrli:unit><ix:nonFraction name="in:BadScale" contextRef="c" unitRef="u" scale="many">100</ix:nonFraction><ix:nonFraction name="in:BadSign" contextRef="c" unitRef="u" sign="negative">100</ix:nonFraction></xbrli:xbrl>';
+  const out = extractXbrl(xml);
+  assert.equal(out.facts[0]?.numericValue, null);
+  assert.equal(out.facts[1]?.numericValue, null);
+  assert.match(out.warnings.join(' '), /unsupported scale many/);
+  assert.match(out.warnings.join(' '), /unsupported sign negative/);
+});
