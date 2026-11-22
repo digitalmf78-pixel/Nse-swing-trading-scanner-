@@ -1876,7 +1876,7 @@ class NsePipelineEngine {
   }
 
   public getAuditCollectionTargets(
-    scope: 'MISSING_OR_OLD' | 'NOT_AVAILABLE' | 'LIQUID' | 'ALL',
+    scope: 'MISSING_OR_OLD' | 'NOT_AVAILABLE' | 'LIQUID' | 'ALL' | 'BHAVCOPY',
     limit?: number
   ): string[] {
     this.ensureLoaded();
@@ -1887,6 +1887,9 @@ class NsePipelineEngine {
       NONE: 3,
     };
 
+    // BHAVCOPY and ALL both mean every eligible symbol in the latest loaded NSE Bhavcopy.
+    // screenerRows is built only from the latest session's EQ/BE/BZ Bhavcopy records;
+    // this scope deliberately applies no liquidity/fundamental filter.
     let candidates = this.screenerRows;
     if (scope === 'NOT_AVAILABLE') {
       candidates = candidates.filter((r) => r.fundamentalFreshness === 'NOT_AVAILABLE');
@@ -1912,7 +1915,7 @@ class NsePipelineEngine {
       return (b.avgTurnover20DCr ?? 0) - (a.avgTurnover20DCr ?? 0);
     });
 
-    const syms = sorted.map((r) => r.symbol);
+    const syms = Array.from(new Set(sorted.map((r) => r.symbol.trim().toUpperCase()).filter(Boolean)));
     return limit && limit > 0 ? syms.slice(0, limit) : syms;
   }
 
