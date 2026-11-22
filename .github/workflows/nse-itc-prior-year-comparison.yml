@@ -102,12 +102,15 @@ jobs:
           node --experimental-strip-types --input-type=module <<'JS'
           import fs from 'node:fs';
           import { extractXbrl } from './research/fundamental_pilot/xbrl_extract.ts';
+          import { buildSevenMetricXbrlPipeline } from './research/fundamental_pilot/seven_metric_xbrl_pipeline.ts';
           const meta=JSON.parse(fs.readFileSync('artifacts/ITC_pair_metadata.json','utf8'));
           const candidates=['RevenueFromOperations','ProfitLossForPeriod','ProfitBeforeTax','FinanceCosts','CashFlowsFromUsedInOperatingActivities'];
           const outputs={};
+          const parsedByKey={};
           for (const key of ['current','prior']) {
             const xml=fs.readFileSync(`artifacts/ITC_${key}.xml`,'utf8');
             const out=extractXbrl(xml);
+            parsedByKey[key]=out;
             if (!out.contextCount || !out.factCount || !Object.keys(out.units).length) throw new Error(`Empty parse for ${key}`);
             const durationContexts=Object.values(out.contexts).filter(c=>c.periodStart&&c.periodEnd);
             const instantContexts=Object.values(out.contexts).filter(c=>c.instant);
@@ -130,11 +133,16 @@ jobs:
           const segmentResultsPbtByShape={'07-01|09-30':56946200000,'04-01|09-30':115554700000};
           const associatesShareByShape={'07-01|09-30':969600000,'04-01|09-30':1828700000};
           const pbtReconciliation=comparison.filter(x=>x.currentFilingComparative.concept==='in-capmkt:ProfitBeforeTax').map(x=>{const shape=x.key[1].join('|');const main=mainResultsPbtByShape[shape];const segment=segmentResultsPbtByShape[shape];const associates=associatesShareByShape[shape];const candidate=x.currentFilingComparative.numericValue;return {periodShape:x.key[1],xbrlCandidateCurrentINR:candidate,mainFinancialResultsPbtINR:main,segmentResultsPbtINR:segment,associatesShareIncludedInSegmentBridgeINR:associates,matchesMainResults:main!==undefined&&candidate===main,segmentBridgeReconciles:segment!==undefined&&main+associates===segment,status:'DEFINITION_VARIANT_REQUIRES_POLICY',metricMappingApproved:false};});
+          const sevenMetricXbrlPipeline=buildSevenMetricXbrlPipeline('NON_FINANCIAL',
+            {extraction:parsedByKey.current,periodType:'YTD',periodStart:'2026-04-01',periodEnd:'2026-09-30',basis:'CONSOLIDATED',filingBasis:'CONSOLIDATED'},
+            {extraction:parsedByKey.prior,periodType:'YTD',periodStart:'2025-04-01',periodEnd:'2025-09-30',basis:'CONSOLIDATED',filingBasis:'CONSOLIDATED'},
+            {revenue:'in-capmkt:RevenueFromOperations',profit:'in-capmkt:ProfitLossForPeriod',operatingCashFlow:'in-capmkt:CashFlowsFromUsedInOperatingActivities'});
+
           if (matched.length!==9 || keys.length!==9) throw new Error(`Expected 9 exact concept/period/dimension/unit matches, got matched=${matched.length}, keys=${keys.length}`);
           if (pbtReconciliation.length!==2 || pbtReconciliation.some(x=>!x.matchesMainResults || !x.segmentBridgeReconciles || x.metricMappingApproved)) throw new Error('Expected both PBT presentation variants to reconcile while keeping metric mapping blocked');
-          const report={status:'PARSE_MATCH_PASS_PBT_DEFINITION_VARIANT_BLOCKED',company:'ITC Limited',symbol:'ITC',basis:'Consolidated',periodEndCurrent:'2026-09-30',periodEndPrior:'2025-09-30',files:outputs,priorPeriodCandidateFactCounts:{currentYearQuarterAndYtdFacts:currentFacts.length,priorYearOriginalQuarterAndYtdFacts:priorFacts.length},matchedFactCount:matched.length,unmatchedKeyCount:keys.length-matched.length,matchedComparisons:comparison,growthChecks,pbtReconciliation,note:'Current 2026 duration facts are matched to the 2025 original filing by concept, matching calendar period shape (quarter or YTD), dimensions and unit. Growth percentages are mechanical only. ITC disclosures about acquisitions and GST/cess changes mean comparability must be qualified before interpreting growth.'};
+          const report={status:'PARSE_MATCH_PASS_PBT_DEFINITION_VARIANT_BLOCKED',sevenMetricXbrlPipeline,company:'ITC Limited',symbol:'ITC',basis:'Consolidated',periodEndCurrent:'2026-09-30',periodEndPrior:'2025-09-30',files:outputs,priorPeriodCandidateFactCounts:{currentYearQuarterAndYtdFacts:currentFacts.length,priorYearOriginalQuarterAndYtdFacts:priorFacts.length},matchedFactCount:matched.length,unmatchedKeyCount:keys.length-matched.length,matchedComparisons:comparison,growthChecks,pbtReconciliation,note:'Current 2026 duration facts are matched to the 2025 original filing by concept, matching calendar period shape (quarter or YTD), dimensions and unit. Growth percentages are mechanical only. ITC disclosures about acquisitions and GST/cess changes mean comparability must be qualified before interpreting growth.'};
           fs.writeFileSync('artifacts/ITC_prior_year_comparison.json',JSON.stringify(report,null,2));
-          console.log(JSON.stringify({status:report.status,files:Object.fromEntries(Object.entries(outputs).map(([k,v])=>[k,{seqId:v.metadata.seq_Id,broadcast:v.metadata.broadcast_Date,contexts:v.contexts,facts:v.factCount,warnings:v.warnings.length}])),priorPeriodCandidateFactCounts:report.priorPeriodCandidateFactCounts,matchedFactCount:report.matchedFactCount,unmatchedKeyCount:report.unmatchedKeyCount,growthChecks},null,2));
+          console.log(JSON.stringify({status:report.status,files:Object.fromEntries(Object.entries(outputs).map(([k,v])=>[k,{seqId:v.metadata.seq_Id,broadcast:v.metadata.broadcast_Date,contexts:v.contexts,facts:v.factCount,warnings:v.warnings.length}])),priorPeriodCandidateFactCounts:report.priorPeriodCandidateFactCounts,matchedFactCount:report.matchedFactCount,unmatchedKeyCount:report.unmatchedKeyCount,growthChecks,sevenMetricXbrlPipeline:{currentSelections:Object.fromEntries(Object.entries(sevenMetricXbrlPipeline.currentSelections).map(([k,v])=>[k,v.status])),priorSelections:Object.fromEntries(Object.entries(sevenMetricXbrlPipeline.priorSelections).map(([k,v])=>[k,v.status])),candidates:sevenMetricXbrlPipeline.candidateReport.candidates,auditMatrix:sevenMetricXbrlPipeline.candidateReport.auditMatrix}},null,2));
           JS
       - name: Upload original and prior-year comparison artifacts
         if: always()
