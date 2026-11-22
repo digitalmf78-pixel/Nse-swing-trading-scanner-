@@ -93,7 +93,9 @@ export interface LiveFundamentalRecord {
   debtToEquity: number | null;
   interestCoverage: number | null;
   operatingCashFlowInr: number | null;
+  operatingCashFlowPeriodEnd?: string;
   freeCashFlowInr: number | null;
+  freeCashFlowPeriodEnd?: string;
   trailingPE: number | null;
   priceToBook: number | null;
   marketCapInr: number | null;
@@ -226,8 +228,30 @@ function mergeFundamentalRecords(
     rocePct: mergePeriodMetric(next.rocePct, prev.rocePct),
     debtToEquity: mergePeriodMetric(next.debtToEquity, prev.debtToEquity),
     interestCoverage: mergePeriodMetric(next.interestCoverage, prev.interestCoverage),
-    operatingCashFlowInr: mergePeriodMetric(next.operatingCashFlowInr, prev.operatingCashFlowInr),
-    freeCashFlowInr: mergePeriodMetric(next.freeCashFlowInr, prev.freeCashFlowInr),
+    operatingCashFlowInr:
+      next.operatingCashFlowInr === null
+        ? prev.operatingCashFlowInr
+        : !next.operatingCashFlowPeriodEnd
+          ? (prev.operatingCashFlowPeriodEnd ? prev.operatingCashFlowInr : next.operatingCashFlowInr)
+          : !prev.operatingCashFlowPeriodEnd || next.operatingCashFlowPeriodEnd >= prev.operatingCashFlowPeriodEnd
+            ? next.operatingCashFlowInr
+            : prev.operatingCashFlowInr,
+    operatingCashFlowPeriodEnd:
+      next.operatingCashFlowPeriodEnd && (!prev.operatingCashFlowPeriodEnd || next.operatingCashFlowPeriodEnd >= prev.operatingCashFlowPeriodEnd)
+        ? next.operatingCashFlowPeriodEnd
+        : prev.operatingCashFlowPeriodEnd,
+    freeCashFlowInr:
+      next.freeCashFlowInr === null
+        ? prev.freeCashFlowInr
+        : !next.freeCashFlowPeriodEnd
+          ? (prev.freeCashFlowPeriodEnd ? prev.freeCashFlowInr : next.freeCashFlowInr)
+          : !prev.freeCashFlowPeriodEnd || next.freeCashFlowPeriodEnd >= prev.freeCashFlowPeriodEnd
+            ? next.freeCashFlowInr
+            : prev.freeCashFlowInr,
+    freeCashFlowPeriodEnd:
+      next.freeCashFlowPeriodEnd && (!prev.freeCashFlowPeriodEnd || next.freeCashFlowPeriodEnd >= prev.freeCashFlowPeriodEnd)
+        ? next.freeCashFlowPeriodEnd
+        : prev.freeCashFlowPeriodEnd,
     trailingPE: next.trailingPE ?? prev.trailingPE,
     priceToBook: next.priceToBook ?? prev.priceToBook,
     marketCapInr: next.marketCapInr ?? prev.marketCapInr,
@@ -543,13 +567,18 @@ async function fetchYahooSingleExchange(
   }
 
   // 7. Operating & Free Cash Flow (convert statement reporting currency -> INR)
-  const rawOcf =
-    latestTs(ts, 'trailingOperatingCashFlow')?.value ??
-    latestTs(ts, 'annualOperatingCashFlow')?.value ??
+  const ocfPoint =
+    latestTs(ts, 'trailingOperatingCashFlow') ??
+    latestTs(ts, 'annualOperatingCashFlow') ??
     null;
-  const operatingCashFlowInr = rawOcf !== null ? rawOcf * fxFinToInr : null;
-  const rawFcf = latestTs(ts, 'annualFreeCashFlow')?.value ?? null;
-  const freeCashFlowInr = rawFcf !== null ? rawFcf * fxFinToInr : null;
+  const operatingCashFlowInr =
+    ocfPoint !== null ? ocfPoint.value * fxFinToInr : null;
+  const operatingCashFlowPeriodEnd =
+    ocfPoint && /^\\d{4}-\\d{2}-\\d{2}$/.test(ocfPoint.asOfDate) ? ocfPoint.asOfDate : '';
+  const fcfPoint = latestTs(ts, 'annualFreeCashFlow') ?? null;
+  const freeCashFlowInr = fcfPoint !== null ? fcfPoint.value * fxFinToInr : null;
+  const freeCashFlowPeriodEnd =
+    fcfPoint && /^\\d{4}-\\d{2}-\\d{2}$/.test(fcfPoint.asOfDate) ? fcfPoint.asOfDate : '';
 
   const qRevDate = latestTs(ts, 'quarterlyTotalRevenue')?.asOfDate || '';
   const aRevDate = latestTs(ts, 'annualTotalRevenue')?.asOfDate || '';
@@ -640,7 +669,9 @@ async function fetchYahooSingleExchange(
     debtToEquity,
     interestCoverage,
     operatingCashFlowInr,
+    operatingCashFlowPeriodEnd,
     freeCashFlowInr,
+    freeCashFlowPeriodEnd,
     trailingPE: rawVal(detail.trailingPE),
     priceToBook: rawVal(stats.priceToBook),
     marketCapInr,
