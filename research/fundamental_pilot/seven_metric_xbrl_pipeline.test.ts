@@ -5,7 +5,8 @@ import type { XbrlExtraction } from './xbrl_extract.ts';
 
 const concepts={
   revenue:'in-capmkt:RevenueFromOperations',
-  profit:'in-capmkt:ProfitLossForPeriod',
+  profit:'in-capmkt:ProfitOrLossAttributableToOwnersOfParent',
+  profitAttribution:'OWNERS_OF_PARENT',
   operatingCashFlow:'in-capmkt:CashFlowsFromUsedInOperatingActivities',
 };
 function extraction(start:string,end:string,values:{revenue?:number;profit?:number;ocf?:number}={}):XbrlExtraction {
@@ -69,6 +70,16 @@ test('blocks all candidate facts when filing-level basis is not explicit',()=>{
   const report=buildSevenMetricXbrlPipeline('NON_FINANCIAL',{...current,filingBasis:null},prior,concepts);
   assert.equal(report.currentSelections.revenue.status,'BLOCKED_BASIS_MISMATCH');
   assert.equal(report.candidateReport.auditMatrix.metrics.REVENUE_GROWTH.decision,'DATA_BLOCKED');
+});
+
+test('blocks consolidated total-group profit when owner-attributable profit is required',()=>{
+  assert.throws(()=>buildSevenMetricXbrlPipeline('NON_FINANCIAL',current,prior,{...concepts,profit:'in-capmkt:ProfitLossForPeriod'}),/must use the profit attributable to owners of the parent/);
+});
+
+test('blocks standalone profit when attribution policy is not explicitly standalone',()=>{
+  const standaloneCurrent={...current,basis:'STANDALONE' as const,filingBasis:'STANDALONE' as const};
+  const standalonePrior={...prior,basis:'STANDALONE' as const,filingBasis:'STANDALONE' as const};
+  assert.throws(()=>buildSevenMetricXbrlPipeline('NON_FINANCIAL',standaloneCurrent,standalonePrior,concepts),/must use the standalone entity profit result/);
 });
 
 test('does not guess a taxonomy concept when issuer mapping is absent',()=>{
