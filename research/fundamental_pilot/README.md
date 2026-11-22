@@ -8,15 +8,20 @@ This folder is isolated from the scanner runtime. The intended production implem
 - It uses `fast-xml-parser` (MIT; TypeScript declarations; ESM/CommonJS support) and rejects DTD/entity declarations.
 - It has a 25 MB input limit and intentionally rejects ZIP input; archive decompression is a separate ingestion step.
 - `xbrl_extract.test.ts` contains synthetic tests for context/entity metadata, standard facts, nil facts, inline scale/sign, fractions, DTD rejection, and broken references.
+- `sector_metric_policy.test.ts` covers bank-sector exclusions and rejects segment/dimensional facts when selecting group totals.
+- `statement_reconciliation.test.ts` covers named statement-presentation variants and fail-closed mapping decisions.
 - Run with `npm run test:fundamental-pilot` after installing project dependencies.
 
 ## Sector and context safety gates
 
 - `sector_metric_policy.ts` is a research-only applicability guard, not a calculator or production metric mapper.
+- `statement_reconciliation.ts` compares a raw candidate with named statement presentations but always leaves metric mapping unapproved. This prevents one statement row from being silently substituted for another when presentation definitions differ.
 - Bank ROCE, industrial Debt/Equity and industrial EBIT/interest coverage are explicitly marked not applicable as generic formulas.
 - Bank revenue/profit growth, ROE and OCF remain blocked pending bank-specific definitions and period/basis validation.
 - NBFC, insurance and unknown-sector profiles fail closed rather than inheriting industrial formulas.
 - Context selection requires exact dates, duration-vs-instant shape, no dimensions for group totals, and an explicit matching filing-level consolidation basis.
+- The ITC pilot found two PBT presentations in the same consolidated filing: main financial-results PBT and segment-results PBT. The XBRL candidate matches the main financial-results PBT; the segment presentation includes the associates/JV share in its bridge. Both can be arithmetically reconciled, but the scanner's intended PBT definition remains unselected and mapping stays blocked.
+- The HDFC Bank prior-year pair pilot matched 311 raw fact keys across two original consolidated banking filings, with 11 unmatched keys and no conflicting duplicates. Those unmatched keys remain unresolved.
 - These guards do not prove taxonomy concepts are correctly mapped; all seven metrics remain unapproved for production.
 
 ## Python prototype
