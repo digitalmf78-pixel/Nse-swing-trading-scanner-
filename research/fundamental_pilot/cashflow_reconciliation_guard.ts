@@ -4,16 +4,23 @@ export type CashReconciliationStatus =
   | 'BLOCKED_MISSING_VALUE'
   | 'BLOCKED_INVALID_INPUT';
 
+export interface CashFlowFactValue {
+  value: number | null;
+  period: string;
+  basis: 'Standalone' | 'Consolidated';
+  unit: string;
+}
+
 export interface CashReconciliationInput {
   period: string;
   basis: 'Standalone' | 'Consolidated';
   unit: string;
-  openingCash: number | null;
-  netCashMovement: number | null;
-  closingCashFlowStatement: number | null;
-  closingCashBalanceSheet: number | null;
-  operatingCashFlow?: number | null;
-  statementOperatingCashFlow?: number | null;
+  openingCash: CashFlowFactValue;
+  netCashMovement: CashFlowFactValue;
+  closingCashFlowStatement: CashFlowFactValue;
+  closingCashBalanceSheet: CashFlowFactValue;
+  operatingCashFlow?: CashFlowFactValue | null;
+  statementOperatingCashFlow?: CashFlowFactValue | null;
   tolerance?: number;
 }
 
@@ -33,41 +40,54 @@ export interface CashReconciliationDecision {
   explanation: string;
 }
 
+const EMPTY_CHECKS = {
+  openingPlusMovementEqualsClosing: null,
+  cashFlowClosingMatchesBalanceSheet: null,
+  operatingCashFlowMatchesStatement: null,
+};
+const EMPTY_DIFFS = { rollForward: null, closingCash: null, operatingCashFlow: null };
+
 /**
- * Research-only cash-flow integrity guard. All amounts must already be
- * normalized to the same currency/unit, period and filing basis.
- * It does not infer missing values or approve a production metric mapping.
+ * Research-only cash-flow integrity guard. Every input fact carries its own
+ * period, consolidation basis and unit; mixed facts are rejected before math.
+ * Tolerance is expressed in the declared common unit. Never production-approved.
  */
 export function evaluateCashReconciliation(input: CashReconciliationInput): CashReconciliationDecision {
-  const empty = {
-    openingPlusMovementEqualsClosing: null,
-    cashFlowClosingMatchesBalanceSheet: null,
-    operatingCashFlowMatchesStatement: null,
-  };
-  const noDiff = { rollForward: null, closingCash: null, operatingCashFlow: null };
   if (!input.period.trim() || !input.unit.trim()
     || !['Standalone', 'Consolidated'].includes(input.basis)
     || (input.tolerance !== undefined && (!Number.isFinite(input.tolerance) || input.tolerance < 0))) {
-    return { status: 'BLOCKED_INVALID_INPUT', checks: empty, differences: noDiff,
-      productionApproved: false, explanation: 'Period, basis, unit and non-negative finite tolerance must be valid.' };
+    return { status: 'BLOCKED_INVALID_INPUT', checks: EMPTY_CHECKS, differences: EMPTY_DIFFS,
+      productionApproved: false, explanation: 'Expected period, basis, unit and non-negative finite tolerance must be valid.' };
   }
-  const values = [input.openingCash, input.netCashMovement, input.closingCashFlowStatement, input.closingCashBalanceSheet];
-  const hasOcf = input.operatingCashFlow !== undefined && input.operatingCashFlow !== null;
-  const hasStatementOcf = input.statementOperatingCashFlow !== undefined && input.statementOperatingCashFlow !== null;
-  if (values.some(v => v === null || !Number.isFinite(v))
-    || (hasOcf !== hasStatementOcf)
-    || (input.operatingCashFlow !== undefined && input.operatingCashFlow !== null && !Number.isFinite(input.operatingCashFlow))
-    || (input.statementOperatingCashFlow !== undefined && input.statementOperatingCashFlow !== null && !Number.isFinite(input.statementOperatingCashFlow))) {
-    return { status: 'BLOCKED_MISSING_VALUE', checks: empty, differences: noDiff,
-      productionApproved: false, explanation: 'Required cash facts or paired OCF statement cross-check are missing/non-finite; no substitution is allowed.' };
+  const facts = [input.openingCash, input.netCashMovement, input.closingCashFlowStatement, input.closingCashBalanceSheet];
+  const optionalFacts = [input.operatingCashFlow, input.statementOperatingCashFlow];
+  if (facts.some(f => !f || typeof f !== 'object')
+    || optionalFacts.some(f => f !== undefined && f !== null && typeof f !== 'object')) {
+    return { status: 'BLOCKED_MISSING_VALUE', checks: EMPTY_CHECKS, differences: EMPTY_DIFFS,
+      productionApproved: false, explanation: 'A required fact object is missing.' };
+  }
+  const allFacts = [...facts, ...optionalFacts.filter((f): f is CashFlowFactValue => f !== undefined && f !== null)];
+  if (allFacts.some(f => !f.period?.trim() || !f.unit?.trim()
+    || !['Standalone', 'Consolidated'].includes(f.basis)
+    || f.period !== input.period || f.basis !== input.basis || f.unit !== input.unit)) {
+    return { status: 'BLOCKED_INVALID_INPUT', checks: EMPTY_CHECKS, differences: EMPTY_DIFFS,
+      productionApproved: false, explanation: 'Fact period, consolidation basis and unit must exactly match the expected filing metadata.' };
+  }
+  if (facts.some(f => f.value === null || !Number.isFinite(f.value))
+    || ((input.operatingCashFlow == null) !== (input.statementOperatingCashFlow == null))
+    || optionalFacts.some(f => f != null && (f.value === null || !Number.isFinite(f.value)))) {
+    return { status: 'BLOCKED_MISSING_VALUE', checks: EMPTY_CHECKS, differences: EMPTY_DIFFS,
+      productionApproved: false, explanation: 'Required cash facts or paired OCF cross-check are missing/non-finite; no substitution is allowed.' };
   }
   const tolerance = input.tolerance ?? 0;
-  const rollForward = (input.openingCash as number) + (input.netCashMovement as number) - (input.closingCashFlowStatement as number);
-  const closingCash = (input.closingCashFlowStatement as number) - (input.closingCashBalanceSheet as number);
-  const ocfProvided = input.operatingCashFlow !== undefined && input.operatingCashFlow !== null;
-  const operatingCashFlow = ocfProvided
-    ? (input.operatingCashFlow as number) - (input.statementOperatingCashFlow as number)
-    : null;
+  const opening = input.openingCash.value as number;
+  const movement = input.netCashMovement.value as number;
+  const closingFlow = input.closingCashFlowStatement.value as number;
+  const closingBalance = input.closingCashBalanceSheet.value as number;
+  const rollForward = opening + movement - closingFlow;
+  const closingCash = closingFlow - closingBalance;
+  const operatingCashFlow = input.operatingCashFlow == null ? null
+    : (input.operatingCashFlow.value as number) - (input.statementOperatingCashFlow!.value as number);
   const checks = {
     openingPlusMovementEqualsClosing: Math.abs(rollForward) <= tolerance,
     cashFlowClosingMatchesBalanceSheet: Math.abs(closingCash) <= tolerance,
