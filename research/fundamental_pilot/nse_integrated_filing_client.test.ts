@@ -120,3 +120,12 @@ test('distinguishes no matching filing from a blocked filing history', () => {
   });
   assert.equal(result.status,'ORIGINAL_MISSING');
 });
+
+test('blocks filing history rows without a publication or revision timestamp',()=>{
+  const noTimestamp={...official('1','Original'),broadcast_Date:'',creation_Date:''};
+  const result=selectNseIssuerPeriodHistory([noTimestamp],{
+    symbol:'KSHINTL',period:'30-SEP-2026',basis:'Standalone',
+  });
+  assert.equal(result.status,'BLOCKED');
+  if(result.status==='BLOCKED') assert.match(result.reason,/no usable publication\/revision timestamp/);
+});
