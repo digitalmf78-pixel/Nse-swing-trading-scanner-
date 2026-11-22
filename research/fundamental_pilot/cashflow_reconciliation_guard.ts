@@ -52,8 +52,10 @@ export function evaluateCashReconciliation(input: CashReconciliationInput): Cash
       productionApproved: false, explanation: 'Period, basis, unit and non-negative finite tolerance must be valid.' };
   }
   const values = [input.openingCash, input.netCashMovement, input.closingCashFlowStatement, input.closingCashBalanceSheet];
+  const hasOcf = input.operatingCashFlow !== undefined && input.operatingCashFlow !== null;
+  const hasStatementOcf = input.statementOperatingCashFlow !== undefined && input.statementOperatingCashFlow !== null;
   if (values.some(v => v === null || !Number.isFinite(v))
-    || ((input.operatingCashFlow === null) !== (input.statementOperatingCashFlow === null))
+    || (hasOcf !== hasStatementOcf)
     || (input.operatingCashFlow !== undefined && input.operatingCashFlow !== null && !Number.isFinite(input.operatingCashFlow))
     || (input.statementOperatingCashFlow !== undefined && input.statementOperatingCashFlow !== null && !Number.isFinite(input.statementOperatingCashFlow))) {
     return { status: 'BLOCKED_MISSING_VALUE', checks: empty, differences: noDiff,
