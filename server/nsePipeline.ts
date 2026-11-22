@@ -528,7 +528,7 @@ class NsePipelineEngine {
         debtToEquity: rawDeCsv !== null && rawDeCsv >= 0 ? rawDeCsv : null,
         debtToEquityPeriodEnd: r.DebtToEquityPeriodEnd || '',
         interestCoverage: rawIcCsv !== null && rawIcCsv > 0.1 ? rawIcCsv : null,
-        interestCoveragePeriodEnd: r.InterestCoveragePeriodEnd || ''
+        interestCoveragePeriodEnd: r.InterestCoveragePeriodEnd || '',
         operatingCashFlowInr: toNum(r.OperatingCashFlowINR),
         operatingCashFlowPeriodEnd: r.OperatingCashFlowPeriodEnd || '',
         freeCashFlowInr: toNum(r.FreeCashFlowINR),
