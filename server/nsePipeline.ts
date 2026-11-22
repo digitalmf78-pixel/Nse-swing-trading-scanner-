@@ -518,11 +518,17 @@ class NsePipelineEngine {
         lastUpdatedUtc:
           r.DataRetrievedAtUTC || r.ValuationRetrievedAtUTC || r.AsOfDate || '',
         revenueGrowthPct: toNum(r.RevenueGrowthPct),
+        revenueGrowthPeriodEnd: r.RevenueGrowthPeriodEnd || '',
         profitGrowthPct: toNum(r.ProfitGrowthPct),
+        profitGrowthPeriodEnd: r.ProfitGrowthPeriodEnd || '',
         roePct: toNum(r.ROEPercent),
+        roePeriodEnd: r.ROEPeriodEnd || '',
         rocePct: toNum(r.ROCEPercent),
+        rocePeriodEnd: r.ROCEPeriodEnd || '',
         debtToEquity: rawDeCsv !== null && rawDeCsv >= 0 ? rawDeCsv : null,
+        debtToEquityPeriodEnd: r.DebtToEquityPeriodEnd || '',
         interestCoverage: rawIcCsv !== null && rawIcCsv > 0.1 ? rawIcCsv : null,
+        interestCoveragePeriodEnd: r.InterestCoveragePeriodEnd || ''
         operatingCashFlowInr: toNum(r.OperatingCashFlowINR),
         operatingCashFlowPeriodEnd: r.OperatingCashFlowPeriodEnd || '',
         freeCashFlowInr: toNum(r.FreeCashFlowINR),
@@ -579,21 +585,27 @@ class NsePipelineEngine {
       let changed = false;
       if (metric === 'RevenueGrowthPct' && prof.revenueGrowthPct === null) {
         prof.revenueGrowthPct = val;
+        prof.revenueGrowthPeriodEnd = cachePeriod;
         changed = true;
       } else if (metric === 'ProfitGrowthPct' && prof.profitGrowthPct === null) {
         prof.profitGrowthPct = val;
+        prof.profitGrowthPeriodEnd = cachePeriod;
         changed = true;
       } else if (metric === 'ROEPercent' && prof.roePct === null) {
         prof.roePct = val;
+        prof.roePeriodEnd = cachePeriod;
         changed = true;
       } else if (metric === 'ROCEPercent' && prof.rocePct === null) {
         prof.rocePct = val;
+        prof.rocePeriodEnd = cachePeriod;
         changed = true;
       } else if (metric === 'DebtToEquity' && prof.debtToEquity === null) {
         prof.debtToEquity = val;
+        prof.debtToEquityPeriodEnd = cachePeriod;
         changed = true;
       } else if (metric === 'InterestCoverage' && prof.interestCoverage === null) {
         prof.interestCoverage = val;
+        prof.interestCoveragePeriodEnd = cachePeriod;
         changed = true;
       } else if (metric === 'PromoterHoldingPct' && prof.promoterHoldingPct === null) {
         prof.promoterHoldingPct = val;
