@@ -58,16 +58,18 @@ All source values below are raw INR from the XBRL instances. Crore conversion is
 
 Note: OCF is H1 YTD only in this selected pair. Do not create Q2 OCF by subtracting or inferring unless the exact first-quarter cash-flow period and policy are verified.
 
-## Critical concept-reconciliation warning: ProfitBeforeTax is not approved
+## PBT presentation reconciliation: definition variant found; metric mapping remains blocked
 
-The generic XBRL concept candidate `ProfitBeforeTax` did not reconcile to ITC's published consolidated statement's reported PBT line:
+The initial comparison treated the segment-results PBT presentation as the only published PBT value. That was too broad. The official NSE iXBRL page contains more than one PBT presentation:
 
-| Period | XBRL candidate (₹ Cr) | Published consolidated PBT (₹ Cr) | Difference (₹ Cr) |
+| Period | XBRL `ProfitBeforeTax` / main financial-results PBT (₹ Cr) | Segment-results PBT (₹ Cr) | Difference (₹ Cr) |
 |---|---:|---:|---:|
 | Q2 FY2026-27 | 5,597.66 | 5,694.62 | 96.96 |
 | H1 FY2026-27 | 11,372.60 | 11,555.47 | 182.87 |
 
-The differences equal the reported share of profit of associates and joint ventures for the corresponding periods. The current candidate concept therefore appears not to represent the complete published consolidated PBT line. Do not map this fact to the scanner's PBT or Interest Coverage inputs until the taxonomy concept/context and accounting definition are explicitly resolved. This is a useful example of why concept-name matching alone is insufficient.
+The XBRL candidate **does reconcile exactly** to the main Financial Results Ind-AS table's “Total profit before tax” line (₹5,59,766 lakh and ₹11,37,260 lakh). The segment-results presentation reports ₹5,69,462 lakh and ₹11,55,547 lakh. Its accompanying segment text block says the “Other Unallocable Expenditure net off Unallocable income” includes the share of profit/(loss) of associates and joint ventures of ₹96.96 crore for Q2 and ₹182.87 crore for H1. Thus the alternate segment presentation includes that equity-method amount in its PBT bridge.
+
+This is **not evidence that the XBRL fact is malformed or wrong**. It is evidence that the same filing exposes different presentation definitions. The scanner must not silently switch between them. PBT / Interest Coverage mapping remains blocked until the product's intended PBT definition is explicitly selected, the source statement row is recorded, and the chosen formula is reconciled consistently across issuers and periods. Concept-name matching alone is insufficient.
 
 ## Important comparability warning
 
@@ -99,7 +101,7 @@ Not proved:
 - NSE Integrated Filing page shows the original consolidated ITC filing rows for 30-SEP-2026 and 30-SEP-2025: https://www.nseindia.in/companies-listing/corporate-integrated-filing?integratedType=Integrated+Filing-+Financials&symbol=ITC&tabIndex=equity
 - ITC's NSE-filed consolidated results and cash-flow statement (2-Nov-2026): https://nsearchives.nseindia.in/corporate/ITC_02112026181912_SE_Results_.pdf
 
-The official consolidated statement reports Revenue from Operations, Profit for the Period, Finance Costs and Net Cash from Operating Activities. It also explicitly states that Century Pulp and Paper and Sproutlife are included from 1-Aug-2026 and 1-Apr-2026 respectively, and that the results are not comparable with prior periods; the filing further says the GST/central-excise changes affect revenue comparability.
+The official NSE iXBRL page separately exposes the main Financial Results PBT and segment-results PBT presentations; their ₹96.96 crore / ₹182.87 crore difference is disclosed in the segment text block as associates/JV share included in unallocable items. Revenue from Operations, Profit for the Period, Finance Costs and Net Cash from Operating Activities were also cross-checked. It also explicitly states that Century Pulp and Paper and Sproutlife are included from 1-Aug-2026 and 1-Apr-2026 respectively, and that the results are not comparable with prior periods; the filing further says the GST/central-excise changes affect revenue comparability.
 
 ## Workflow evidence
 
