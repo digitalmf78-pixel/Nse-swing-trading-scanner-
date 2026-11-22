@@ -97,7 +97,7 @@ else {
   const sourcePeriodCoverage = Object.fromEntries(sourceMetricKeys.map((key) => [key, fundamental.filter((row) => {
     try {
       const periods = JSON.parse(row.MetricSourcePeriodsJSON || '{}');
-      return typeof periods[key] === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(periods[key]);
+      return typeof periods[key] === 'string' && /^\d{4}-\\d{2}-\\d{2}$/.test(periods[key]);
     } catch { return false; }
   }).length]));
   if (missingDateColumns.length) warn(`Fundamental CSV lacks dedicated per-metric period-date columns; loader falls back to MetricSourcePeriodsJSON where an ISO date is available.`);
