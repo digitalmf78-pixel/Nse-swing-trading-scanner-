@@ -574,11 +574,11 @@ async function fetchYahooSingleExchange(
   const operatingCashFlowInr =
     ocfPoint !== null ? ocfPoint.value * fxFinToInr : null;
   const operatingCashFlowPeriodEnd =
-    ocfPoint && /^\\d{4}-\\d{2}-\\d{2}$/.test(ocfPoint.asOfDate) ? ocfPoint.asOfDate : '';
+    ocfPoint && /^\d{4}-\d{2}-\d{2}$/.test(ocfPoint.asOfDate) ? ocfPoint.asOfDate : '';
   const fcfPoint = latestTs(ts, 'annualFreeCashFlow') ?? null;
   const freeCashFlowInr = fcfPoint !== null ? fcfPoint.value * fxFinToInr : null;
   const freeCashFlowPeriodEnd =
-    fcfPoint && /^\\d{4}-\\d{2}-\\d{2}$/.test(fcfPoint.asOfDate) ? fcfPoint.asOfDate : '';
+    fcfPoint && /^\d{4}-\d{2}-\d{2}$/.test(fcfPoint.asOfDate) ? fcfPoint.asOfDate : '';
 
   const qRevDate = latestTs(ts, 'quarterlyTotalRevenue')?.asOfDate || '';
   const aRevDate = latestTs(ts, 'annualTotalRevenue')?.asOfDate || '';
