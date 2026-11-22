@@ -583,7 +583,7 @@ async function startServer() {
   });
 
   // Bhavcopy-Universe Fundamental Collection (only symbols present in the latest Bhavcopy when scope=BHAVCOPY)
-  app.post('/api/fundamentals/collect-all', (req, res) => {
+  app.post('/api/fundamentals/collect-all', async (req, res) => {
     try {
       const rawScope = typeof req.body?.scope === 'string' ? req.body.scope.toUpperCase() : 'MISSING_OR_OLD';
       const scope: 'MISSING_OR_OLD' | 'NOT_AVAILABLE' | 'LIQUID' | 'ALL' | 'BHAVCOPY' =
