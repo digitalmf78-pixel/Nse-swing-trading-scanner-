@@ -79,7 +79,8 @@ export async function collectXbrlEvidenceForFilingRows(
 ): Promise<{saved: number; skipped: number; failed: Array<{seqId:string;error:string}>}> {
   const fetchImpl = options.fetchImpl ?? fetch;
   const cache = loadNseXbrlEvidenceCache(options.cacheFile);
-  const existing = cache.symbols[symbol]?.documents ?? [];
+  const normalizedSymbol = symbol.trim().toUpperCase();
+  const existing = cache.symbols[normalizedSymbol]?.documents ?? [];
   const seenIds = new Set(existing.map(doc => doc.seqId));
   const newDocs: NseXbrlEvidenceDocument[] = [];
   const rawBytesBySeq = new Map<string, Uint8Array>();
@@ -100,7 +101,7 @@ export async function collectXbrlEvidenceForFilingRows(
       const extraction = extractXbrl(xml);
       if (extraction.warnings.length) throw new Error(`XBRL parser warnings: ${extraction.warnings.length}`);
       const doc: NseXbrlEvidenceDocument = {
-        symbol: symbol.toUpperCase(), seqId, periodEnd: row.qe_Date ?? '', filingType: row.type ?? '',
+        symbol: normalizedSymbol, seqId, periodEnd: row.qe_Date ?? '', filingType: row.type ?? '',
         filingSubType: row.type_Sub ?? '', basis: row.consolidated ?? '',
         filingUrl: url.toString(), fetchedAtUtc: new Date().toISOString(),
         sha256: createHash('sha256').update(bytes).digest('hex'), rawArchivePath: '', extraction,
@@ -111,7 +112,7 @@ export async function collectXbrlEvidenceForFilingRows(
   // Archive exact response bytes under immutable SHA-256 filenames; never overwrite different evidence.
   const archiveRoot = options.archiveDir ?? path.join(process.cwd(), 'data', 'research', 'nse_official_xbrl_raw');
   for (const doc of newDocs) {
-    const safeSymbol = doc.symbol.replace(/[^A-Z0-9._-]/g, '_');
+    const safeSymbol = normalizedSymbol.replace(/[^A-Z0-9._-]/g, '_');
     const safeSeq = doc.seqId.replace(/[^A-Za-z0-9._-]/g, '_');
     const archiveFile = path.join(archiveRoot, safeSymbol, safeSeq + '_' + doc.sha256 + '.xml');
     fs.mkdirSync(path.dirname(archiveFile), {recursive:true});
@@ -124,7 +125,7 @@ export async function collectXbrlEvidenceForFilingRows(
   }
   const merged = mergeXbrlEvidenceDocuments(existing, newDocs);
   if (newDocs.length) {
-    cache.symbols[symbol.toUpperCase()] = {symbol:symbol.toUpperCase(),documents:merged};
+    cache.symbols[normalizedSymbol] = {symbol:normalizedSymbol,documents:merged};
     cache.updatedAtUtc = new Date().toISOString();
     saveCache(cache, options.cacheFile);
   }
