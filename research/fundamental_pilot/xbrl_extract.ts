@@ -144,14 +144,16 @@ function numericValue(raw: string, scale: number | null, sign: string | null): n
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function fractionValue(node: XmlObject): number | null {
+function fractionValue(node: XmlObject, scale: number | null, sign: string | null): number | null {
   const numerator = firstDescendantText(node, 'numerator');
   const denominator = firstDescendantText(node, 'denominator');
   if (numerator === null || denominator === null) return null;
   const n = numericValue(numerator, null, null);
   const d = numericValue(denominator, null, null);
   if (n === null || d === null || d === 0) return null;
-  return n / d;
+  let value = (n / d) * (scale === null ? 1 : 10 ** scale);
+  if (sign === '-') value = -Math.abs(value);
+  return Number.isFinite(value) ? value : null;
 }
 
 export function extractXbrl(xml: string): XbrlExtraction {
@@ -236,7 +238,7 @@ export function extractXbrl(xml: string): XbrlExtraction {
           const unitRef = attr(node, 'unitref');
           let numeric: number | null = null;
           if (!nil && raw && (unitRef || tag === 'nonfraction' || tag === 'fraction')) {
-            numeric = tag === 'fraction' ? fractionValue(node) : numericValue(raw, scale, sign);
+            numeric = tag === 'fraction' ? fractionValue(node, scale, sign) : numericValue(raw, scale, sign);
           }
           facts.push({
             concept,
