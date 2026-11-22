@@ -114,16 +114,18 @@ jobs:
             const facts=out.facts.filter(f=>candidates.some(c=>f.concept.toLowerCase().endsWith(':'+c.toLowerCase()) || f.concept.toLowerCase()===c.toLowerCase()));
             outputs[key]={metadata:meta[key],bytes:Buffer.byteLength(xml),contexts:out.contextCount,factCount:out.factCount,units:out.units,warnings:out.warnings,durationContexts,instantContexts,candidateFacts:facts.map(f=>({...f,context:out.contexts[f.contextRef]??null,unitMeasures:f.unitRef?out.units[f.unitRef]??null:null}))};
           }
-          const priorPeriodFacts=(key)=>outputs[key].candidateFacts.filter(f=>f.context?.periodEnd==='2025-09-30');
+          const currentPeriodFacts=outputs.current.candidateFacts.filter(f=>f.context?.periodEnd==='2026-09-30' && f.context?.periodStart);
+          const priorPeriodFacts=outputs.prior.candidateFacts.filter(f=>f.context?.periodEnd==='2025-09-30' && f.context?.periodStart);
           const compact=(f)=>({concept:f.concept,periodStart:f.context?.periodStart,periodEnd:f.context?.periodEnd,instant:f.context?.instant,dimensions:f.context?.dimensions??[],unit:f.unitMeasures,rawValue:f.rawValue,numericValue:f.numericValue,isNil:f.isNil});
-          const currentComparatives=priorPeriodFacts('current').map(compact);
-          const priorOriginal=priorPeriodFacts('prior').map(compact);
-          const index=(arr)=>new Map(arr.map(f=>[JSON.stringify([f.concept,f.periodStart,f.periodEnd,f.instant,f.dimensions,f.unit]),f]));
-          const a=index(currentComparatives), b=index(priorOriginal);
+          const currentFacts=currentPeriodFacts.map(compact);
+          const priorFacts=priorPeriodFacts.map(compact);
+          const periodShape=(f)=>[f.periodStart?.slice(5),f.periodEnd?.slice(5)];
+          const index=(arr)=>new Map(arr.map(f=>[JSON.stringify([f.concept,periodShape(f),f.dimensions,f.unit]),f]));
+          const a=index(currentFacts), b=index(priorFacts);
           const keys=[...new Set([...a.keys(),...b.keys()])];
           const matched=keys.filter(k=>a.has(k)&&b.has(k));
           const comparison=matched.map(k=>({key:JSON.parse(k),currentFilingComparative:a.get(k),priorOriginal:b.get(k),sameRawValue:a.get(k).rawValue===b.get(k).rawValue,sameNumericValue:a.get(k).numericValue===b.get(k).numericValue}));
-          const report={status:'PARSE_PASS_REVIEW_REQUIRED',company:'ITC Limited',symbol:'ITC',basis:'Consolidated',periodEndCurrent:'2026-09-30',periodEndPrior:'2025-09-30',files:outputs,priorPeriodCandidateFactCounts:{currentFilingComparatives:currentComparatives.length,priorOriginalFiling:priorOriginal.length},matchedFactCount:matched.length,unmatchedKeyCount:keys.length-matched.length,matchedComparisons:comparison,note:'Exact context/concept/dimension/unit matches are surfaced for human/accounting review. This workflow does not automatically certify comparability or calculate growth; acquisition, tax and other filing notes must be assessed.'};
+          const report={status:'PARSE_PASS_REVIEW_REQUIRED',company:'ITC Limited',symbol:'ITC',basis:'Consolidated',periodEndCurrent:'2026-09-30',periodEndPrior:'2025-09-30',files:outputs,priorPeriodCandidateFactCounts:{currentYearQuarterAndYtdFacts:currentFacts.length,priorYearOriginalQuarterAndYtdFacts:priorFacts.length},matchedFactCount:matched.length,unmatchedKeyCount:keys.length-matched.length,matchedComparisons:comparison,note:'Current 2026 duration facts are matched to the 2025 original filing by concept, matching calendar period shape (quarter or YTD), dimensions and unit. This workflow does not automatically certify comparability or calculate growth; acquisition, tax and other filing notes must be assessed.'};
           fs.writeFileSync('artifacts/ITC_prior_year_comparison.json',JSON.stringify(report,null,2));
           console.log(JSON.stringify({status:report.status,files:Object.fromEntries(Object.entries(outputs).map(([k,v])=>[k,{seqId:v.metadata.seq_Id,broadcast:v.metadata.broadcast_Date,contexts:v.contexts,facts:v.factCount,warnings:v.warnings.length}])),priorPeriodCandidateFactCounts:report.priorPeriodCandidateFactCounts,matchedFactCount:report.matchedFactCount,unmatchedKeyCount:report.unmatchedKeyCount,matchedComparisons:comparison},null,2));
           JS
