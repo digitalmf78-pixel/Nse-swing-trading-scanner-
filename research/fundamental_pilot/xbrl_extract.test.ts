@@ -18,6 +18,7 @@ const fixture = `<?xml version="1.0"?>
  <in:NilCash contextRef="FY" unitRef="INR" xsi:nil="true"/>
  <ix:nonFraction name="in:Profit" contextRef="FY" unitRef="INR" scale="3" sign="-" decimals="0">2,500</ix:nonFraction>
  <ix:fraction name="in:Margin" contextRef="FY" unitRef="pure"><ix:numerator>1</ix:numerator><ix:denominator>4</ix:denominator></ix:fraction>
+ <ix:fraction name="in:ScaledMargin" contextRef="FY" unitRef="pure" scale="2" sign="-"><ix:numerator>1</ix:numerator><ix:denominator>4</ix:denominator></ix:fraction>
 </xbrli:xbrl>`;
 
 test('extracts context dates, entity identifier and dimensions', () => {
@@ -54,6 +55,12 @@ test('extracts inline fraction as numerator divided by denominator', () => {
   const out = extractXbrl(fixture);
   const fact = out.facts.find((item) => item.concept === 'in:Margin');
   assert.equal(fact?.numericValue, 0.25);
+});
+
+test('applies scale and sign to inline fractions', () => {
+  const out = extractXbrl(fixture);
+  const fact = out.facts.find((item) => item.concept === 'in:ScaledMargin');
+  assert.equal(fact?.numericValue, -25);
 });
 
 test('rejects DTD/entity declarations', () => {
