@@ -26,6 +26,8 @@ export interface XbrlFact {
   decimals: string | null;
   scale: number | null;
   sign: string | null;
+  format: string | null;
+  continuedAt: string | null;
   isNil: boolean;
   isInline: boolean;
 }
@@ -217,6 +219,7 @@ export function extractXbrl(xml: string): XbrlExtraction {
   }
 
   const facts: XbrlFact[] = [];
+  const warnings: string[] = [];
   const walkFacts = (value: XmlValue): void => {
     if (Array.isArray(value)) {
       for (const item of value) walkFacts(item);
@@ -235,10 +238,20 @@ export function extractXbrl(xml: string): XbrlExtraction {
           const nil = (attr(node, 'nil') ?? 'false').toLowerCase() === 'true';
           const scale = parseScale(attr(node, 'scale'));
           const sign = attr(node, 'sign');
+          const format = attr(node, 'format');
+          const continuedAt = attr(node, 'continuedat');
           const unitRef = attr(node, 'unitref');
           let numeric: number | null = null;
           if (!nil && raw && (unitRef || tag === 'nonfraction' || tag === 'fraction')) {
-            numeric = tag === 'fraction' ? fractionValue(node, scale, sign) : numericValue(raw, scale, sign);
+            // Fail closed: do not guess at Inline XBRL transformation rules or
+            // concatenate continuation chains until their specifications are implemented.
+            if (format) {
+              warnings.push(`Fact ${concept} uses unsupported Inline XBRL format transformation ${format}; numeric value withheld`);
+            } else if (continuedAt) {
+              warnings.push(`Fact ${concept} uses continuedAt=${continuedAt}; numeric value withheld until continuation resolution is implemented`);
+            } else {
+              numeric = tag === 'fraction' ? fractionValue(node, scale, sign) : numericValue(raw, scale, sign);
+            }
           }
           facts.push({
             concept,
@@ -249,6 +262,8 @@ export function extractXbrl(xml: string): XbrlExtraction {
             decimals: attr(node, 'decimals'),
             scale,
             sign,
+            format,
+            continuedAt,
             isNil: nil,
             isInline,
           });
@@ -259,7 +274,6 @@ export function extractXbrl(xml: string): XbrlExtraction {
   };
   walkFacts(parsed);
 
-  const warnings: string[] = [];
   for (const fact of facts) {
     if (fact.contextRef && !contexts[fact.contextRef]) {
       warnings.push(`Fact ${fact.concept} references missing context ${fact.contextRef}`);
