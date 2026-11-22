@@ -16,6 +16,8 @@ test('XBRL evidence URL accepts official archive host/path only',()=>{
   assert.equal(validateOfficialXbrlArchiveUrl('https://nsearchives.nseindia.in/corporate/xbrl/a.xml').hostname,'nsearchives.nseindia.in');
   assert.throws(()=>validateOfficialXbrlArchiveUrl('http://nsearchives.nseindia.in/corporate/xbrl/a.xml'));
   assert.throws(()=>validateOfficialXbrlArchiveUrl('https://evil.example/corporate/xbrl/a.xml'));
+  assert.throws(()=>validateOfficialXbrlArchiveUrl('https://nsearchives.nseindia.in:444/corporate/xbrl/a.xml'));
+  assert.throws(()=>validateOfficialXbrlArchiveUrl('https://user@nsearchives.nseindia.in/corporate/xbrl/a.xml'));
   assert.throws(()=>validateOfficialXbrlArchiveUrl('https://nsearchives.nseindia.in/corporate/ixbrl/a.xml'));
 });
 
