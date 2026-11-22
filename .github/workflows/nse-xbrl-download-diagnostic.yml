@@ -1,4 +1,4 @@
-name: NSE XBRL archive download diagnostic
+name: NSE XBRL archive and issuer filing diagnostic
 
 on:
   push:
@@ -14,8 +14,16 @@ permissions:
 jobs:
   download-and-validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Download official NSE Ind AS format and taxonomy archives
         shell: bash
         run: |
@@ -33,209 +41,99 @@ jobs:
               --header "Accept: application/zip, application/octet-stream, */*" \
               --output "$output" "$url"
             test -s "$output"
-            local signature
             signature="$(od -An -tx1 -N4 "$output" | tr -d ' \n')"
-            echo "$output ZIP signature: $signature"
             case "$signature" in
               504b0304|504b0506|504b0708) ;;
-              *) echo "Response is not a ZIP archive: $output"; file "$output"; exit 1 ;;
+              *) echo "Not a ZIP: $output"; file "$output"; exit 1 ;;
             esac
             unzip -t "$output"
             unzip -l "$output" > "${output}.manifest.txt"
             sha256sum "$output" >> artifacts/SHA256SUMS.txt
-            file "$output" >> artifacts/file-types.txt
           }
+          download_zip "https://nsearchives.nseindia.com/web/mediaattachment/2026-06/Financial_Results_-_Ind_AS_Equity_and_Debt_Format_20260605152622.zip" "artifacts/ind-as-equity-debt-format.zip"
+          download_zip "https://nsearchives.nseindia.com/web/mediaattachment/2026-07/Integrated_Filing_Finance_Ind_AS_20260706165729.zip" "artifacts/ind-as-integrated-filing-format.zip"
+          download_zip "https://nsearchives.nseindia.com/web/sites/default/files/inline-files/Financial%20Results_Ind%20AS%20Taxonomy.zip" "artifacts/ind-as-financial-results-taxonomy.zip"
+          download_zip "https://nsearchives.nseindia.com/web/sites/default/files/inline-files/Taxonomy%20Integrated%20filing%20finance%20%28IndAS%29.zip" "artifacts/ind-as-integrated-filing-taxonomy.zip"
 
-          download_zip \
-            "https://nsearchives.nseindia.com/web/mediaattachment/2026-06/Financial_Results_-_Ind_AS_Equity_and_Debt_Format_20260605152622.zip" \
-            "artifacts/ind-as-equity-debt-format.zip"
-          download_zip \
-            "https://nsearchives.nseindia.com/web/mediaattachment/2026-07/Integrated_Filing_Finance_Ind_AS_20260706165729.zip" \
-            "artifacts/ind-as-integrated-filing-format.zip"
-          download_zip \
-            "https://nsearchives.nseindia.com/web/sites/default/files/inline-files/Financial%20Results_Ind%20AS%20Taxonomy.zip" \
-            "artifacts/ind-as-financial-results-taxonomy.zip"
-          download_zip \
-            "https://nsearchives.nseindia.com/web/sites/default/files/inline-files/Taxonomy%20Integrated%20filing%20finance%20%28IndAS%29.zip" \
-            "artifacts/ind-as-integrated-filing-taxonomy.zip"
-
-      - name: Download original KSHINTL NSE iXBRL filing page
+      - name: Fetch official NSE filing metadata and resolve KSHINTL XBRL URL
         shell: bash
         run: |
           set -euo pipefail
-          url="https://nsearchives.nseindia.com/corporate/ixbrl/INTEGRATED_FILING_INDAS_209920_04112026210644_iXBRL_WEB.html"
-          curl --fail --location --show-error \
-            --retry 5 --retry-all-errors --retry-delay 3 \
-            --connect-timeout 20 --max-time 180 \
-            --user-agent "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36" \
-            --referer "https://www.nseindia.in/companies-listing/corporate-integrated-filing" \
-            --header "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" \
-            --output artifacts/KSHINTL_2026-09-30_original_NSE_iXBRL.html \
-            "$url"
-          test -s artifacts/KSHINTL_2026-09-30_original_NSE_iXBRL.html
-          file artifacts/KSHINTL_2026-09-30_original_NSE_iXBRL.html | tee artifacts/KSHINTL-file-type.txt
-          wc -c artifacts/KSHINTL_2026-09-30_original_NSE_iXBRL.html | tee artifacts/KSHINTL-file-size.txt
-          sha256sum artifacts/KSHINTL_2026-09-30_original_NSE_iXBRL.html | tee artifacts/KSHINTL-SHA256.txt
-          grep -Eoi '<ix:(nonfraction|fraction|nonnumeric)|<xbrli:context|<context ' artifacts/KSHINTL_2026-09-30_original_NSE_iXBRL.html | sort | uniq -c | tee artifacts/KSHINTL-iXBRL-markers.txt || true
-
-      - name: Capture NSE filing index source and script references
-        shell: bash
-        run: |
-          set -euo pipefail
-          url="https://www.nseindia.in/companies-listing/corporate-integrated-filing"
-          curl --fail --location --show-error \
-            --retry 3 --retry-all-errors --retry-delay 2 \
+          curl --fail --location --show-error --retry 3 --retry-all-errors --retry-delay 2 \
             --connect-timeout 20 --max-time 120 \
             --user-agent "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36" \
-            --header "Accept: text/html,application/xhtml+xml,*/*" \
-            --output artifacts/NSE_integrated_filing_index.html "$url"
-          grep -Eo '<script[^>]+src=["'\''"][^"'\''"]+' artifacts/NSE_integrated_filing_index.html \
-            | sed -E 's/.*src=["'\''"]//' > artifacts/NSE_script_urls.txt || true
-          grep -Eio '.{0,100}(integrated.?filing|xbrl|api/|companies-listing).{0,160}' artifacts/NSE_integrated_filing_index.html \
-            > artifacts/NSE_index_api_hints.txt || true
-          while IFS= read -r script_url; do
-            [ -n "$script_url" ] || continue
-            case "$script_url" in
-              http*) full_url="$script_url" ;;
-              //*) full_url="https:$script_url" ;;
-              /*) full_url="https://www.nseindia.in$script_url" ;;
-              *) full_url="https://www.nseindia.in/$script_url" ;;
-            esac
-            name="$(printf '%s' "$full_url" | sha256sum | cut -c1-16).js"
-            curl --fail --location --silent --show-error --max-time 60 \
-              --user-agent "Mozilla/5.0" --output "artifacts/$name" "$full_url" || true
-          done < artifacts/NSE_script_urls.txt
-          grep -Eil 'integrated.?filing|xbrl|api/' artifacts/*.js \
-            > artifacts/NSE_relevant_scripts.txt || true
-          grep -Eio '.{0,100}(integrated.?filing|xbrl|api/).{0,180}' artifacts/*.js \
-            > artifacts/NSE_script_api_hints.txt || true
-
-      - name: Query official NSE Integrated Filing API for KSHINTL attachment URL
-        shell: bash
-        run: |
-          set -euo pipefail
-          base="https://www.nseindia.in/api/integrated-filing-results"
-          common=(--fail --location --show-error --retry 2 --retry-all-errors --retry-delay 2 --connect-timeout 20 --max-time 120 --user-agent "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36" --referer "https://www.nseindia.in/companies-listing/corporate-integrated-filing" --header "Accept: application/json, text/plain, */*")
-          curl "${common[@]}" --get "$base" --data-urlencode "index=equities" --data-urlencode "symbol=KSHINTL" --data-urlencode "type=Integrated Filing- Financials" --data-urlencode "page=1" --data-urlencode "size=100" --output artifacts/KSHINTL_api_symbol_type.json
-          curl "${common[@]}" --get "$base" --data-urlencode "symbol=KSHINTL" --data-urlencode "page=1" --data-urlencode "size=100" --output artifacts/KSHINTL_api_symbol_only.json
-          curl "${common[@]}" --get "$base" --data-urlencode "index=equities" --data-urlencode "type=Integrated Filing- Financials" --data-urlencode "period=30-SEP-2026" --data-urlencode "page=1" --data-urlencode "size=100" --output artifacts/KSHINTL_api_period_test.json
+            --referer "https://www.nseindia.in/companies-listing/corporate-integrated-filing" \
+            --header "Accept: application/json, text/plain, */*" \
+            --get "https://www.nseindia.in/api/integrated-filing-results" \
+            --data-urlencode "index=equities" \
+            --data-urlencode "symbol=KSHINTL" \
+            --data-urlencode "type=Integrated Filing- Financials" \
+            --data-urlencode "page=1" \
+            --data-urlencode "size=100" \
+            --output artifacts/KSHINTL_integrated_filing_api.json
           python - <<'PY'
           import json
           from pathlib import Path
-          for p in sorted(Path("artifacts").glob("KSHINTL_api_*.json")):
-              data=json.loads(p.read_text())
-              print("\\n###", p.name)
-              print("keys:", list(data) if isinstance(data,dict) else type(data).__name__)
-              rows=data.get("data",[]) if isinstance(data,dict) else data
-              print("rows:", len(rows) if isinstance(rows,list) else type(rows).__name__)
-              if isinstance(rows,list):
-                  for row in rows:
-                      print(json.dumps(row, ensure_ascii=False))
-          data=json.loads(Path("artifacts/KSHINTL_api_symbol_type.json").read_text())
-          matches=[r for r in data.get("data",[]) if r.get("seq_Id")=="209920" and r.get("symbol")=="KSHINTL" and r.get("type_Sub")=="Original" and r.get("consolidated")=="Standalone"]
+          data=json.loads(Path("artifacts/KSHINTL_integrated_filing_api.json").read_text())
+          rows=data.get("data", [])
+          matches=[r for r in rows if r.get("seq_Id")=="209920" and r.get("symbol")=="KSHINTL" and r.get("type_Sub")=="Original" and r.get("consolidated")=="Standalone" and r.get("qe_Date")=="30-SEP-2026"]
           if len(matches)!=1:
-              raise SystemExit(f"Expected exactly one matching original standalone KSHINTL filing, got {len(matches)}")
+              raise SystemExit(f"Expected exactly one matching filing, got {len(matches)}")
           row=matches[0]
-          if row.get("qe_Date")!="30-SEP-2026" or row.get("type")!="Integrated Filing- Financials":
-              raise SystemExit("Filing metadata did not match the intended Q2 2026-09-30 financial filing")
+          if row.get("type")!="Integrated Filing- Financials" or row.get("audited")!="Un-Audited":
+              raise SystemExit("Filing type/audit metadata mismatch")
           Path("artifacts/KSHINTL_original_xbrl_url.txt").write_text(row["xbrl"])
-          print("Selected official XBRL:", row["xbrl"])
-          print("XBRL metadata:", {k:row.get(k) for k in ["symbol","seq_Id","qe_Date","type_Sub","audited","consolidated","broadcast_Date","revised_Date","revision_Remark","xbrlFileSize"]})
-          PY
-          xbrl_url="$(cat artifacts/KSHINTL_original_xbrl_url.txt)"
-          file_url_json="$(python -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$xbrl_url")"
-          curl --fail --location --show-error \
-            --retry 3 --retry-all-errors --retry-delay 2 \
-            --connect-timeout 20 --max-time 180 \
-            --user-agent "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36" \
-            --referer "https://www.nseindia.in/companies-listing/corporate-integrated-filing" \
-            --header "Accept: application/xml, text/xml, */*" \
-            --get "https://www.nseindia.in/api/download_xbrl" \
-            --data-urlencode "fileUrl=$file_url_json" \
-            --dump-header artifacts/KSHINTL-xbrl-proxy-headers.txt \
-            --output artifacts/KSHINTL_2026-09-30_original_standalone_NSE_XBRL.xml
-          test -s artifacts/KSHINTL_2026-09-30_original_standalone_NSE_XBRL.xml
-          echo "Proxy response preview:"
-          head -c 2500 artifacts/KSHINTL_2026-09-30_original_standalone_NSE_XBRL.xml | tee artifacts/KSHINTL-xbrl-proxy-preview.txt
-          echo
-          file artifacts/KSHINTL_2026-09-30_original_standalone_NSE_XBRL.xml | tee artifacts/KSHINTL-raw-xbrl-file-type.txt
-          wc -c artifacts/KSHINTL_2026-09-30_original_standalone_NSE_XBRL.xml | tee artifacts/KSHINTL-raw-xbrl-file-size.txt
-          sha256sum artifacts/KSHINTL_2026-09-30_original_standalone_NSE_XBRL.xml | tee artifacts/KSHINTL-raw-xbrl-SHA256.txt
-          python - <<'PY'
-          import xml.etree.ElementTree as ET
-          from pathlib import Path
-          p=Path("artifacts/KSHINTL_2026-09-30_original_standalone_NSE_XBRL.xml")
-          raw=p.read_text(errors="replace")
-          if "<html" in raw[:2000].lower() or "<!doctype html" in raw[:2000].lower():
-              print("NSE proxy returned HTML, not an XML instance; preserving response for diagnosis")
-              raise SystemExit("Proxy response is HTML, not XBRL XML")
-          root=ET.parse(p).getroot()
-          ns={"x":"http://www.xbrl.org/2003/instance"}
-          contexts=root.findall(".//x:context",ns)
-          units=root.findall(".//x:unit",ns)
-          print("XML root:", root.tag)
-          print("XBRL contexts:",len(contexts),"units:",len(units),"top-level facts:",len(list(root)))
-          print("Context IDs:",[c.attrib.get("id") for c in contexts[:20]])
-          if not contexts or not units:
-              raise SystemExit("Downloaded XML did not contain expected XBRL contexts and units")
+          Path("artifacts/KSHINTL_filing_metadata.json").write_text(json.dumps({k:row.get(k) for k in ["symbol","smName","seq_Id","qe_Date","type","type_Sub","audited","consolidated","broadcast_Date","creation_Date","revised_Date","revision_Remark","ixbrl","ixbrlFileSize","xbrl","xbrlFileSize"]},indent=2))
+          print(Path("artifacts/KSHINTL_filing_metadata.json").read_text())
           PY
 
-      - name: Download original KSHINTL XBRL instance XML
+      - name: Attempt official NSE XML download routes and parse if available
         shell: bash
         run: |
           set -euo pipefail
-          path="/corporate/xbrl/INTEGRATED_FILING_INDAS_1753217_04112026090644_WEB.xml"
-          referer="https://nsearchives.nseindia.com/corporate/ixbrl/INTEGRATED_FILING_INDAS_209920_04112026210644_iXBRL_WEB.html"
           mkdir -p artifacts/xbrl-attempts
-          success=""
-          for host in nsearchives.nseindia.in nsearchives.nseindia.com; do
-            for mode in browser referer_cookie; do
-              out="artifacts/xbrl-attempts/${host}-${mode}.response"
-              headers="artifacts/xbrl-attempts/${host}-${mode}.headers"
-              if [ "$mode" = "referer_cookie" ]; then
-                curl --silent --show-error --location --max-time 60 \
-                  --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36" \
-                  --cookie-jar artifacts/xbrl-attempts/cookies.txt \
-                  --output /dev/null "https://www.nseindia.in/companies-listing/corporate-integrated-filing" || true
-                extra=(--cookie artifacts/xbrl-attempts/cookies.txt --referer "$referer" --header "Origin: https://www.nseindia.in")
-              else
-                extra=(--referer "https://www.nseindia.in/static/companies-listing/xbrl-information")
-              fi
-              code="$(curl --silent --show-error --location --max-time 120 \
-                --retry 2 --retry-all-errors --retry-delay 2 \
-                --connect-timeout 20 \
-                --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36" \
-                "${extra[@]}" \
-                --header "Accept: application/xml,text/xml,application/octet-stream,*/*" \
-                --dump-header "$headers" --output "$out" \
-                --write-out "%{http_code}" "https://$host$path" || true)"
-              echo "$host $mode HTTP=$code bytes=$(wc -c < "$out" 2>/dev/null || echo 0)"
-              if grep -Eqi '<([[:alnum:]_]+:)?xbrl([ >])' "$out"; then
-                cp "$out" artifacts/KSHINTL_2026-09-30_original_NSE_XBRL.xml
-                success="yes"
-                break 2
-              fi
-            done
+          xbrl_url="$(cat artifacts/KSHINTL_original_xbrl_url.txt)"
+          file_url_json="$(python -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$xbrl_url")"
+          cookie_jar="artifacts/xbrl-attempts/nse-cookies.txt"
+          ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+          for site in www.nseindia.in www.nseindia.com; do
+            curl --silent --show-error --location --max-time 60 --user-agent "$ua" --cookie-jar "$cookie_jar" --output /dev/null "https://$site/companies-listing/corporate-integrated-filing" || true
+            out="artifacts/xbrl-attempts/${site}-download-api.response"
+            code="$(curl --silent --show-error --location --max-time 120 --user-agent "$ua" --cookie "$cookie_jar" --referer "https://$site/companies-listing/corporate-integrated-filing" --header "Accept: application/xml,text/xml,*/*" --get "https://$site/api/download_xbrl" --data-urlencode "fileUrl=$file_url_json" --dump-header "artifacts/xbrl-attempts/${site}-download-api.headers" --output "$out" --write-out "%{http_code}" || true)"
+            echo "$site API route HTTP=$code bytes=$(wc -c < "$out" 2>/dev/null || echo 0)"
+            if grep -Eqi '<([[:alnum:]_]+:)?xbrl([ >])' "$out"; then cp "$out" artifacts/KSHINTL_2026-09-30_original_NSE_XBRL.xml; fi
           done
-          if [ -z "$success" ]; then
-            echo "No tested host/header combination returned an XBRL root. Response titles and leading text:"
+          for host in nsearchives.nseindia.in nsearchives.nseindia.com; do
+            out="artifacts/xbrl-attempts/${host}-direct.response"
+            code="$(curl --silent --show-error --location --max-time 120 --user-agent "$ua" --cookie "$cookie_jar" --referer "https://nsearchives.nseindia.in/corporate/ixbrl/INTEGRATED_FILING_INDAS_209920_04112026210644_iXBRL_WEB.html" --header "Accept: application/xml,text/xml,application/octet-stream,*/*" --dump-header "artifacts/xbrl-attempts/${host}-direct.headers" --output "$out" --write-out "%{http_code}" "https://$host/corporate/xbrl/${xbrl_url##*/}" || true)"
+            echo "$host direct route HTTP=$code bytes=$(wc -c < "$out" 2>/dev/null || echo 0)"
+            if grep -Eqi '<([[:alnum:]_]+:)?xbrl([ >])' "$out"; then cp "$out" artifacts/KSHINTL_2026-09-30_original_NSE_XBRL.xml; fi
+          done
+          if [ -s artifacts/KSHINTL_2026-09-30_original_NSE_XBRL.xml ]; then
+            node --experimental-strip-types --input-type=module -e '
+              import fs from "node:fs";
+              import { extractXbrl } from "./research/fundamental_pilot/xbrl_extract.ts";
+              const xml=fs.readFileSync("artifacts/KSHINTL_2026-09-30_original_NSE_XBRL.xml","utf8");
+              const out=extractXbrl(xml);
+              console.log(JSON.stringify({contextCount:out.contextCount,factCount:out.factCount,unitCount:Object.keys(out.units).length,warnings:out.warnings.slice(0,30),sampleFacts:out.facts.slice(0,20)},null,2));
+              if(!out.contextCount || !out.factCount) process.exit(2);
+            ' | tee artifacts/KSHINTL_parser_real_filing_output.json
+            sha256sum artifacts/KSHINTL_2026-09-30_original_NSE_XBRL.xml | tee artifacts/KSHINTL-raw-xbrl-SHA256.txt
+            echo "REAL_XBRL_DOWNLOADED_AND_PARSER_RAN" | tee artifacts/KSHINTL-real-xbrl-status.txt
+          else
+            echo "NSE returned HTML/blocked responses for all official XML routes; no parser test was run on a non-XML response." | tee artifacts/KSHINTL-real-xbrl-status.txt
             for f in artifacts/xbrl-attempts/*.response; do
-              echo "### $f"
-              head -c 500 "$f" || true
-              echo
+              echo "### $f" >> artifacts/KSHINTL-real-xbrl-status.txt
+              head -c 500 "$f" >> artifacts/KSHINTL-real-xbrl-status.txt || true
+              echo >> artifacts/KSHINTL-real-xbrl-status.txt
             done
-            echo "The original XML was not obtained; preserve proxy responses for diagnosis."
-            exit 1
           fi
-          file artifacts/KSHINTL_2026-09-30_original_NSE_XBRL.xml | tee artifacts/KSHINTL-XML-file-type.txt
-          wc -c artifacts/KSHINTL_2026-09-30_original_NSE_XBRL.xml | tee artifacts/KSHINTL-XML-file-size.txt
-          sha256sum artifacts/KSHINTL_2026-09-30_original_NSE_XBRL.xml | tee artifacts/KSHINTL-XML-SHA256.txt
 
-      - name: Upload verified archives for inspection
+      - name: Upload diagnostic files
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: nse-ind-as-xbrl-format-taxonomies-kshintl-xbrl-host-header-diagnostic
+          name: nse-kshintl-real-xbrl-diagnostic
           path: artifacts/
           if-no-files-found: error
           retention-days: 7
