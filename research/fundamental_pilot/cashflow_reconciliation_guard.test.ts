@@ -26,6 +26,24 @@ test('KSHINTL-like revised closing cash mismatch is REVIEW_REQUIRED',()=>{
   assert.equal(r.productionApproved,false);
 });
 
+test('KSHINTL revised iXBRL figures pass roll-forward but fail balance-sheet cash tie-out',()=>{
+  const lakhs=(value:number):CashFlowFactValue=>fact(value,'INR Lakhs');
+  const r=evaluateCashReconciliation({
+    period:'30-SEP-2025',basis:'Standalone',unit:'INR Lakhs',
+    openingCash:lakhs(1036.70),
+    netCashMovement:lakhs(-3396.20),
+    closingCashFlowStatement:lakhs(-2359.50),
+    closingCashBalanceSheet:lakhs(858.90),
+    operatingCashFlow:lakhs(-7786.90),
+    statementOperatingCashFlow:lakhs(-7786.90),
+  });
+  assert.equal(r.status,'REVIEW_REQUIRED');
+  assert.equal(r.checks.openingPlusMovementEqualsClosing,true);
+  assert.equal(r.checks.cashFlowClosingMatchesBalanceSheet,false);
+  assert.equal(r.checks.operatingCashFlowMatchesStatement,true);
+  assert.equal(r.differences.closingCash,-3218.40);
+});
+
 test('opening plus net movement mismatch is REVIEW_REQUIRED',()=>{
   const r=evaluateCashReconciliation({...base,netCashMovement:fact(5)});
   assert.equal(r.status,'REVIEW_REQUIRED');
