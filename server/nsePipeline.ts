@@ -503,6 +503,23 @@ class NsePipelineEngine {
       }
       const rawDeCsv = toNum(r.DebtToEquity);
       const rawIcCsv = toNum(r.InterestCoverage);
+      let metricSourcePeriods: Record<string, unknown> = {};
+      try {
+        const parsedPeriods = JSON.parse(r.MetricSourcePeriodsJSON || '{}');
+        if (parsedPeriods && typeof parsedPeriods === 'object' && !Array.isArray(parsedPeriods)) {
+          metricSourcePeriods = parsedPeriods as Record<string, unknown>;
+        }
+      } catch {
+        // Keep the explicit per-metric period columns as the primary source.
+      }
+      const metricPeriodEnd = (column: string, metricKey: string): string => {
+        const explicit = (r[column] || '').trim();
+        if (this.isValidIsoDate(explicit)) return explicit;
+        const sourcePeriod = metricSourcePeriods[metricKey];
+        return typeof sourcePeriod === 'string' && this.isValidIsoDate(sourcePeriod)
+          ? sourcePeriod
+          : '';
+      };
       const base: FundamentalProfile = {
         ...this.emptyFundamentalProfile(sym),
         asOfDate: r.AsOfDate || '',
@@ -518,21 +535,21 @@ class NsePipelineEngine {
         lastUpdatedUtc:
           r.DataRetrievedAtUTC || r.ValuationRetrievedAtUTC || r.AsOfDate || '',
         revenueGrowthPct: toNum(r.RevenueGrowthPct),
-        revenueGrowthPeriodEnd: r.RevenueGrowthPeriodEnd || '',
+        revenueGrowthPeriodEnd: metricPeriodEnd('RevenueGrowthPeriodEnd', 'RevenueGrowthPct'),
         profitGrowthPct: toNum(r.ProfitGrowthPct),
-        profitGrowthPeriodEnd: r.ProfitGrowthPeriodEnd || '',
+        profitGrowthPeriodEnd: metricPeriodEnd('ProfitGrowthPeriodEnd', 'ProfitGrowthPct'),
         roePct: toNum(r.ROEPercent),
-        roePeriodEnd: r.ROEPeriodEnd || '',
+        roePeriodEnd: metricPeriodEnd('ROEPeriodEnd', 'ROEPercent'),
         rocePct: toNum(r.ROCEPercent),
-        rocePeriodEnd: r.ROCEPeriodEnd || '',
+        rocePeriodEnd: metricPeriodEnd('ROCEPeriodEnd', 'ROCEPercent'),
         debtToEquity: rawDeCsv !== null && rawDeCsv >= 0 ? rawDeCsv : null,
-        debtToEquityPeriodEnd: r.DebtToEquityPeriodEnd || '',
+        debtToEquityPeriodEnd: metricPeriodEnd('DebtToEquityPeriodEnd', 'DebtToEquity'),
         interestCoverage: rawIcCsv !== null && rawIcCsv > 0.1 ? rawIcCsv : null,
-        interestCoveragePeriodEnd: r.InterestCoveragePeriodEnd || '',
+        interestCoveragePeriodEnd: metricPeriodEnd('InterestCoveragePeriodEnd', 'InterestCoverage'),
         operatingCashFlowInr: toNum(r.OperatingCashFlowINR),
-        operatingCashFlowPeriodEnd: r.OperatingCashFlowPeriodEnd || '',
+        operatingCashFlowPeriodEnd: metricPeriodEnd('OperatingCashFlowPeriodEnd', 'OperatingCashFlowINR'),
         freeCashFlowInr: toNum(r.FreeCashFlowINR),
-        freeCashFlowPeriodEnd: r.FreeCashFlowPeriodEnd || '',
+        freeCashFlowPeriodEnd: metricPeriodEnd('FreeCashFlowPeriodEnd', 'FreeCashFlowINR'),
         earningsQualityStatus: r.EarningsQualityStatus || '',
         valuationStatus: r.ValuationStatus || '',
         trailingPE: toNum(r.TrailingPE),
