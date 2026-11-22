@@ -1,0 +1,80 @@
+name: Scanner Validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - fix/delivery-30d-criteria-labels
+    paths:
+      - "src/**"
+      - "server/**"
+      - "*.ts"
+      - "*.tsx"
+      - "*.json"
+      - "index.html"
+      - ".github/workflows/scanner-validation.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scanner-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: TypeScript, production build and artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout isolated scanner branch
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: TypeScript validation
+        id: typecheck
+        run: npm run lint
+
+      - name: Production build
+        id: build
+        run: npm run build
+
+      - name: Create validation report
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p validation-artifact
+          {
+            echo "# Scanner validation report"
+            echo
+            echo "- Repository: ${GITHUB_REPOSITORY}"
+            echo "- Branch: ${GITHUB_REF_NAME}"
+            echo "- Commit: ${GITHUB_SHA}"
+            echo "- Node: $(node --version 2>/dev/null || echo unavailable)"
+            echo "- npm: $(npm --version 2>/dev/null || echo unavailable)"
+            echo "- TypeScript check: ${{ steps.typecheck.outcome }}"
+            echo "- Production build: ${{ steps.build.outcome }}"
+            echo
+            echo "This report validates TypeScript compilation and the Vite production frontend build."
+            echo "It does not certify live NSE/BSE data correctness or execute the scanner against market data."
+          } > validation-artifact/validation-report.md
+
+      - name: Upload production build and validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scanner-validation-${{ github.sha }}
+          path: |
+            dist/
+            validation-artifact/validation-report.md
+          if-no-files-found: warn
+          retention-days: 14
