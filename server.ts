@@ -483,8 +483,8 @@ async function startServer() {
       if (saveAll) {
         const rawScope =
           typeof req.body?.scope === 'string' ? req.body.scope.toUpperCase() : 'MISSING_OR_OLD';
-        const scope: 'MISSING_OR_OLD' | 'NOT_AVAILABLE' | 'LIQUID' | 'ALL' =
-          rawScope === 'NOT_AVAILABLE' || rawScope === 'LIQUID' || rawScope === 'ALL'
+        const scope: 'MISSING_OR_OLD' | 'NOT_AVAILABLE' | 'LIQUID' | 'ALL' | 'BHAVCOPY' =
+          rawScope === 'NOT_AVAILABLE' || rawScope === 'LIQUID' || rawScope === 'ALL' || rawScope === 'BHAVCOPY'
             ? rawScope
             : 'MISSING_OR_OLD';
 
@@ -576,8 +576,8 @@ async function startServer() {
   app.post('/api/fundamentals/collect-all', (req, res) => {
     try {
       const rawScope = typeof req.body?.scope === 'string' ? req.body.scope.toUpperCase() : 'MISSING_OR_OLD';
-      const scope: 'MISSING_OR_OLD' | 'NOT_AVAILABLE' | 'LIQUID' | 'ALL' =
-        rawScope === 'NOT_AVAILABLE' || rawScope === 'LIQUID' || rawScope === 'ALL'
+      const scope: 'MISSING_OR_OLD' | 'NOT_AVAILABLE' | 'LIQUID' | 'ALL' | 'BHAVCOPY' =
+        rawScope === 'NOT_AVAILABLE' || rawScope === 'LIQUID' || rawScope === 'ALL' || rawScope === 'BHAVCOPY'
           ? rawScope
           : 'MISSING_OR_OLD';
       const limitNum = Number(req.body?.limit);
