@@ -121,6 +121,9 @@ jobs:
             }
             const out=extractXbrl(fs.readFileSync(`artifacts/KSHINTL_${kind}.xml`,'utf8'));
             if(out.warnings.length) throw new Error(`Parser warnings for ${kind}: ${out.warnings.join('; ')}`);
+            const applicabilityFact=out.facts.find(f=>f.concept.endsWith(':WhetherCashFlowStatementIsApplicableOnCompany'));
+            const applicabilityRaw=applicabilityFact?.rawValue?.trim().toLowerCase()??null;
+            const cashFlowStatementApplicable=applicabilityRaw==='true'?true:applicabilityRaw==='false'?false:null;
             const candidates=out.facts.flatMap(f=>{
               if(f.concept!=='in-capmkt:CashFlowsFromUsedInOperatingActivities'||!f.contextRef) return [];
               const ctx=out.contexts[f.contextRef];
@@ -128,16 +131,20 @@ jobs:
               return [{concept:f.concept,numericValue:f.numericValue,rawValue:f.rawValue,isNil:f.isNil,unitMeasures:f.unitRef?out.units[f.unitRef]??[]:[],dimensions:[...ctx.dimensions],periodStart:ctx.periodStart,periodEnd:ctx.periodEnd,periodType:'YTD',basis:'STANDALONE'}];
             });
             if(candidates.length>1) throw new Error(`Ambiguous group OCF facts for ${kind}: ${candidates.length}`);
-            extracted[kind]={filingStatus:'FOUND',metadata:metadata[kind],contexts:out.contextCount,facts:out.factCount,candidateCount:candidates.length,candidate:candidates[0]??null,parserWarnings:out.warnings};
+            extracted[kind]={filingStatus:'FOUND',metadata:metadata[kind],contexts:out.contextCount,facts:out.factCount,cashFlowStatementApplicable,applicabilityRaw,candidateCount:candidates.length,candidate:candidates[0]??null,parserWarnings:out.warnings};
           }
           const missingFilings=Object.entries(extracted).filter(([,v])=>v.filingStatus==='MISSING_ORIGINAL_FILING').map(([k])=>k);
-          const missingFacts=Object.entries(extracted).filter(([,v])=>v.filingStatus==='FOUND'&&v.candidateCount===0).map(([k])=>k);
+          const nonApplicable=Object.entries(extracted).filter(([,v])=>v.cashFlowStatementApplicable===false).map(([k])=>k);
+          const missingFacts=Object.entries(extracted).filter(([,v])=>v.filingStatus==='FOUND'&&v.cashFlowStatementApplicable!==false&&v.candidateCount===0).map(([k])=>k);
           const allFacts=Object.values(extracted).every(v=>v.candidateCount===1);
           const derivation=allFacts?deriveQuarterlyOcfFromYtd(extracted.currentQ2.candidate,extracted.currentQ1.candidate,extracted.priorQ2.candidate,extracted.priorQ1.candidate):null;
-          const status=missingFilings.length?'BLOCKED_MISSING_ORIGINAL_FILING':missingFacts.length?'BLOCKED_MISSING_REQUIRED_OCF_FACT':derivation?.status??'BLOCKED_UNKNOWN';
-          const report={status,identity:{symbol:'KSHINTL',basis:'Standalone'},filings:extracted,missingFilings,missingFacts,quarterlyOcfDerivation:derivation,note:'Quarterly OCF is derived only if all four exact original standalone YTD facts exist and pass the TypeScript alignment gate. Missing filing or missing Q1 YTD cash flow is recorded as missing, never as zero. No quarterly OCF is inferred when required facts are absent.'};
+          const blockers=[...missingFilings.map(k=>({filing:k,reason:'MISSING_ORIGINAL_FILING'})),...nonApplicable.map(k=>({filing:k,reason:'CASH_FLOW_STATEMENT_NOT_APPLICABLE'})),...missingFacts.map(k=>({filing:k,reason:'OCF_FACT_MISSING_WHEN_STATEMENT_APPLICABLE'}))];
+          if(extracted.currentQ1.cashFlowStatementApplicable!==false) throw new Error('Regression expectation changed: current Q1 cash-flow statement applicability must be explicitly false for this pilot');
+          if(extracted.priorQ1.filingStatus!=='MISSING_ORIGINAL_FILING') throw new Error('Regression expectation changed: prior Q1 original filing is expected to remain unavailable in the official NSE index sample');
+          const status=blockers.length?'BLOCKED_QUARTERLY_DERIVATION':derivation?.status??'BLOCKED_UNKNOWN';
+          const report={status,identity:{symbol:'KSHINTL',basis:'Standalone'},filings:extracted,missingFilings,nonApplicable,missingFacts,blockers,quarterlyOcfDerivation:derivation,note:'Quarterly OCF is derived only if all four exact original standalone YTD facts exist and pass the TypeScript alignment gate. Explicit false cash-flow-statement applicability is N/A, not missing and not zero. A missing original filing remains MISSING. No quarterly OCF is inferred when required facts are absent.'};
           fs.writeFileSync('artifacts/KSHINTL_quarterly_ocf_derivation.json',JSON.stringify(report,null,2));
-          console.log(JSON.stringify({status,missingFilings,missingFacts,ocfFacts:Object.fromEntries(Object.entries(extracted).map(([k,v])=>[k,{sequenceId:v.metadata?.seq_Id??null,filingStatus:v.filingStatus,candidateCount:v.candidateCount,rawValue:v.candidate?.rawValue??null,numericValue:v.candidate?.numericValue??null,unitMeasures:v.candidate?.unitMeasures??[]} ])),quarterlyOcfDerivation:derivation},null,2));
+          console.log(JSON.stringify({status,missingFilings,missingFacts,ocfFacts:Object.fromEntries(Object.entries(extracted).map(([k,v])=>[k,{sequenceId:v.metadata?.seq_Id??null,filingStatus:v.filingStatus,cashFlowStatementApplicable:v.cashFlowStatementApplicable??null,applicabilityRaw:v.applicabilityRaw??null,candidateCount:v.candidateCount,rawValue:v.candidate?.rawValue??null,numericValue:v.candidate?.numericValue??null,unitMeasures:v.candidate?.unitMeasures??[]} ])),quarterlyOcfDerivation:derivation},null,2));
           JS
       - name: Upload four filings and OCF derivation evidence
         if: always()
