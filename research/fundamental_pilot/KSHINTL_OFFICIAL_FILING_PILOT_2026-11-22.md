@@ -45,7 +45,7 @@ Status: one official human-readable iXBRL filing manually inspected; raw-file pa
 ## Code status
 
 - Added isolated research-only parser at `research/fundamental_pilot/xbrl_extract.py`.
-- Added synthetic unit tests; local run passed 5/5 tests.
+- Added synthetic unit tests; local run passed 7/7 tests (contexts, entity, values, nil handling, inline scale/sign, ZIP instance selection and DTD rejection).
 - Parser extracts raw contexts, periods, dimensions, units, values, nil flags, decimals and inline scale/sign.
 - Parser does not yet map the seven target metrics, calculate ratios, choose basis/revisions, or produce scanner-ready rows.
 - No runtime code, main branch, thresholds, cache, UI or Google AI Studio app changed.
