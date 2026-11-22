@@ -39,7 +39,7 @@ function officialUrl(value: unknown, folder: 'xbrl' | 'ixbrl'): value is string 
 export function resolveOriginalRevisionHistory(
   rows: NseRevisionRow[],
   request: OriginalRevisionRequest,
-): { original: NseRevisionRow; revisions: NseRevisionRow[] } {
+): { original: NseRevisionRow; revisions: NseRevisionRow[]; apiDuplicateRows: number } {
   if (!Array.isArray(rows) || !request.symbol.trim() || !request.period.trim()) {
     throw new Error('Invalid NSE original/revision history request');
   }
@@ -56,8 +56,28 @@ export function resolveOriginalRevisionHistory(
     && officialUrl(row.xbrl, 'xbrl')
     && officialUrl(row.ixbrl, 'ixbrl'),
   );
-  const originals = eligible('Original');
-  const revisions = eligible('Revision');
+  const deduplicateExactRows = (items: NseRevisionRow[]) => {
+    const bySequence = new Map<string,NseRevisionRow>();
+    let duplicateRows = 0;
+    const fingerprint = (row: NseRevisionRow) => JSON.stringify([
+      row.symbol,row.smName,row.seq_Id,row.qe_Date,row.type,row.type_Sub,row.audited,
+      row.consolidated,row.broadcast_Date,row.creation_Date,row.revised_Date,
+      row.revision_Remark,row.ixbrl,row.xbrl,
+    ]);
+    for (const row of items) {
+      const id=String(row.seq_Id);
+      const existing=bySequence.get(id);
+      if (!existing) bySequence.set(id,row);
+      else if (fingerprint(existing)===fingerprint(row)) duplicateRows += 1;
+      else throw new Error(`Conflicting NSE API rows share sequence ID ${id}`);
+    }
+    return {rows:[...bySequence.values()],duplicateRows};
+  };
+  const originalResult=deduplicateExactRows(eligible('Original'));
+  const revisionResult=deduplicateExactRows(eligible('Revision'));
+  const originals = originalResult.rows;
+  const revisions = revisionResult.rows;
+  const apiDuplicateRows=originalResult.duplicateRows+revisionResult.duplicateRows;
   if (originals.length !== 1 || revisions.length < 1) {
     throw new Error(`Expected one Original and at least one Revision for ${request.symbol} ${request.period} ${request.basis}; got original=${originals.length}, revision=${revisions.length}`);
   }
@@ -71,7 +91,7 @@ export function resolveOriginalRevisionHistory(
     return Date.UTC(Number(m[3]),monthIndex[m[2].toUpperCase()],Number(m[1]),Number(m[4]),Number(m[5]),Number(m[6]));
   };
   revisions.sort((a,b)=>timestamp(a)-timestamp(b));
-  return { original: originals[0], revisions };
+  return { original: originals[0], revisions, apiDuplicateRows };
 }
 
 /** Strict single-revision convenience API; ambiguous histories are rejected. */
