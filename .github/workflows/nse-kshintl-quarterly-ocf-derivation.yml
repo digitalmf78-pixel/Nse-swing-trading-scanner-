@@ -48,13 +48,18 @@ jobs:
             --data-urlencode "size=100" --output artifacts/KSHINTL_integrated_filing_api.json
           node --experimental-strip-types --input-type=module <<'JS'
           import fs from 'node:fs';
-          import { resolveOriginalNseFilingPair } from './research/fundamental_pilot/nse_filing_pair.ts';
+          import { findUniqueOriginalNseFiling, resolveOriginalNseFilingPair } from './research/fundamental_pilot/nse_filing_pair.ts';
           const rows=JSON.parse(fs.readFileSync('artifacts/KSHINTL_integrated_filing_api.json','utf8')).data ?? [];
           const q2=resolveOriginalNseFilingPair(rows,{symbol:'KSHINTL',basis:'Standalone',currentPeriod:'30-SEP-2026',priorPeriod:'30-SEP-2025'});
-          const q1=resolveOriginalNseFilingPair(rows,{symbol:'KSHINTL',basis:'Standalone',currentPeriod:'30-JUN-2026',priorPeriod:'30-JUN-2025'});
-          const all={currentQ2:q2.current,priorQ2:q2.prior,currentQ1:q1.current,priorQ1:q1.prior};
+          const all={
+            currentQ2:q2.current,
+            priorQ2:q2.prior,
+            currentQ1:findUniqueOriginalNseFiling(rows,{symbol:'KSHINTL',basis:'Standalone',period:'30-JUN-2026'}),
+            priorQ1:findUniqueOriginalNseFiling(rows,{symbol:'KSHINTL',basis:'Standalone',period:'30-JUN-2025'}),
+          };
           const metadata={};
           for(const [kind,row] of Object.entries(all)){
+            if(!row){metadata[kind]=null;continue;}
             metadata[kind]=Object.fromEntries(['symbol','smName','seq_Id','qe_Date','type','type_Sub','audited','consolidated','broadcast_Date','revised_Date','revision_Remark','ixbrl','xbrl'].map(field=>[field,row[field]??null]));
             fs.writeFileSync(`artifacts/KSHINTL_${kind}_xbrl_url.txt`,row.xbrl);
           }
@@ -67,6 +72,7 @@ jobs:
           set -euo pipefail
           ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36"
           for kind in currentQ2 priorQ2 currentQ1 priorQ1; do
+            if [ ! -s "artifacts/KSHINTL_${kind}_xbrl_url.txt" ]; then echo "No original filing for $kind; preserve as missing"; continue; fi
             xbrl_url="$(cat "artifacts/KSHINTL_${kind}_xbrl_url.txt")"
             cookie_jar="artifacts/kshintl-${kind}-cookies.txt"
             downloaded=""
@@ -109,25 +115,29 @@ jobs:
           };
           const extracted={};
           for(const [kind,period] of Object.entries(expectations)){
+            if(!metadata[kind]){
+              extracted[kind]={filingStatus:'MISSING_ORIGINAL_FILING',metadata:null,contexts:0,facts:0,candidateCount:0,candidate:null,parserWarnings:[]};
+              continue;
+            }
             const out=extractXbrl(fs.readFileSync(`artifacts/KSHINTL_${kind}.xml`,'utf8'));
             if(out.warnings.length) throw new Error(`Parser warnings for ${kind}: ${out.warnings.join('; ')}`);
             const candidates=out.facts.flatMap(f=>{
               if(f.concept!=='in-capmkt:CashFlowsFromUsedInOperatingActivities'||!f.contextRef) return [];
-              const c=out.contexts[f.contextRef];
-              if(!c||c.periodStart!==period.start||c.periodEnd!==period.end||c.instant||c.dimensions.length) return [];
-              return [{concept:f.concept,numericValue:f.numericValue,rawValue:f.rawValue,isNil:f.isNil,unitMeasures:f.unitRef?out.units[f.unitRef]??[]:[],dimensions:[...c.dimensions],periodStart:c.periodStart,periodEnd:c.periodEnd,periodType:'YTD',basis:'STANDALONE'}];
+              const ctx=out.contexts[f.contextRef];
+              if(!ctx||ctx.periodStart!==period.start||ctx.periodEnd!==period.end||ctx.instant||ctx.dimensions.length) return [];
+              return [{concept:f.concept,numericValue:f.numericValue,rawValue:f.rawValue,isNil:f.isNil,unitMeasures:f.unitRef?out.units[f.unitRef]??[]:[],dimensions:[...ctx.dimensions],periodStart:ctx.periodStart,periodEnd:ctx.periodEnd,periodType:'YTD',basis:'STANDALONE'}];
             });
-            extracted[kind]={metadata:metadata[kind],contexts:out.contextCount,facts:out.factCount,candidateCount:candidates.length,candidate:candidates.length===1?candidates[0]:null,parserWarnings:out.warnings};
             if(candidates.length>1) throw new Error(`Ambiguous group OCF facts for ${kind}: ${candidates.length}`);
+            extracted[kind]={filingStatus:'FOUND',metadata:metadata[kind],contexts:out.contextCount,facts:out.factCount,candidateCount:candidates.length,candidate:candidates[0]??null,parserWarnings:out.warnings};
           }
-          const missing=Object.entries(extracted).filter(([,v])=>v.candidateCount===0).map(([k])=>k);
-          let derivation=null;
-          if(missing.length===0){
-            derivation=deriveQuarterlyOcfFromYtd(extracted.currentQ2.candidate,extracted.currentQ1.candidate,extracted.priorQ2.candidate,extracted.priorQ1.candidate);
-          }
-          const report={status:missing.length?'BLOCKED_MISSING_REQUIRED_Q1_YTD_OCF':'DERIVATION_CHECKED',identity:{symbol:'KSHINTL',basis:'Standalone'},filings:extracted,missingFacts:missing,quarterlyOcfDerivation:derivation,note:'Quarterly OCF is derived only if all four exact original standalone YTD facts exist and pass the TypeScript alignment gate. Missing Q1 YTD cash flow is a legitimate block, not a zero. No quarterly OCF is inferred when the required facts are absent.'};
+          const missingFilings=Object.entries(extracted).filter(([,v])=>v.filingStatus==='MISSING_ORIGINAL_FILING').map(([k])=>k);
+          const missingFacts=Object.entries(extracted).filter(([,v])=>v.filingStatus==='FOUND'&&v.candidateCount===0).map(([k])=>k);
+          const allFacts=Object.values(extracted).every(v=>v.candidateCount===1);
+          const derivation=allFacts?deriveQuarterlyOcfFromYtd(extracted.currentQ2.candidate,extracted.currentQ1.candidate,extracted.priorQ2.candidate,extracted.priorQ1.candidate):null;
+          const status=missingFilings.length?'BLOCKED_MISSING_ORIGINAL_FILING':missingFacts.length?'BLOCKED_MISSING_REQUIRED_OCF_FACT':derivation?.status??'BLOCKED_UNKNOWN';
+          const report={status,identity:{symbol:'KSHINTL',basis:'Standalone'},filings:extracted,missingFilings,missingFacts,quarterlyOcfDerivation:derivation,note:'Quarterly OCF is derived only if all four exact original standalone YTD facts exist and pass the TypeScript alignment gate. Missing filing or missing Q1 YTD cash flow is recorded as missing, never as zero. No quarterly OCF is inferred when required facts are absent.'};
           fs.writeFileSync('artifacts/KSHINTL_quarterly_ocf_derivation.json',JSON.stringify(report,null,2));
-          console.log(JSON.stringify({status:report.status,missingFacts:missing,ocfFacts:Object.fromEntries(Object.entries(extracted).map(([k,v])=>[k,{sequenceId:v.metadata.seq_Id,candidateCount:v.candidateCount,rawValue:v.candidate?.rawValue,numericValue:v.candidate?.numericValue,unitMeasures:v.candidate?.unitMeasures}])),quarterlyOcfDerivation:derivation},null,2));
+          console.log(JSON.stringify({status,missingFilings,missingFacts,ocfFacts:Object.fromEntries(Object.entries(extracted).map(([k,v])=>[k,{sequenceId:v.metadata?.seq_Id??null,filingStatus:v.filingStatus,candidateCount:v.candidateCount,rawValue:v.candidate?.rawValue??null,numericValue:v.candidate?.numericValue??null,unitMeasures:v.candidate?.unitMeasures??[]} ])),quarterlyOcfDerivation:derivation},null,2));
           JS
       - name: Upload four filings and OCF derivation evidence
         if: always()
