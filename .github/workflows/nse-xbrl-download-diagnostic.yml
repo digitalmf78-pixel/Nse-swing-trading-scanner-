@@ -1,0 +1,51 @@
+name: NSE XBRL archive download diagnostic
+
+on:
+  push:
+    branches:
+      - research/free-fundamental-sources
+    paths:
+      - ".github/workflows/nse-xbrl-download-diagnostic.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  download-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download official NSE Ind AS XBRL format archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          url="https://nsearchives.nseindia.com/web/mediaattachment/2026-06/Financial_Results_-_Ind_AS_Equity_and_Debt_Format_20260605152622.zip"
+          curl --fail --location --show-error \
+            --retry 5 --retry-all-errors --retry-delay 3 \
+            --connect-timeout 20 --max-time 180 \
+            --user-agent "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36" \
+            --referer "https://www.nseindia.in/static/companies-listing/xbrl-information" \
+            --header "Accept: application/zip, application/octet-stream, */*" \
+            --output artifacts/nse-ind-as-financial-results-format.zip \
+            "$url"
+          test -s artifacts/nse-ind-as-financial-results-format.zip
+          signature="$(od -An -tx1 -N4 artifacts/nse-ind-as-financial-results-format.zip | tr -d ' \n')"
+          echo "ZIP signature: $signature"
+          case "$signature" in
+            504b0304|504b0506|504b0708) ;;
+            *) echo "Downloaded response is not a ZIP archive"; file artifacts/nse-ind-as-financial-results-format.zip; exit 1 ;;
+          esac
+          unzip -t artifacts/nse-ind-as-financial-results-format.zip
+          unzip -l artifacts/nse-ind-as-financial-results-format.zip | tee artifacts/archive-manifest.txt
+          sha256sum artifacts/nse-ind-as-financial-results-format.zip | tee artifacts/SHA256SUMS.txt
+          file artifacts/nse-ind-as-financial-results-format.zip | tee artifacts/file-type.txt
+
+      - name: Upload verified archive for inspection
+        uses: actions/upload-artifact@v4
+        with:
+          name: nse-ind-as-xbrl-format-archive
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 7
