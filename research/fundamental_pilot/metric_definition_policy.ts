@@ -40,10 +40,10 @@ const INDUSTRIAL: Record<FundamentalMetric,Omit<MetricDefinitionPolicy,'metric'|
   },
   PROFIT_GROWTH: {
     readiness:'CANDIDATE_ONLY',
-    candidateFormula:'(current same-period ProfitLossForPeriod / prior-year same-period ProfitLossForPeriod - 1) * 100',
-    requiredFacts:['ProfitLossForPeriod current','ProfitLossForPeriod prior year','same XBRL unit','same filing basis','undimensioned group context'],
-    hardGates:['Exact quarter/YTD/FY calendar alignment','Define total profit vs profit attributable to owners','Official statement-row reconciliation','Prior-period base > 0'],
-    caveats:['Do not substitute PBT for PAT','Do not mix continuing operations and total profit','Exceptional items and non-controlling interests affect interpretation'],
+    candidateFormula:'(current same-period profit attributable to owners of parent / prior-year same-period profit attributable to owners of parent - 1) * 100 for consolidated; standalone entity ProfitLossForPeriod for standalone',
+    requiredFacts:['Consolidated: ProfitOrLossAttributableToOwnersOfParent current and prior year','Standalone: ProfitLossForPeriod current and prior year','same XBRL unit','same filing basis','undimensioned group/entity context'],
+    hardGates:['Exact quarter/YTD/FY calendar alignment','Consolidated numerator must be allocated to owners of parent; reject unallocated total group profit','Standalone numerator must be entity profit for period','Official statement-row and attribution reconciliation','Prior-period base > 0'],
+    caveats:['Do not substitute PBT for PAT','Do not mix continuing operations and total profit','Non-controlling interest can materially change total group profit versus owners PAT; retain both raw facts but use the declared attribution policy'],
   },
   ROE: {
     readiness:'BLOCKED_DEFINITION',
