@@ -644,12 +644,24 @@ class NsePipelineEngine {
         (rec.interestCoverage > 0.1 || existing.interestCoverage === null)
           ? rec.interestCoverage
           : existing.interestCoverage;
-      const useRecRevenuePeriod = rec.revenueGrowthPct !== null && rec.revenueGrowthPct !== undefined && (!rec.revenueGrowthPeriodEnd ? !existing.revenueGrowthPeriodEnd : !existing.revenueGrowthPeriodEnd || rec.revenueGrowthPeriodEnd >= existing.revenueGrowthPeriodEnd);
-      const useRecProfitPeriod = rec.profitGrowthPct !== null && rec.profitGrowthPct !== undefined && (!rec.profitGrowthPeriodEnd ? !existing.profitGrowthPeriodEnd : !existing.profitGrowthPeriodEnd || rec.profitGrowthPeriodEnd >= existing.profitGrowthPeriodEnd);
-      const useRecRoePeriod = rec.roePct !== null && rec.roePct !== undefined && (!rec.roePeriodEnd ? !existing.roePeriodEnd : !existing.roePeriodEnd || rec.roePeriodEnd >= existing.roePeriodEnd);
-      const useRecRocePeriod = rec.rocePct !== null && rec.rocePct !== undefined && (!rec.rocePeriodEnd ? !existing.rocePeriodEnd : !existing.rocePeriodEnd || rec.rocePeriodEnd >= existing.rocePeriodEnd);
-      const useRecDePeriod = rec.debtToEquity !== null && rec.debtToEquity !== undefined && (!rec.debtToEquityPeriodEnd ? !existing.debtToEquityPeriodEnd : !existing.debtToEquityPeriodEnd || rec.debtToEquityPeriodEnd >= existing.debtToEquityPeriodEnd);
-      const useRecIcPeriod = rec.interestCoverage !== null && rec.interestCoverage !== undefined && (!rec.interestCoveragePeriodEnd ? !existing.interestCoveragePeriodEnd : !existing.interestCoveragePeriodEnd || rec.interestCoveragePeriodEnd >= existing.interestCoveragePeriodEnd);
+      const useRecRevenuePeriod = rec.revenueGrowthPeriodEnd
+        ? (!existing.revenueGrowthPeriodEnd || rec.revenueGrowthPeriodEnd > existing.revenueGrowthPeriodEnd || (rec.revenueGrowthPeriodEnd === existing.revenueGrowthPeriodEnd && rec.revenueGrowthPct !== null && rec.revenueGrowthPct !== undefined))
+        : (rec.revenueGrowthPct !== null && rec.revenueGrowthPct !== undefined && !existing.revenueGrowthPeriodEnd);
+      const useRecProfitPeriod = rec.profitGrowthPeriodEnd
+        ? (!existing.profitGrowthPeriodEnd || rec.profitGrowthPeriodEnd > existing.profitGrowthPeriodEnd || (rec.profitGrowthPeriodEnd === existing.profitGrowthPeriodEnd && rec.profitGrowthPct !== null && rec.profitGrowthPct !== undefined))
+        : (rec.profitGrowthPct !== null && rec.profitGrowthPct !== undefined && !existing.profitGrowthPeriodEnd);
+      const useRecRoePeriod = rec.roePeriodEnd
+        ? (!existing.roePeriodEnd || rec.roePeriodEnd > existing.roePeriodEnd || (rec.roePeriodEnd === existing.roePeriodEnd && rec.roePct !== null && rec.roePct !== undefined))
+        : (rec.roePct !== null && rec.roePct !== undefined && !existing.roePeriodEnd);
+      const useRecRocePeriod = rec.rocePeriodEnd
+        ? (!existing.rocePeriodEnd || rec.rocePeriodEnd > existing.rocePeriodEnd || (rec.rocePeriodEnd === existing.rocePeriodEnd && rec.rocePct !== null && rec.rocePct !== undefined))
+        : (rec.rocePct !== null && rec.rocePct !== undefined && !existing.rocePeriodEnd);
+      const useRecDePeriod = rec.debtToEquityPeriodEnd
+        ? (!existing.debtToEquityPeriodEnd || rec.debtToEquityPeriodEnd > existing.debtToEquityPeriodEnd || (rec.debtToEquityPeriodEnd === existing.debtToEquityPeriodEnd && rec.debtToEquity !== null && rec.debtToEquity !== undefined))
+        : (rec.debtToEquity !== null && rec.debtToEquity !== undefined && !existing.debtToEquityPeriodEnd);
+      const useRecIcPeriod = rec.interestCoveragePeriodEnd
+        ? (!existing.interestCoveragePeriodEnd || rec.interestCoveragePeriodEnd > existing.interestCoveragePeriodEnd || (rec.interestCoveragePeriodEnd === existing.interestCoveragePeriodEnd && rec.interestCoverage !== null && rec.interestCoverage !== undefined))
+        : (rec.interestCoverage !== null && rec.interestCoverage !== undefined && !existing.interestCoveragePeriodEnd);
       const useRecOcfPeriod =
         rec.operatingCashFlowInr !== null &&
         rec.operatingCashFlowInr !== undefined &&
