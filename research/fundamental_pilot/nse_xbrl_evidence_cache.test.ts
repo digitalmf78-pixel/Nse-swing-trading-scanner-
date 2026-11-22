@@ -49,5 +49,8 @@ test('collector archives exact original XML bytes and records relative raw evide
     assert.equal(stored.toString('utf8'),xml);
     assert.equal(doc.rawArchivePath.endsWith('77_'+doc.sha256+'.xml'),true);
     assert.equal(doc.sha256.length,64);
+    const secondRun=await collectXbrlEvidenceForFilingRows('abc',[{seq_Id:'77',qe_Date:'31-MAR-2026',type:'Integrated Filing- Financials',type_Sub:'Original',consolidated:'Standalone',xbrl:'https://nsearchives.nseindia.in/corporate/xbrl/abc.xml'}],{fetchImpl:fakeFetch as typeof fetch,archiveDir:path.join(temp,'raw'),cacheFile:path.join(temp,'cache.json')});
+    assert.equal(secondRun.saved,0);
+    assert.equal(secondRun.skipped,1);
   } finally { fs.rmSync(temp,{recursive:true,force:true}); }
 });
