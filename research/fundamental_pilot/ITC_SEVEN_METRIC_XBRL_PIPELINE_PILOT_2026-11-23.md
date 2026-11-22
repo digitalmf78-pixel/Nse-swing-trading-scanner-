@@ -4,7 +4,7 @@
 
 Research-only validation of the TypeScript pipeline using official NSE Integrated Filing - Financials XBRL for ITC Limited. No production code, scanner filter, scoring, ranking, UI, API or Google AI Studio app was changed.
 
-<badge> Candidate-only; not production approved </badge>
+**Status: Candidate-only; not production approved.**
 
 Workflow run: https://github.com/digitalmf78-pixel/Nse-swing-trading-scanner-/actions/runs/45069858760
 
