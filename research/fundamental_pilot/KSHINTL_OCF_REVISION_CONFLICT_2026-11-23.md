@@ -44,6 +44,21 @@ The later revision remark says the exchange asked for a correction to the denomi
 
 The workflow compares all four versions and preserves each XML separately. It reports `OCF_REVISION_CHANGED_REVIEW_REQUIRED`; it does not automatically select the original or revised value.
 
+## Additional rendered NSE iXBRL cross-check (21-Jul-2026 revision)
+
+The NSE-hosted rendered iXBRL page for Revision 2 (sequence 176290) was independently inspected. Its human-readable cash-flow statement presents the revised values directly in INR lakhs:
+- Net cash from operating activities: **-7,786.90 lakhs** (=-₹77.869 crore).
+- Opening cash and cash equivalents: **1,036.70 lakhs**.
+- Net increase/(decrease) in cash and cash equivalents: **-3,396.20 lakhs**.
+- Closing cash and cash equivalents per cash-flow statement: **-2,359.50 lakhs**.
+- Balance-sheet cash and cash equivalents in the same rendered filing: **858.90 lakhs**.
+
+The cash-flow statement roll-forward itself reconciles: 1,036.70 - 3,396.20 = -2,359.50 lakhs. However, its closing cash does not match the same filing's balance-sheet cash: -2,359.50 - 858.90 = -3,218.40 lakhs (=-₹32.184 crore). Therefore the precise issue is a **cross-statement closing-cash mismatch**, not a failed opening-to-closing roll-forward.
+
+This rendered NSE iXBRL page shows the changed OCF and cash figures in readable presentation, so a simple XBRL numeric scale/sign parser defect is not a sufficient explanation for the discrepancy. The underlying reason remains unresolved; no cause is inferred.
+
+Rendered official NSE page: https://nsearchives.nseindia.in/corporate/ixbrl/INTEGRATED_FILING_INDAS_176290_21072026110834_iXBRL_WEB.html
+
 ## Safe scanner decision
 
 1. Keep the original and every revision in immutable source history.
