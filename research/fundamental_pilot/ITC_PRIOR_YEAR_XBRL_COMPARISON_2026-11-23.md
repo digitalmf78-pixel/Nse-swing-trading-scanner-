@@ -103,8 +103,9 @@ The official consolidated statement reports Revenue from Operations, Profit for 
 
 ## Workflow evidence
 
-- Workflow run: https://github.com/digitalmf78-pixel/Nse-swing-trading-scanner-/actions/runs/45059528746
+- Workflow run: https://github.com/digitalmf78-pixel/Nse-swing-trading-scanner-/actions/runs/45059637504
+- TypeScript pilot tests: https://github.com/digitalmf78-pixel/Nse-swing-trading-scanner-/actions/runs/45059619909 (20/20 passed)
 - Workflow definition: `.github/workflows/nse-itc-prior-year-comparison.yml`
-- Artifact ID: `14769161040` (retention is 7 days). The corrected run includes the exact 9/9 matching assertion and guarded mechanical YoY diagnostics.
+- Artifact ID: `14769230966` (retention is 7 days). The final run includes the exact 9/9 matching assertion, guarded mechanical YoY diagnostics, and a regression assertion that blocks the unreconciled ProfitBeforeTax concept.
 
 Keep this work on the research branch. Do not connect it to scanner runtime until comparable-period, sector, revision, unit and accounting formula policies are validated across more issuers.
