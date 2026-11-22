@@ -7,6 +7,7 @@ This folder is isolated from the scanner runtime. The intended production implem
 - `xbrl_extract.ts` extracts raw XBRL/iXBRL facts, contexts, entity identifiers, periods, dimensions, units, nil flags, decimals, inline scale/sign, and basic inline fractions.
 - It uses `fast-xml-parser` (MIT; TypeScript declarations; ESM/CommonJS support) and rejects DTD/entity declarations.
 - It has a 25 MB input limit and intentionally rejects ZIP input; archive decompression is a separate ingestion step.
+- It fails closed for numeric facts with missing/unresolved contexts or units, duplicate context/unit IDs, unsupported scale/sign attributes, Inline XBRL format transformations, and unresolved continuation chains. Warnings must be treated as a validation failure by the issuer-pilot workflows.
 - `xbrl_extract.test.ts` contains synthetic tests for context/entity metadata, standard facts, nil facts, inline scale/sign, fractions, DTD rejection, and broken references.
 - `sector_metric_policy.test.ts` covers bank-sector exclusions and exact period/basis/group-context checks.
 - `group_fact_selection.ts` selects only one unique undimensioned group fact after exact context checks; segment facts cannot be added to manufacture a group total. Its dedicated tests cover ambiguity, wrong periods and unresolved contexts.
