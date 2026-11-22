@@ -178,14 +178,16 @@ export function extractXbrl(xml: string): XbrlExtraction {
 
   const contexts: Record<string, XbrlContext> = {};
   for (const { node } of descendants(parsed, 'context')) {
-    const id = attr(node, 'id');
+    if (!node || typeof node !== 'object') continue;
+    const contextNode = node as XmlObject;
+    const id = attr(contextNode, 'id');
     if (!id) continue;
-    const identifierNode = descendants(node, 'identifier')[0]?.node;
+    const identifierNode = descendants(contextNode, 'identifier')[0]?.node;
     const identifier = identifierNode && typeof identifierNode === 'object'
       ? identifierNode as XmlObject
       : null;
-    const dimensions = descendants(node, 'explicitMember')
-      .concat(descendants(node, 'typedMember'))
+    const dimensions = descendants(contextNode, 'explicitMember')
+      .concat(descendants(contextNode, 'typedMember'))
       .map(({ node: member }) => {
         const dimension = member && typeof member === 'object'
           ? attr(member as XmlObject, 'dimension') ?? ''
@@ -196,18 +198,20 @@ export function extractXbrl(xml: string): XbrlExtraction {
       id,
       entityScheme: identifier ? attr(identifier, 'scheme') : null,
       entityIdentifier: identifier ? textOf(identifier).trim() || null : null,
-      periodStart: firstDescendantText(node, 'startDate'),
-      periodEnd: firstDescendantText(node, 'endDate'),
-      instant: firstDescendantText(node, 'instant'),
+      periodStart: firstDescendantText(contextNode, 'startDate'),
+      periodEnd: firstDescendantText(contextNode, 'endDate'),
+      instant: firstDescendantText(contextNode, 'instant'),
       dimensions,
     };
   }
 
   const units: Record<string, string[]> = {};
   for (const { node } of descendants(parsed, 'unit')) {
-    const id = attr(node, 'id');
+    if (!node || typeof node !== 'object') continue;
+    const unitNode = node as XmlObject;
+    const id = attr(unitNode, 'id');
     if (!id) continue;
-    units[id] = descendants(node, 'measure').map(({ node: measure }) => textOf(measure).trim()).filter(Boolean);
+    units[id] = descendants(unitNode, 'measure').map(({ node: measure }) => textOf(measure).trim()).filter(Boolean);
   }
 
   const facts: XbrlFact[] = [];
