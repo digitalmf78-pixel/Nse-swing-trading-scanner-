@@ -73,3 +73,54 @@ Do not implement Screener.in scraping as a production feed at this stage. First 
 4. **Not a fundamentals source:** tej-bazaar; retain for EOD price/delivery data only.
 
 No application runtime code or scanner logic has been changed. This report update is research documentation only.
+
+## Actual code audit — two XBRL repositories (2026-11-22)
+
+### A. rejinreeza/trading_tool
+Repository: https://github.com/rejinreeza/trading_tool
+Inspected: README.md, pyproject.toml, src/trading_tool/nse.py, and src/trading_tool/fundamentals.py.
+
+**What is genuinely useful**
+- nse.py calls NSE's /api/corporates-financial-results endpoint, captures filing date (fallback broadcast date), downloads linked XBRL, and stores filing metadata/XBRL in a local cache.
+- Parser distinguishes quarter-only OneD/OneI contexts from cumulative Four* contexts, ignores dimensioned segment facts, and reads the document's own period start/end and standalone/consolidated declaration.
+- It maps headline P&L facts including revenue (and bank interest earned), expenses, finance costs, PBT, tax, net profit and EPS. Quarterly revenue/profit growth could potentially be derived after period/basis validation.
+- README reports practical XBRL-document history around 2019 onward (2018 partial; 2017 and earlier missing in its sample). Treat this as the author's sample finding, not a guarantee for all issuers.
+- It has retry/backoff and distinguishes temporary request failures from 404 misses in cache behavior.
+
+**Limitations / risks found in code**
+- fundamentals.py current screen fetches Yahoo Finance .info fields. This is current-state data, not the NSE XBRL point-in-time feed; README warns not to backtest that screen.
+- NSE XBRL parser does not provide the complete requested seven metrics. ROCE, Debt/Equity, Interest Coverage and Operating Cash Flow are not mapped in its current fact schema. ROE is not calculated from XBRL balance-sheet/equity facts here.
+- Basis fallback is selected per symbol/period when requested basis is missing. This can create a time series with mixed consolidated and standalone quarters unless downstream code explicitly rejects/marks each fallback.
+- Point-in-time frame sorts by filing date and deduplicates by symbol + period, but inspected selection logic does not explicitly prefer a revised filing flag; revised/original precedence requires separate audit before reuse.
+- It records filing date but not a complete per-metric provenance contract (source URL, exact XBRL concept, unit/scale, parser version and revision lineage) in the returned table.
+- Repository tree inspected did not show a LICENSE file or declared SPDX license. Do not copy/reuse code until license status is clarified. Public visibility is not a reuse license.
+- README backtest results do not validate our scanner's data accuracy or strategy.
+
+**Decision:** useful reference for NSE endpoint handling and XBRL context parsing; not a ready-to-integrate seven-metric source. No code copied.
+
+### B. Jayadityas/Financial-results-extraction-using-NSE-BSE-APIs
+Repository: https://github.com/Jayadityas/Financial-results-extraction-using-NSE-BSE-APIs
+Inspected: README, INSTRUCTION, LICENSE, settings, NSE client, symbol/scrip master, pipeline, requirements and repository tree.
+
+**What is genuinely useful**
+- MIT license is present for repository code (license applies to code, not automatically to exchange documents/data).
+- Contains separate NSE/BSE clients, shared HTTP/throttle/cookie layer, filing downloader, manifests, raw-document storage and a symbol↔BSE scrip↔ISIN master.
+- Master fetches NSE equity list and BSE scrip list and outer-joins by ISIN; sensible identity pattern, subject to duplicate/changed ISIN validation.
+- NSE filing mapper captures period end, financial year, consolidated/audited flags, filing date and revised/original indicator.
+- Settings default history cutoff to 2021 and pipeline default company list is top five, despite README describing broader all-company backfill as a goal.
+- Repository includes committed security master snapshot and some raw sample filing documents, but these do not prove universe-wide successful coverage.
+
+**Critical gap**
+- Repository tree has src/parse/__init__.py but no substantive parser module under src/parse/. Inspected pipeline is a downloader/archive pipeline; it does not implement the promised normalized financial-statement parser or seven metrics.
+- README describes parsed structured fields as a target architecture, but actual code tree inspected does not substantiate a finished parser. No meaningful automated tests were present in inspected tests directory (only .gitkeep).
+- Default configuration is top5 / 2021 onwards, not a validated all-NSE/BSE production dataset. Akamai/browser fallback adds operational complexity and should not be assumed reliable in a hosted AI Studio runtime.
+- Downloaded PDF/XML documents in Git do not establish that underlying exchange data can be redistributed freely.
+
+**Decision:** strong reference for exchange ingestion, raw archive, ISIN master and filing metadata; not a usable finished fundamentals engine. Do not import its full downloader/browser stack into the scanner.
+
+## Revised recommendation after code inspection
+1. Keep official NSE/BSE financial-result filings as authoritative data layer.
+2. Use trading_tool NSE module only as design reference for quarter contexts and filing-date-aware data; resolve license and revision/basis handling gaps before any code reuse.
+3. Use Jayadityas repository only as design reference for company master, manifests, raw archive and exchange discovery; its parser/metrics layer is not implemented in inspected tree.
+4. Do not integrate either repository into app runtime now. Next step is a read-only 20-company filing pilot, with original/revised filings and consolidated/standalone pairs deliberately tested. Record actual coverage and discrepancies for each of seven metrics.
+5. No application runtime code, scanner filters, ranking, UI, APIs, or reload behavior changed. Only this research document is updated.
