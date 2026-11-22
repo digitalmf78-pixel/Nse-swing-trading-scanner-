@@ -8,7 +8,7 @@ Research-only validation of the TypeScript pipeline using official NSE Integrate
 
 Workflow run: https://github.com/digitalmf78-pixel/Nse-swing-trading-scanner-/actions/runs/45071137005
 
-Latest owner-attribution rerun: 11-Nov? No — the workflow run is the authoritative test result for the updated owner-profit concept map; the earlier unallocated profit result is superseded.
+Latest owner-attribution rerun: this workflow run uses the updated owner-profit concept map; the earlier unallocated profit result is superseded.
 
 ## Official filing pair and revision gate
 
