@@ -237,6 +237,7 @@ export default function App() {
             totalSavedCount?: number;
           };
           if (!fundRes.ok) throw new Error(fundJson.error || `HTTP ${fundRes.status}`);
+          if (fundJson.error) throw new Error(fundJson.error);
           fundamentalMessage = fundJson.saved
             ? `Selected stock ${sym} fundamentals refreshed and cache reloaded.`
             : `Selected stock ${sym} fundamentals could not be refreshed: ${fundJson.error || 'No fresh record returned'}.`;
