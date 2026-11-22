@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { resolveOriginalRevisionPair } from './nse_revision_pair.ts';
+import { resolveOriginalRevisionHistory, resolveOriginalRevisionPair } from './nse_revision_pair.ts';
 
 const base = (kind: string, seq: string) => ({
   symbol: 'GAIL',
@@ -43,4 +43,19 @@ test('rejects same sequence ID for original and revision', () => {
   assert.throws(()=>resolveOriginalRevisionPair([
     base('Original','1'),base('Revision','1'),
   ],request),/distinct NSE sequence IDs/);
+});
+
+test('preserves and chronologically orders every revision instead of choosing latest silently', () => {
+  const first = { ...base('Revision','2'), revised_Date:'31-JUL-2026 14:40:40' };
+  const second = { ...base('Revision','3'), revised_Date:'31-JUL-2026 14:41:13' };
+  const history = resolveOriginalRevisionHistory([base('Original','1'),second,first],request);
+  assert.equal(history.revisions.length,2);
+  assert.equal(history.revisions[0]?.seq_Id,'2');
+  assert.equal(history.revisions[1]?.seq_Id,'3');
+});
+
+test('single-revision resolver rejects a multi-revision history', () => {
+  const first = { ...base('Revision','2'), revised_Date:'31-JUL-2026 14:40:40' };
+  const second = { ...base('Revision','3'), revised_Date:'31-JUL-2026 14:41:13' };
+  assert.throws(()=>resolveOriginalRevisionPair([base('Original','1'),first,second],request),/got 2/);
 });
