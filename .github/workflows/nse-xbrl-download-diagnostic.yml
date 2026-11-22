@@ -24,6 +24,14 @@ jobs:
         with:
           node-version: 22
 
+      - name: Install isolated parser dependency only
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/nse-xbrl-parser-deps" --no-save --no-package-lock fast-xml-parser@5.12.1
+          mkdir -p node_modules
+          ln -s "$RUNNER_TEMP/nse-xbrl-parser-deps/node_modules/fast-xml-parser" node_modules/fast-xml-parser
+
       - name: Download official NSE Ind AS format and taxonomy archives
         shell: bash
         run: |
