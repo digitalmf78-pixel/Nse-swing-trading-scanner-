@@ -29,7 +29,7 @@ All three downloaded XML instances parsed with zero warnings. The Q1 2026 filing
 
 ## Decision
 
-<badge color="warning">Quarterly OCF derivation blocked</badge>
+**STATUS: QUARTERLY OCF DERIVATION BLOCKED**
 
 The required four-input rule cannot be satisfied. **No Q2 quarterly OCF is calculated.** Missing Q1 cash-flow data and missing prior-year filing are not replaced with zero, profit, FCF, or inferred amounts.
 
