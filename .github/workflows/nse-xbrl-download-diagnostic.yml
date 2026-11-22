@@ -59,10 +59,29 @@ jobs:
             "https://nsearchives.nseindia.com/web/sites/default/files/inline-files/Taxonomy%20Integrated%20filing%20finance%20%28IndAS%29.zip" \
             "artifacts/ind-as-integrated-filing-taxonomy.zip"
 
+      - name: Download original KSHINTL NSE iXBRL filing page
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://nsearchives.nseindia.com/corporate/ixbrl/INTEGRATED_FILING_INDAS_209920_04112026210644_iXBRL_WEB.html"
+          curl --fail --location --show-error \
+            --retry 5 --retry-all-errors --retry-delay 3 \
+            --connect-timeout 20 --max-time 180 \
+            --user-agent "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36" \
+            --referer "https://www.nseindia.in/companies-listing/corporate-integrated-filing" \
+            --header "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" \
+            --output artifacts/KSHINTL_2026-09-30_original_NSE_iXBRL.html \
+            "$url"
+          test -s artifacts/KSHINTL_2026-09-30_original_NSE_iXBRL.html
+          file artifacts/KSHINTL_2026-09-30_original_NSE_iXBRL.html | tee artifacts/KSHINTL-file-type.txt
+          wc -c artifacts/KSHINTL_2026-09-30_original_NSE_iXBRL.html | tee artifacts/KSHINTL-file-size.txt
+          sha256sum artifacts/KSHINTL_2026-09-30_original_NSE_iXBRL.html | tee artifacts/KSHINTL-SHA256.txt
+          grep -Eoi '<ix:(nonfraction|fraction|nonnumeric)|<xbrli:context|<context ' artifacts/KSHINTL_2026-09-30_original_NSE_iXBRL.html | sort | uniq -c | tee artifacts/KSHINTL-iXBRL-markers.txt || true
+
       - name: Upload verified archives for inspection
         uses: actions/upload-artifact@v4
         with:
-          name: nse-ind-as-xbrl-format-and-taxonomies
+          name: nse-ind-as-xbrl-format-taxonomies-and-kshintl-ixbrl
           path: artifacts/
           if-no-files-found: error
           retention-days: 7
