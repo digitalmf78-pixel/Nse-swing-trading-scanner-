@@ -134,6 +134,8 @@ export async function collectNseFilingHistoryForSymbols(
         failed.push({ symbol, error: message });
         options.onIssuerComplete?.(symbol, false, message);
       }
+      // Be conservative with the public NSE filing endpoint, even on failed issuers.
+      await new Promise(resolve => setTimeout(resolve, 150));
     }
   });
   await Promise.all(workers);
