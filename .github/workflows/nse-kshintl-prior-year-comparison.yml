@@ -1,0 +1,142 @@
+name: NSE KSHINTL prior-year original XBRL comparison
+# Research-only non-financial issuer pair. No scanner runtime mapping or metric approval.
+
+on:
+  push:
+    branches:
+      - research/free-fundamental-sources
+    paths:
+      - ".github/workflows/nse-kshintl-prior-year-comparison.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prior-year-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/free-fundamental-sources
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install isolated parser dependency
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/xbrl-deps" --no-save --no-package-lock fast-xml-parser@5.12.1
+          mkdir -p node_modules
+          ln -s "$RUNNER_TEMP/xbrl-deps/node_modules/fast-xml-parser" node_modules/fast-xml-parser
+      - name: Resolve exact official NSE original standalone filings
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          curl --fail --location --show-error --retry 3 --retry-all-errors --retry-delay 2 \
+            --connect-timeout 20 --max-time 120 \
+            --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36" \
+            --referer "https://www.nseindia.in/companies-listing/corporate-integrated-filing" \
+            --header "Accept: application/json, text/plain, */*" \
+            --get "https://www.nseindia.in/api/integrated-filing-results" \
+            --data-urlencode "index=equities" --data-urlencode "symbol=KSHINTL" \
+            --data-urlencode "type=Integrated Filing- Financials" --data-urlencode "page=1" \
+            --data-urlencode "size=100" --output artifacts/KSHINTL_integrated_filing_api.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          rows=json.loads(Path("artifacts/KSHINTL_integrated_filing_api.json").read_text()).get("data",[])
+          selected={}
+          for period,key in [("30-SEP-2026","current"),("30-SEP-2025","prior")]:
+              hits=[r for r in rows if r.get("symbol")=="KSHINTL" and r.get("qe_Date")==period
+                    and r.get("type_Sub")=="Original" and r.get("consolidated")=="Standalone"
+                    and r.get("type")=="Integrated Filing- Financials" and r.get("xbrl")]
+              if len(hits)!=1:
+                  raise SystemExit(f"Expected exactly one {key} original standalone KSHINTL filing for {period}; got {len(hits)}")
+              selected[key]=hits[0]
+          metadata={}
+          for key,row in selected.items():
+              metadata[key]={k:row.get(k) for k in ["symbol","smName","seq_Id","qe_Date","type","type_Sub","audited","consolidated","broadcast_Date","creation_Date","revised_Date","revision_Remark","ixbrl","xbrl"]}
+              Path(f"artifacts/KSHINTL_{key}_xbrl_url.txt").write_text(row["xbrl"])
+          Path("artifacts/KSHINTL_pair_metadata.json").write_text(json.dumps(metadata,indent=2))
+          print(json.dumps(metadata,indent=2))
+          PY
+      - name: Download both official original XML instances
+        shell: bash
+        run: |
+          set -euo pipefail
+          cookie_jar="artifacts/kshintl-nse-cookies.txt"
+          ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36"
+          for key in current prior; do
+            xbrl_url="$(cat "artifacts/KSHINTL_${key}_xbrl_url.txt")"
+            downloaded=""
+            for site in www.nseindia.in www.nseindia.com; do
+              curl --silent --show-error --location --max-time 60 --user-agent "$ua" --cookie-jar "$cookie_jar" --output /dev/null "https://$site/companies-listing/corporate-integrated-filing" || true
+              out="artifacts/${site}-${key}-download.response"
+              curl --silent --show-error --location --max-time 120 --user-agent "$ua" --cookie "$cookie_jar" \
+                --referer "https://$site/companies-listing/corporate-integrated-filing" \
+                --header "Accept: application/xml,text/xml,*/*" --get "https://$site/api/download_xbrl" \
+                --data-urlencode "fileUrl=$xbrl_url" --output "$out" || true
+              if grep -Eqi '<([[:alnum:]_]+:)?xbrl([ >])' "$out"; then cp "$out" "artifacts/KSHINTL_${key}.xml"; downloaded=yes; break; fi
+            done
+            if [ -z "$downloaded" ]; then
+              for host in nsearchives.nseindia.in nsearchives.nseindia.com; do
+                out="artifacts/${host}-${key}-direct.response"
+                curl --silent --show-error --location --max-time 120 --user-agent "$ua" --cookie "$cookie_jar" \
+                  --referer "https://www.nseindia.in/companies-listing/corporate-integrated-filing" \
+                  --header "Accept: application/xml,text/xml,application/octet-stream,*/*" \
+                  --output "$out" "https://$host/corporate/xbrl/${xbrl_url##*/}" || true
+                if grep -Eqi '<([[:alnum:]_]+:)?xbrl([ >])' "$out"; then cp "$out" "artifacts/KSHINTL_${key}.xml"; downloaded=yes; break; fi
+              done
+            fi
+            if [ -z "$downloaded" ]; then echo "Unable to download official NSE XML for $key" >&2; exit 1; fi
+            sha256sum "artifacts/KSHINTL_${key}.xml" | tee "artifacts/KSHINTL_${key}_SHA256.txt"
+          done
+      - name: Parse and compare matching period shapes, dimensions and units
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import { extractXbrl } from './research/fundamental_pilot/xbrl_extract.ts';
+          const metadata=JSON.parse(fs.readFileSync('artifacts/KSHINTL_pair_metadata.json','utf8'));
+          const outputs={};
+          const relevant=/RevenueFromOperations|ProfitLossForPeriod|ProfitBeforeTax|FinanceCosts|CashFlowsFromUsedInOperatingActivities|Equity|Borrowings|TotalAssets/i;
+          for (const key of ['current','prior']) {
+            const xml=fs.readFileSync(`artifacts/KSHINTL_${key}.xml`,'utf8');
+            const out=extractXbrl(xml);
+            if (!out.contextCount || !out.factCount || !Object.keys(out.units).length) throw new Error(`Empty parse for ${key}`);
+            const expectedEnd=key==='current'?'2026-09-30':'2025-09-30';
+            const selected=out.facts.flatMap(f=>{
+              const c=f.contextRef?out.contexts[f.contextRef]:null;
+              if (!c || !relevant.test(f.concept)) return [];
+              const duration=!!c.periodStart && c.periodEnd===expectedEnd && !c.instant;
+              const instant=!!c.instant && c.instant===expectedEnd && !c.periodStart && !c.periodEnd;
+              if (!duration && !instant) return [];
+              const shape=instant?'INSTANT|09-30':`${c.periodStart.slice(5)}|${c.periodEnd.slice(5)}`;
+              return [{concept:f.concept,shape,dimensions:[...c.dimensions].sort(),unit:f.unitRef?out.units[f.unitRef]??null:null,rawValue:f.rawValue,numericValue:f.numericValue,isNil:f.isNil,contextRef:f.contextRef}];
+            });
+            outputs[key]={metadata:metadata[key],bytes:Buffer.byteLength(xml),contexts:out.contextCount,factCount:out.factCount,warnings:out.warnings,selectedFacts:selected};
+          }
+          const makeIndex=items=>{const m=new Map(),duplicates=[];for(const f of items){const k=JSON.stringify([f.concept,f.shape,f.dimensions,f.unit]);if(m.has(k)){const old=m.get(k);if(old.rawValue!==f.rawValue||old.numericValue!==f.numericValue||old.isNil!==f.isNil)duplicates.push({key:k,first:old,duplicate:f});}else m.set(k,f);}return {m,duplicates};};
+          const a=makeIndex(outputs.current.selectedFacts),b=makeIndex(outputs.prior.selectedFacts);
+          const keys=[...new Set([...a.m.keys(),...b.m.keys()])];
+          const matched=keys.filter(k=>a.m.has(k)&&b.m.has(k));
+          const comparisons=matched.map(k=>({key:JSON.parse(k),current:a.m.get(k),priorOriginal:b.m.get(k)}));
+          if(metadata.current.symbol!=='KSHINTL'||metadata.prior.symbol!=='KSHINTL'||metadata.current.consolidated!=='Standalone'||metadata.prior.consolidated!=='Standalone'||metadata.current.type_Sub!=='Original'||metadata.prior.type_Sub!=='Original') throw new Error('Issuer, standalone basis or original-version check failed');
+          if(outputs.current.warnings.length||outputs.prior.warnings.length) throw new Error('Parser warnings present; inspect before accepting');
+          if(!matched.length) throw new Error('No same-shape facts matched');
+          const report={status:'PARSE_AND_STRUCTURAL_COMPARISON_PASS',company:metadata.current.smName,symbol:'KSHINTL',filingFamily:'NON_FINANCIAL_INTEGRATED_FILING',basis:'Standalone',periodEndCurrent:'2026-09-30',periodEndPrior:'2025-09-30',files:outputs,matchedKeyCount:matched.length,unmatchedKeyCount:keys.length-matched.length,conflictingDuplicateKeysCurrent:a.duplicates,conflictingDuplicateKeysPrior:b.duplicates,comparisons,note:'Research-only extraction and structural comparison. Exact fact meaning, taxonomy continuity, statement-row reconciliation and formulas remain unapproved. Do not use industrial ratios until each field is validated.'};
+          fs.writeFileSync('artifacts/KSHINTL_prior_year_comparison.json',JSON.stringify(report,null,2));
+          console.log(JSON.stringify({status:report.status,current:{sequenceId:metadata.current.seq_Id,broadcast:metadata.current.broadcast_Date,contexts:outputs.current.contexts,facts:outputs.current.factCount,selected:outputs.current.selectedFacts.length,warnings:outputs.current.warnings.length},prior:{sequenceId:metadata.prior.seq_Id,broadcast:metadata.prior.broadcast_Date,contexts:outputs.prior.contexts,facts:outputs.prior.factCount,selected:outputs.prior.selectedFacts.length,warnings:outputs.prior.warnings.length},matchedKeyCount:matched.length,unmatchedKeyCount:report.unmatchedKeyCount,conflictingDuplicatesCurrent:a.duplicates.length,conflictingDuplicatesPrior:b.duplicates.length},null,2));
+          JS
+      - name: Upload original filings and comparison evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nse-kshintl-prior-year-xbrl-comparison
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 7
