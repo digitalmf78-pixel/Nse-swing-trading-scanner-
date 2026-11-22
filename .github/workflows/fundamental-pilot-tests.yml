@@ -1,0 +1,30 @@
+name: Fundamental pilot tests
+
+on:
+  push:
+    branches:
+      - research/free-fundamental-sources
+    paths:
+      - "research/fundamental_pilot/**"
+      - "package.json"
+      - ".github/workflows/fundamental-pilot-tests.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  xbrl-parser-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Run isolated TypeScript parser tests
+        run: npm run test:fundamental-pilot
