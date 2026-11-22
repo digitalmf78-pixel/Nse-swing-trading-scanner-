@@ -28,7 +28,8 @@ export interface NseXbrlEvidenceCache {
 export function validateOfficialXbrlArchiveUrl(value: unknown): URL {
   if (typeof value !== 'string' || !value.trim()) throw new Error('Missing NSE XBRL archive URL');
   const url = new URL(value);
-  if (url.protocol !== 'https:' || !['nsearchives.nseindia.in', 'nsearchives.nseindia.com'].includes(url.hostname)
+  if (url.protocol !== 'https:' || url.port !== '' || url.username !== '' || url.password !== ''
+      || !['nsearchives.nseindia.in', 'nsearchives.nseindia.com'].includes(url.hostname)
       || !url.pathname.startsWith('/corporate/xbrl/')) {
     throw new Error('Archive URL is outside the official NSE XBRL allowlist');
   }
