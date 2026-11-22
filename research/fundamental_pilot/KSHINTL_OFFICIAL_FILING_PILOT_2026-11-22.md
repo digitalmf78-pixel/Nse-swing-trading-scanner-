@@ -75,3 +75,16 @@ Balance-sheet cross-check from the same filing:
 ## Change-safety statement
 
 No scanner runtime, main branch, thresholds, cache, UI, ranking/scoring logic, live-price path or Google AI Studio app was changed by this pilot update.
+
+
+## Independent issuer-website cross-check (2026-11-23)
+
+The issuer's own investor-relations page for the same September 30, 2026 integrated filing was located:
+- https://kshinternational.com/investor-relations/integrated-filing-financial-with-rpt/financial-results-with-rpt_september-30-2026/
+- It identifies the same issuer, symbol, ISIN, Q2 period, standalone basis and unaudited status.
+- The issuer page presents amounts in INR Millions, while the NSE rendering presents INR Lakhs.
+- Revenue from operations: issuer page 13,196.54 INR Millions; NSE page 131,965.40 INR Lakhs. These reconcile exactly because 1 INR Million = 10 INR Lakhs.
+- YTD revenue: issuer page 24,838.89 INR Millions; NSE page 248,388.90 INR Lakhs. These also reconcile exactly.
+- Debt/equity, debt service coverage and interest service coverage are blank on the issuer page too.
+
+This cross-check supports the unit conversion and confirms the blank ratio fields across two official publisher pages. It is still a human-readable-page reconciliation, not a raw XBRL parser test. The two pages are not independent underlying accounting sources; both publish the same issuer filing. Preserve the source-specific unit and page URL rather than treating them as independent financial confirmations.
