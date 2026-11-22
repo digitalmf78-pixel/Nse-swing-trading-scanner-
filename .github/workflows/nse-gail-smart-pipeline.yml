@@ -205,7 +205,7 @@ jobs:
           const pipeline=buildSevenMetricXbrlPipeline(meta.sector,
             {extraction:files.current.parsed,periodType:'YTD',periodStart:periodStart(currentEnd),periodEnd:currentEnd,basis:meta.basis.toUpperCase(),filingBasis:meta.basis.toUpperCase()},
             {extraction:files.prior.parsed,periodType:'YTD',periodStart:periodStart(priorEnd),periodEnd:priorEnd,basis:meta.basis.toUpperCase(),filingBasis:meta.basis.toUpperCase()},
-            {revenue:'in-capmkt:RevenueFromOperations',profit:'in-capmkt:ProfitLossForPeriod',operatingCashFlow:'in-capmkt:CashFlowsFromUsedInOperatingActivities'});
+            {revenue:'in-capmkt:RevenueFromOperations',profit:meta.basis==='Consolidated'?'in-capmkt:ProfitOrLossAttributableToOwnersOfParent':'in-capmkt:ProfitLossForPeriod',profitAttribution:meta.basis==='Consolidated'?'OWNERS_OF_PARENT':'STANDALONE_ENTITY',operatingCashFlow:'in-capmkt:CashFlowsFromUsedInOperatingActivities'});
           const output={
             status:'REAL_NSE_XBRL_CANDIDATE_PIPELINE_COMPLETED',
             symbol:meta.symbol,sector:meta.sector,basis:meta.basis,currentPeriod:meta.currentPeriod,priorPeriod:meta.priorPeriod,
