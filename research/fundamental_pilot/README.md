@@ -36,6 +36,7 @@ This folder is isolated from the scanner runtime. The intended production implem
 
 - `sector_metric_policy.ts` is a research-only applicability guard, not a calculator or production metric mapper.
 - `statement_reconciliation.ts` compares a raw candidate with named statement presentations but always leaves metric mapping unapproved. This prevents one statement row from being silently substituted for another when presentation definitions differ.
+- `profit_bridge_guard.ts` is a research-only PAT arithmetic guard: it checks PAT = PBT + signed tax expense and blocks period, basis or unit mixing. A mismatch becomes `REVIEW_REQUIRED`; even a reconciled bridge remains candidate-only. Its TEMBO regression test reproduces the negative-tax sign failure without changing any scanner runtime path.
 - Bank ROCE, industrial Debt/Equity and industrial EBIT/interest coverage are explicitly marked not applicable as generic formulas.
 - Bank revenue/profit growth, ROE and OCF remain blocked pending bank-specific definitions and period/basis validation.
 - NBFC, insurance and unknown-sector profiles fail closed rather than inheriting industrial formulas.
