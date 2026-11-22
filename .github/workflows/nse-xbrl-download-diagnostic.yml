@@ -138,19 +138,21 @@ jobs:
           row=matches[0]
           if row.get("qe_Date")!="30-SEP-2026" or row.get("type")!="Integrated Filing- Financials":
               raise SystemExit("Filing metadata did not match the intended Q2 2026-09-30 financial filing")
-          Path("artifacts/KSHINTL_original_xbrl_url.txt").write_text(row["xbrl"]+"\\n")
+          Path("artifacts/KSHINTL_original_xbrl_url.txt").write_text(row["xbrl"])
           print("Selected official XBRL:", row["xbrl"])
           print("XBRL metadata:", {k:row.get(k) for k in ["symbol","seq_Id","qe_Date","type_Sub","audited","consolidated","broadcast_Date","revised_Date","revision_Remark","xbrlFileSize"]})
           PY
           xbrl_url="$(cat artifacts/KSHINTL_original_xbrl_url.txt)"
+          file_url_json="$(python -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$xbrl_url")"
           curl --fail --location --show-error \
-            --retry 5 --retry-all-errors --retry-delay 3 \
+            --retry 3 --retry-all-errors --retry-delay 2 \
             --connect-timeout 20 --max-time 180 \
             --user-agent "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36" \
             --referer "https://www.nseindia.in/companies-listing/corporate-integrated-filing" \
             --header "Accept: application/xml, text/xml, */*" \
-            --output artifacts/KSHINTL_2026-09-30_original_standalone_NSE_XBRL.xml \
-            "$xbrl_url"
+            --get "https://www.nseindia.in/api/download_xbrl" \
+            --data-urlencode "fileUrl=$file_url_json" \
+            --output artifacts/KSHINTL_2026-09-30_original_standalone_NSE_XBRL.xml
           test -s artifacts/KSHINTL_2026-09-30_original_standalone_NSE_XBRL.xml
           file artifacts/KSHINTL_2026-09-30_original_standalone_NSE_XBRL.xml | tee artifacts/KSHINTL-raw-xbrl-file-type.txt
           wc -c artifacts/KSHINTL_2026-09-30_original_standalone_NSE_XBRL.xml | tee artifacts/KSHINTL-raw-xbrl-file-size.txt
@@ -173,7 +175,7 @@ jobs:
       - name: Upload verified archives for inspection
         uses: actions/upload-artifact@v4
         with:
-          name: nse-ind-as-xbrl-format-taxonomies-kshintl-raw-xbrl
+          name: nse-ind-as-xbrl-format-taxonomies-kshintl-xbrl-proxy
           path: artifacts/
           if-no-files-found: error
           retention-days: 7
