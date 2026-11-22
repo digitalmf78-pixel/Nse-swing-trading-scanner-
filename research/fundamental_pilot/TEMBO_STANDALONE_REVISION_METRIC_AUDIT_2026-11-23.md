@@ -120,3 +120,54 @@ The prior-year standalone cash-flow comparative in the current 2026 PDF is OCF �
 - Production approval: **NO**.
 
 This is a concrete false-confidence case: the XBRL selector returned a unique, undimensioned, exact-period fact with zero parser warnings, yet the selected Profit fact conflicts materially with the official standalone results statement. Parser success and unique-context selection are not enough; issuer statement tie-out is a mandatory independent gate.
+
+
+## Follow-up: working-capital / Other Current Assets note review
+
+The complete filing text was inspected through the 13-Nov-2026 board-results document. The standalone cash-flow and balance-sheet values are in ₹ lakhs.
+
+### Other Current Assets movement
+
+| Standalone line | 31-Mar-2026 | 30-Sep-2026 | Movement |
+|---|---:|---:|---:|
+| Other current assets (balance sheet) | 12,330.74 | 30,161.86 | **+17,831.12** |
+| Cash-flow adjustment: (Increase)/Decrease in other current assets | — | **(17,831.12)** | **−17,831.12 cash impact** |
+
+The cash-flow adjustment exactly equals the increase in the balance-sheet Other Current Assets line, with the expected negative cash-flow sign. This is not an arithmetic mismatch. It is the largest single negative working-capital adjustment disclosed in the standalone operating cash-flow bridge.
+
+Other material standalone working-capital movements in the same bridge (₹ lakh):
+- Trade receivables: −4,740.34 cash impact.
+- Trade payables: +2,195.16 cash impact.
+- Inventory: +3,228.47 cash impact.
+- Loans: −719.29 cash impact.
+- Other current assets: −17,831.12 cash impact.
+- Other financial assets/current financial assets: +3,682.93 cash impact.
+
+Operating profit before working-capital changes is ₹7,944.01 lakh; after the disclosed working-capital movements, cash generated from operations is −₹4,976.53 lakh; after net taxes paid of ₹1,387.86 lakh, net OCF is −₹6,364.39 lakh. This arithmetic matches the published cash-flow statement.
+
+### Cash-flow roll-forward and balance-sheet tie-out
+
+| Check | Value (₹ lakh) | Result |
+|---|---:|---|
+| Opening cash and cash equivalents | 7,453.75 | |
+| Net increase/(decrease) in cash | −7,370.59 | |
+| Closing cash and cash equivalents | 83.16 | PASS: roll-forward |
+| Balance-sheet cash and cash equivalents at 30-Sep-2026 | 83.16 | PASS: exact tie-out |
+
+The closing cash tie-out passes. OCF is therefore a source-matched negative number, not a missing fact or parser sign artifact. It is materially affected by the ₹178.3112 crore increase in Other Current Assets. The filing does not provide a detailed sub-breakdown of this balance-sheet line in the inspected result notes, so the underlying nature, recoverability and timing of those balances remain **UNRESOLVED**. Do not infer that the increase is necessarily advances, receivables or a particular project spend. The filing's general note says funds raised in the previous period were utilised to strengthen working capital and investments in Defence/Solar subsidiaries, but it does not explicitly attribute this specific Other Current Assets movement to those uses.
+
+### Profit XBRL mismatch: arithmetic signature
+
+The official standalone statement reports H1 profit after tax ₹4,654.33 lakh, with PBT ₹6,701.60 lakh and tax lines Current Tax −₹1,668.45 lakh, Earlier Year Tax −₹1.01 lakh, Deferred Tax −₹377.81 lakh. The XBRL selected ProfitLossForPeriod candidate is ₹8,747.86 lakh.
+
+The selected XBRL profit candidate is not merely different from the PDF: it has the arithmetic signature of **PBT minus a negative tax-expense amount**, rather than PBT plus the negative tax-expense amount. The XBRL PBT candidate is ₹6,701.60 lakh and the XBRL tax-expense candidate is reported as a negative amount in the raw facts; subtracting a negative tax amount can inflate the derived profit. The PDF's PBT-to-PAT bridge is consistent with adding the negative tax expense lines. This strongly suggests a sign/semantic tagging inconsistency in the profit fact or its upstream calculation, but this audit does not assign responsibility or rewrite the raw XBRL fact.
+
+**Control decision:** the selector must not accept a unique ProfitLossForPeriod fact solely because it has the exact period, basis, unit and no dimensions. The official statement bridge must independently reconcile PBT + tax expense (and any other applicable components) to PAT. For TEMBO, Profit remains REVIEW_REQUIRED and null for metric output. The raw XBRL fact and its provenance remain preserved.
+
+### Updated TEMBO decisions
+
+- Revenue: exact standalone PDF match; candidate-only.
+- Profit: official statement bridge conflict with XBRL fact; REVIEW_REQUIRED, no value released.
+- OCF: exact standalone PDF match; cash-flow roll-forward and balance-sheet cash tie-out pass; candidate-only, with working-capital quality flag due the large Other Current Assets increase.
+- Other Current Assets explanation/recoverability: unresolved from this interim filing; needs detailed ledger/annual report or management disclosure, not inference.
+- Production approval: **NO**.
