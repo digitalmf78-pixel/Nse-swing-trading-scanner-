@@ -31,4 +31,4 @@ jobs:
           mkdir -p node_modules
           ln -s "$RUNNER_TEMP/fundamental-pilot-deps/node_modules/fast-xml-parser" node_modules/fast-xml-parser
       - name: Run isolated TypeScript parser tests
-        run: node --experimental-strip-types --test research/fundamental_pilot/xbrl_extract.test.ts
+        run: node --experimental-strip-types --test research/fundamental_pilot/*.test.ts
