@@ -78,10 +78,42 @@ jobs:
           sha256sum artifacts/KSHINTL_2026-09-30_original_NSE_iXBRL.html | tee artifacts/KSHINTL-SHA256.txt
           grep -Eoi '<ix:(nonfraction|fraction|nonnumeric)|<xbrli:context|<context ' artifacts/KSHINTL_2026-09-30_original_NSE_iXBRL.html | sort | uniq -c | tee artifacts/KSHINTL-iXBRL-markers.txt || true
 
+      - name: Capture NSE filing index source and script references
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://www.nseindia.in/companies-listing/corporate-integrated-filing"
+          curl --fail --location --show-error \
+            --retry 3 --retry-all-errors --retry-delay 2 \
+            --connect-timeout 20 --max-time 120 \
+            --user-agent "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36" \
+            --header "Accept: text/html,application/xhtml+xml,*/*" \
+            --output artifacts/NSE_integrated_filing_index.html "$url"
+          grep -Eo '<script[^>]+src=["'\''"][^"'\''"]+' artifacts/NSE_integrated_filing_index.html \
+            | sed -E 's/.*src=["'\''"]//' > artifacts/NSE_script_urls.txt || true
+          grep -Eio '.{0,100}(integrated.?filing|xbrl|api/|companies-listing).{0,160}' artifacts/NSE_integrated_filing_index.html \
+            > artifacts/NSE_index_api_hints.txt || true
+          while IFS= read -r script_url; do
+            [ -n "$script_url" ] || continue
+            case "$script_url" in
+              http*) full_url="$script_url" ;;
+              //*) full_url="https:$script_url" ;;
+              /*) full_url="https://www.nseindia.in$script_url" ;;
+              *) full_url="https://www.nseindia.in/$script_url" ;;
+            esac
+            name="$(printf '%s' "$full_url" | sha256sum | cut -c1-16).js"
+            curl --fail --location --silent --show-error --max-time 60 \
+              --user-agent "Mozilla/5.0" --output "artifacts/$name" "$full_url" || true
+          done < artifacts/NSE_script_urls.txt
+          grep -Eil 'integrated.?filing|xbrl|api/' artifacts/*.js \
+            > artifacts/NSE_relevant_scripts.txt || true
+          grep -Eio '.{0,100}(integrated.?filing|xbrl|api/).{0,180}' artifacts/*.js \
+            > artifacts/NSE_script_api_hints.txt || true
+
       - name: Upload verified archives for inspection
         uses: actions/upload-artifact@v4
         with:
-          name: nse-ind-as-xbrl-format-taxonomies-and-kshintl-ixbrl
+          name: nse-ind-as-xbrl-format-taxonomies-kshintl-and-index-source
           path: artifacts/
           if-no-files-found: error
           retention-days: 7
