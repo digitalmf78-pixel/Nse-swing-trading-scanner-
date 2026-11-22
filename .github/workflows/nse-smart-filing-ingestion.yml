@@ -16,9 +16,9 @@ on:
         default: GAIL
         type: string
       period:
-        description: Filing period end as NSE API date, e.g. 30-SEP-2026
+        description: Filing period end as NSE API date, e.g. 30-SEP-2025
         required: true
-        default: 30-SEP-2026
+        default: 30-SEP-2025
         type: string
       basis:
         description: Filing basis
@@ -49,7 +49,7 @@ jobs:
         shell: bash
         env:
           SYMBOL: ${{ inputs.symbol || 'GAIL' }}
-          PERIOD: ${{ inputs.period || '30-SEP-2026' }}
+          PERIOD: ${{ inputs.period || '30-SEP-2025' }}
           BASIS: ${{ inputs.basis || 'Consolidated' }}
         run: |
           set -euo pipefail
