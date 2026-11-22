@@ -180,12 +180,14 @@ export function extractXbrl(xml: string): XbrlExtraction {
     throw new Error(`Unable to parse XBRL XML: ${(error as Error).message}`);
   }
 
+  const warnings: string[] = [];
   const contexts: Record<string, XbrlContext> = {};
   for (const { node } of descendants(parsed, 'context')) {
     if (!node || typeof node !== 'object') continue;
     const contextNode = node as XmlObject;
     const id = attr(contextNode, 'id');
     if (!id) continue;
+    if (contexts[id]) warnings.push(`Duplicate XBRL context id ${id}; later context would overwrite earlier context`);
     const identifierNode = descendants(contextNode, 'identifier')[0]?.node;
     const identifier = identifierNode && typeof identifierNode === 'object'
       ? identifierNode as XmlObject
@@ -215,11 +217,11 @@ export function extractXbrl(xml: string): XbrlExtraction {
     const unitNode = node as XmlObject;
     const id = attr(unitNode, 'id');
     if (!id) continue;
+    if (units[id]) warnings.push(`Duplicate XBRL unit id ${id}; later unit would overwrite earlier unit`);
     units[id] = descendants(unitNode, 'measure').map(({ node: measure }) => textOf(measure).trim()).filter(Boolean);
   }
 
   const facts: XbrlFact[] = [];
-  const warnings: string[] = [];
   const walkFacts = (value: XmlValue): void => {
     if (Array.isArray(value)) {
       for (const item of value) walkFacts(item);
@@ -232,6 +234,9 @@ export function extractXbrl(xml: string): XbrlExtraction {
         const contextRef = attr(node, 'contextref');
         const tag = localName(key);
         const isInline = tag === 'nonfraction' || tag === 'fraction' || tag === 'nonnumeric';
+        if (!contextRef && (attr(node, 'unitref') || isInline)) {
+          warnings.push(`Numeric or inline fact ${attr(node, 'name') ?? key} has no contextRef; fact omitted`);
+        }
         if (contextRef && !STRUCTURAL.has(tag)) {
           const concept = attr(node, 'name') ?? key;
           const raw = textOf(node).trim();
