@@ -214,12 +214,47 @@ export default function App() {
         error?: string;
       };
       if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+
+      const scannerMessage =
+        json.message || `Scanner reloaded through EOD ${json.latestSessionDate || ''}.`;
+      let fundamentalMessage = `Selected stock ${selectedSymbol} fundamentals refresh was not confirmed.`;
+
+      // Refresh only the selected stock here; a full-universe live fetch is intentionally not
+      // coupled to the scanner reload because it can trigger hundreds of external requests.
+      if (selectedSymbol && !syncInFlightRef.current) {
+        const sym = selectedSymbol.trim().toUpperCase();
+        syncInFlightRef.current = true;
+        lastSyncAttemptRef.current.set(sym, Date.now());
+        try {
+          const fundRes = await fetch('/api/fundamentals/save-to-cache', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ symbol: sym, force: true }),
+          });
+          const fundJson = (await fundRes.json()) as {
+            saved?: boolean;
+            error?: string | null;
+            totalSavedCount?: number;
+          };
+          if (!fundRes.ok) throw new Error(fundJson.error || `HTTP ${fundRes.status}`);
+          fundamentalMessage = fundJson.saved
+            ? `Selected stock ${sym} fundamentals refreshed and cache reloaded.`
+            : `Selected stock ${sym} fundamentals could not be refreshed: ${fundJson.error || 'No fresh record returned'}.`;
+        } catch (fundErr) {
+          fundamentalMessage = `Selected stock ${sym} fundamentals refresh failed: ${(fundErr as Error).message}`;
+        } finally {
+          syncInFlightRef.current = false;
+        }
+      } else if (selectedSymbol) {
+        fundamentalMessage = `Selected stock ${selectedSymbol} already has a fundamentals refresh in progress.`;
+      }
+
       await fetchOverview(false);
       setScannerReloadSeq((n) => n + 1);
       setStockRefreshSeq((n) => n + 1);
       setScannerNotice({
         tone: 'ok',
-        text: json.message || `Scanner reloaded through EOD ${json.latestSessionDate || ''}.`,
+        text: `${scannerMessage} ${fundamentalMessage}`,
       });
     } catch (err) {
       setScannerNotice({
