@@ -7,6 +7,7 @@ on:
     paths:
       - "research/fundamental_pilot/**"
       - ".github/workflows/fundamental-pilot-tests.yml"
+      - ".github/workflows/nse-xbrl-download-diagnostic.yml"
   workflow_dispatch:
 
 permissions:
