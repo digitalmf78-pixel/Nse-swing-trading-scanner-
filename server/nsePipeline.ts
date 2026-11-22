@@ -441,11 +441,17 @@ class NsePipelineEngine {
       periodAlignmentStatus: 'UNVERIFIED',
       providerSector: '',
       revenueGrowthPct: null,
+      revenueGrowthPeriodEnd: '',
       profitGrowthPct: null,
+      profitGrowthPeriodEnd: '',
       roePct: null,
+      roePeriodEnd: '',
       rocePct: null,
+      rocePeriodEnd: '',
       debtToEquity: null,
+      debtToEquityPeriodEnd: '',
       interestCoverage: null,
+      interestCoveragePeriodEnd: '',
       operatingCashFlowInr: null,
       operatingCashFlowPeriodEnd: '',
       freeCashFlowInr: null,
@@ -638,6 +644,12 @@ class NsePipelineEngine {
         (rec.interestCoverage > 0.1 || existing.interestCoverage === null)
           ? rec.interestCoverage
           : existing.interestCoverage;
+      const useRecRevenuePeriod = rec.revenueGrowthPct !== null && rec.revenueGrowthPct !== undefined && (!rec.revenueGrowthPeriodEnd ? !existing.revenueGrowthPeriodEnd : !existing.revenueGrowthPeriodEnd || rec.revenueGrowthPeriodEnd >= existing.revenueGrowthPeriodEnd);
+      const useRecProfitPeriod = rec.profitGrowthPct !== null && rec.profitGrowthPct !== undefined && (!rec.profitGrowthPeriodEnd ? !existing.profitGrowthPeriodEnd : !existing.profitGrowthPeriodEnd || rec.profitGrowthPeriodEnd >= existing.profitGrowthPeriodEnd);
+      const useRecRoePeriod = rec.roePct !== null && rec.roePct !== undefined && (!rec.roePeriodEnd ? !existing.roePeriodEnd : !existing.roePeriodEnd || rec.roePeriodEnd >= existing.roePeriodEnd);
+      const useRecRocePeriod = rec.rocePct !== null && rec.rocePct !== undefined && (!rec.rocePeriodEnd ? !existing.rocePeriodEnd : !existing.rocePeriodEnd || rec.rocePeriodEnd >= existing.rocePeriodEnd);
+      const useRecDePeriod = rec.debtToEquity !== null && rec.debtToEquity !== undefined && (!rec.debtToEquityPeriodEnd ? !existing.debtToEquityPeriodEnd : !existing.debtToEquityPeriodEnd || rec.debtToEquityPeriodEnd >= existing.debtToEquityPeriodEnd);
+      const useRecIcPeriod = rec.interestCoverage !== null && rec.interestCoverage !== undefined && (!rec.interestCoveragePeriodEnd ? !existing.interestCoveragePeriodEnd : !existing.interestCoveragePeriodEnd || rec.interestCoveragePeriodEnd >= existing.interestCoveragePeriodEnd);
       const useRecOcfPeriod =
         rec.operatingCashFlowInr !== null &&
         rec.operatingCashFlowInr !== undefined &&
@@ -666,12 +678,18 @@ class NsePipelineEngine {
         ),
         lastUpdatedUtc: rec.fetchedAtUtc || rec.asOfDate || existing.lastUpdatedUtc,
         providerSector: rec.providerSector || existing.providerSector,
-        revenueGrowthPct: rec.revenueGrowthPct ?? existing.revenueGrowthPct,
-        profitGrowthPct: rec.profitGrowthPct ?? existing.profitGrowthPct,
-        roePct: rec.roePct ?? existing.roePct,
-        rocePct: rec.rocePct ?? existing.rocePct,
-        debtToEquity: validRecDe !== null && validRecDe >= 0 ? validRecDe : null,
-        interestCoverage: validRecIc !== null && validRecIc > 0.1 ? validRecIc : null,
+        revenueGrowthPct: useRecRevenuePeriod ? rec.revenueGrowthPct! : existing.revenueGrowthPct,
+        revenueGrowthPeriodEnd: useRecRevenuePeriod ? (rec.revenueGrowthPeriodEnd || '') : existing.revenueGrowthPeriodEnd,
+        profitGrowthPct: useRecProfitPeriod ? rec.profitGrowthPct! : existing.profitGrowthPct,
+        profitGrowthPeriodEnd: useRecProfitPeriod ? (rec.profitGrowthPeriodEnd || '') : existing.profitGrowthPeriodEnd,
+        roePct: useRecRoePeriod ? rec.roePct! : existing.roePct,
+        roePeriodEnd: useRecRoePeriod ? (rec.roePeriodEnd || '') : existing.roePeriodEnd,
+        rocePct: useRecRocePeriod ? rec.rocePct! : existing.rocePct,
+        rocePeriodEnd: useRecRocePeriod ? (rec.rocePeriodEnd || '') : existing.rocePeriodEnd,
+        debtToEquity: useRecDePeriod ? validRecDe : existing.debtToEquity,
+        debtToEquityPeriodEnd: useRecDePeriod ? (rec.debtToEquityPeriodEnd || '') : existing.debtToEquityPeriodEnd,
+        interestCoverage: useRecIcPeriod ? validRecIc : existing.interestCoverage,
+        interestCoveragePeriodEnd: useRecIcPeriod ? (rec.interestCoveragePeriodEnd || '') : existing.interestCoveragePeriodEnd,
         operatingCashFlowInr: useRecOcfPeriod ? rec.operatingCashFlowInr! : existing.operatingCashFlowInr,
         operatingCashFlowPeriodEnd: useRecOcfPeriod ? (rec.operatingCashFlowPeriodEnd || '') : existing.operatingCashFlowPeriodEnd,
         freeCashFlowInr: useRecFcfPeriod ? rec.freeCashFlowInr! : existing.freeCashFlowInr,
