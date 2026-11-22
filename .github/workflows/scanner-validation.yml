@@ -8,9 +8,14 @@ on:
     paths:
       - "src/**"
       - "server/**"
+      - "scripts/**"
+      - "data/**"
+      - "outputs/**"
       - "*.ts"
       - "*.tsx"
       - "*.json"
+      - "package.json"
+      - "tsconfig.json"
       - "index.html"
       - ".github/workflows/scanner-validation.yml"
 
