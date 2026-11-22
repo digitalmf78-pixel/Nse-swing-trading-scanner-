@@ -193,6 +193,18 @@ function mergeFundamentalRecords(
 ): LiveFundamentalRecord {
   if (!prev) return next;
   const mergedSources = Array.from(new Set([...(prev.sources || []), ...(next.sources || [])]));
+  const nextPeriodIsNewer =
+    Boolean(next.financialPeriodEnd) &&
+    Boolean(prev.financialPeriodEnd) &&
+    next.financialPeriodEnd > prev.financialPeriodEnd;
+  const nextPeriodIsOlder =
+    Boolean(next.financialPeriodEnd) &&
+    Boolean(prev.financialPeriodEnd) &&
+    next.financialPeriodEnd < prev.financialPeriodEnd;
+  // Never carry missing metrics from an older reporting period into a newer period.
+  // For an older incoming record, retain the newer stored metrics instead.
+  const mergePeriodMetric = (nextValue: number | null, prevValue: number | null): number | null =>
+    nextPeriodIsNewer ? nextValue : nextPeriodIsOlder ? prevValue : nextValue ?? prevValue;
   const bestPeriod =
     next.financialPeriodEnd && (!prev.financialPeriodEnd || next.financialPeriodEnd >= prev.financialPeriodEnd)
       ? next.financialPeriodEnd
@@ -212,14 +224,14 @@ function mergeFundamentalRecords(
     companyName: next.companyName || prev.companyName,
     firstTradeDateIso: next.firstTradeDateIso || prev.firstTradeDateIso,
     nextEarningsDate: next.nextEarningsDate || prev.nextEarningsDate,
-    revenueGrowthPct: next.revenueGrowthPct ?? prev.revenueGrowthPct,
-    profitGrowthPct: next.profitGrowthPct ?? prev.profitGrowthPct,
-    roePct: next.roePct ?? prev.roePct,
-    rocePct: next.rocePct ?? prev.rocePct,
-    debtToEquity: next.debtToEquity ?? prev.debtToEquity,
-    interestCoverage: next.interestCoverage ?? prev.interestCoverage,
-    operatingCashFlowInr: next.operatingCashFlowInr ?? prev.operatingCashFlowInr,
-    freeCashFlowInr: next.freeCashFlowInr ?? prev.freeCashFlowInr,
+    revenueGrowthPct: mergePeriodMetric(next.revenueGrowthPct, prev.revenueGrowthPct),
+    profitGrowthPct: mergePeriodMetric(next.profitGrowthPct, prev.profitGrowthPct),
+    roePct: mergePeriodMetric(next.roePct, prev.roePct),
+    rocePct: mergePeriodMetric(next.rocePct, prev.rocePct),
+    debtToEquity: mergePeriodMetric(next.debtToEquity, prev.debtToEquity),
+    interestCoverage: mergePeriodMetric(next.interestCoverage, prev.interestCoverage),
+    operatingCashFlowInr: mergePeriodMetric(next.operatingCashFlowInr, prev.operatingCashFlowInr),
+    freeCashFlowInr: mergePeriodMetric(next.freeCashFlowInr, prev.freeCashFlowInr),
     trailingPE: next.trailingPE ?? prev.trailingPE,
     priceToBook: next.priceToBook ?? prev.priceToBook,
     marketCapInr: next.marketCapInr ?? prev.marketCapInr,
