@@ -212,6 +212,8 @@ function mergeFundamentalRecords(
   const roce = mergeDatedMetric(next.rocePct, next.rocePeriodEnd, prev.rocePct, prev.rocePeriodEnd);
   const de = mergeDatedMetric(next.debtToEquity, next.debtToEquityPeriodEnd, prev.debtToEquity, prev.debtToEquityPeriodEnd);
   const ic = mergeDatedMetric(next.interestCoverage, next.interestCoveragePeriodEnd, prev.interestCoverage, prev.interestCoveragePeriodEnd);
+  const ocf = mergeDatedMetric(next.operatingCashFlowInr, next.operatingCashFlowPeriodEnd, prev.operatingCashFlowInr, prev.operatingCashFlowPeriodEnd);
+  const fcf = mergeDatedMetric(next.freeCashFlowInr, next.freeCashFlowPeriodEnd, prev.freeCashFlowInr, prev.freeCashFlowPeriodEnd);
   const bestPeriod =
     next.financialPeriodEnd && (!prev.financialPeriodEnd || next.financialPeriodEnd >= prev.financialPeriodEnd)
       ? next.financialPeriodEnd
@@ -243,30 +245,10 @@ function mergeFundamentalRecords(
     debtToEquityPeriodEnd: de.periodEnd,
     interestCoverage: ic.value,
     interestCoveragePeriodEnd: ic.periodEnd,
-    operatingCashFlowInr:
-      next.operatingCashFlowInr === null
-        ? prev.operatingCashFlowInr
-        : !next.operatingCashFlowPeriodEnd
-          ? (prev.operatingCashFlowPeriodEnd ? prev.operatingCashFlowInr : next.operatingCashFlowInr)
-          : !prev.operatingCashFlowPeriodEnd || next.operatingCashFlowPeriodEnd >= prev.operatingCashFlowPeriodEnd
-            ? next.operatingCashFlowInr
-            : prev.operatingCashFlowInr,
-    operatingCashFlowPeriodEnd:
-      next.operatingCashFlowPeriodEnd && (!prev.operatingCashFlowPeriodEnd || next.operatingCashFlowPeriodEnd >= prev.operatingCashFlowPeriodEnd)
-        ? next.operatingCashFlowPeriodEnd
-        : prev.operatingCashFlowPeriodEnd,
-    freeCashFlowInr:
-      next.freeCashFlowInr === null
-        ? prev.freeCashFlowInr
-        : !next.freeCashFlowPeriodEnd
-          ? (prev.freeCashFlowPeriodEnd ? prev.freeCashFlowInr : next.freeCashFlowInr)
-          : !prev.freeCashFlowPeriodEnd || next.freeCashFlowPeriodEnd >= prev.freeCashFlowPeriodEnd
-            ? next.freeCashFlowInr
-            : prev.freeCashFlowInr,
-    freeCashFlowPeriodEnd:
-      next.freeCashFlowPeriodEnd && (!prev.freeCashFlowPeriodEnd || next.freeCashFlowPeriodEnd >= prev.freeCashFlowPeriodEnd)
-        ? next.freeCashFlowPeriodEnd
-        : prev.freeCashFlowPeriodEnd,
+    operatingCashFlowInr: ocf.value,
+    operatingCashFlowPeriodEnd: ocf.periodEnd,
+    freeCashFlowInr: fcf.value,
+    freeCashFlowPeriodEnd: fcf.periodEnd,
     trailingPE: next.trailingPE ?? prev.trailingPE,
     priceToBook: next.priceToBook ?? prev.priceToBook,
     marketCapInr: next.marketCapInr ?? prev.marketCapInr,
@@ -994,17 +976,17 @@ export async function fetchYahooFundamentalsForSymbol(
       firstTradeDateIso: primary.firstTradeDateIso || bseRec.firstTradeDateIso,
       nextEarningsDate: primary.nextEarningsDate || bseRec.nextEarningsDate,
       revenueGrowthPct: primary.revenueGrowthPct ?? (sameFinancialPeriod ? bseRec.revenueGrowthPct : null),
-      revenueGrowthPeriodEnd: primary.revenueGrowthPeriodEnd || (sameFinancialPeriod ? bseRec.revenueGrowthPeriodEnd : ''),
+      revenueGrowthPeriodEnd: primary.revenueGrowthPct !== null ? primary.revenueGrowthPeriodEnd : (sameFinancialPeriod ? bseRec.revenueGrowthPeriodEnd : ''),
       profitGrowthPct: primary.profitGrowthPct ?? (sameFinancialPeriod ? bseRec.profitGrowthPct : null),
-      profitGrowthPeriodEnd: primary.profitGrowthPeriodEnd || (sameFinancialPeriod ? bseRec.profitGrowthPeriodEnd : ''),
+      profitGrowthPeriodEnd: primary.profitGrowthPct !== null ? primary.profitGrowthPeriodEnd : (sameFinancialPeriod ? bseRec.profitGrowthPeriodEnd : ''),
       roePct: primary.roePct ?? (sameFinancialPeriod ? bseRec.roePct : null),
-      roePeriodEnd: primary.roePeriodEnd || (sameFinancialPeriod ? bseRec.roePeriodEnd : ''),
+      roePeriodEnd: primary.roePct !== null ? primary.roePeriodEnd : (sameFinancialPeriod ? bseRec.roePeriodEnd : ''),
       rocePct: primary.rocePct ?? (sameFinancialPeriod ? bseRec.rocePct : null),
-      rocePeriodEnd: primary.rocePeriodEnd || (sameFinancialPeriod ? bseRec.rocePeriodEnd : ''),
+      rocePeriodEnd: primary.rocePct !== null ? primary.rocePeriodEnd : (sameFinancialPeriod ? bseRec.rocePeriodEnd : ''),
       debtToEquity: primary.debtToEquity ?? (sameFinancialPeriod ? bseRec.debtToEquity : null),
-      debtToEquityPeriodEnd: primary.debtToEquityPeriodEnd || (sameFinancialPeriod ? bseRec.debtToEquityPeriodEnd : ''),
+      debtToEquityPeriodEnd: primary.debtToEquity !== null ? primary.debtToEquityPeriodEnd : (sameFinancialPeriod ? bseRec.debtToEquityPeriodEnd : ''),
       interestCoverage: primary.interestCoverage ?? (sameFinancialPeriod ? bseRec.interestCoverage : null),
-      interestCoveragePeriodEnd: primary.interestCoveragePeriodEnd || (sameFinancialPeriod ? bseRec.interestCoveragePeriodEnd : ''),
+      interestCoveragePeriodEnd: primary.interestCoverage !== null ? primary.interestCoveragePeriodEnd : (sameFinancialPeriod ? bseRec.interestCoveragePeriodEnd : ''),
       operatingCashFlowInr: primary.operatingCashFlowInr ?? (sameFinancialPeriod ? bseRec.operatingCashFlowInr : null),
       freeCashFlowInr: primary.freeCashFlowInr ?? (sameFinancialPeriod ? bseRec.freeCashFlowInr : null),
       trailingPE: primary.trailingPE ?? bseRec.trailingPE,
