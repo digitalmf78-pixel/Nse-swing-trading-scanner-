@@ -1508,6 +1508,11 @@ export const StockDetailView: React.FC<StockDetailViewProps> = ({
                         <td className="py-2.5 px-4 text-slate-800 font-medium">{c.label}</td>
                         <td className="py-2.5 px-3 text-right font-mono text-slate-900">
                           {c.formattedValue}
+                          {c.key === 'operatingCashFlowInr' && (
+                            <div className="mt-0.5 text-[10px] text-slate-500">
+                              Period: {data.fundamentals.operatingCashFlowPeriodEnd || 'Date unavailable'}
+                            </div>
+                          )}
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono text-slate-500">
                           {c.thresholdLabel}
