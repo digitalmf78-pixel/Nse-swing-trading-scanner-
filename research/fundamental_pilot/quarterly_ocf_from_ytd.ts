@@ -48,7 +48,7 @@ export function deriveQuarterlyOcfFromYtd(
   }
   if(facts.some(f=>f.concept!=='in-capmkt:CashFlowsFromUsedInOperatingActivities')
     ||facts.some(f=>JSON.stringify([...f.unitMeasures].sort())!==JSON.stringify([...currentH1.unitMeasures].sort()))
-    ||facts.some(f=>f.basis!==currentH1.basis)
+    ||facts.some(f=>f.unitMeasures.length===0)||facts.some(f=>f.basis!==currentH1.basis)
     ||facts.some(f=>f.dimensions.length!==0)) {
     return blocked('BLOCKED_SOURCE_MISMATCH','All four facts must be the same OCF concept, unit, basis and undimensioned group context');
   }
