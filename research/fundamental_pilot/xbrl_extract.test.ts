@@ -5,7 +5,7 @@ import { extractXbrl } from './xbrl_extract.ts';
 const fixture = `<?xml version="1.0"?>
 <xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance"
  xmlns:ix="http://www.xbrl.org/2013/inlineXBRL"
- xmlns:in="https://example.test/taxonomy"
+ xmlns:in="https://example.test/taxonomy" xmlns:xbrldi="http://www.xbrl.org/2006/xbrldi"
  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
  <xbrli:context id="FY">
   <xbrli:entity><xbrli:identifier scheme="https://www.nseindia.com">INE000A01000</xbrli:identifier></xbrli:entity>
@@ -13,8 +13,8 @@ const fixture = `<?xml version="1.0"?>
   <xbrli:scenario><xbrldi:explicitMember dimension="in:ConsolidatedOrStandalone">in:Standalone</xbrldi:explicitMember></xbrli:scenario>
  </xbrli:context>
  <xbrli:context id="Q"><xbrli:entity><xbrli:identifier scheme="https://www.nseindia.com">INE000A01000</xbrli:identifier></xbrli:entity><xbrli:period><xbrli:instant>2026-03-31</xbrli:instant></xbrli:period></xbrli:context>
- <xbrli:unit id="INR"><xbrli:measure>in:INR</xbrli:measure></xbrli:unit>
- <in:Revenue contextRef="FY" unitRef="INR" decimals="-3">1,250,000</in:Revenue>
+ <xbrli:unit id="INR"><xbrli:measure>in:INR</xbrli:measure></xbrli:unit><xbrli:unit id="pure"><xbrli:measure>xbrli:pure</xbrli:measure></xbrli:unit>
+ <in:Revenue contextRef="FY" unitRef="INR" decimals="-3">1,250,000</in:Revenue>\n <in:Loss contextRef="FY" unitRef="INR">(4,500)</in:Loss>
  <in:NilCash contextRef="FY" unitRef="INR" xsi:nil="true"/>
  <ix:nonFraction name="in:Profit" contextRef="FY" unitRef="INR" scale="3" sign="-" decimals="0">2,500</ix:nonFraction>
  <ix:fraction name="in:Margin" contextRef="FY" unitRef="pure"><ix:numerator>1</ix:numerator><ix:denominator>4</ix:denominator></ix:fraction>
@@ -63,4 +63,10 @@ test('rejects DTD/entity declarations', () => {
 test('warns when a fact references a missing context', () => {
   const out = extractXbrl('<xbrli:xbrl><in:Revenue contextRef="missing" unitRef="INR">12</in:Revenue></xbrli:xbrl>');
   assert.equal(out.warnings.length, 2);
+});
+
+test('preserves accounting-style parenthesized negatives', () => {
+  const out = extractXbrl(fixture);
+  const fact = out.facts.find((item) => item.concept.endsWith('Loss'));
+  assert.equal(fact?.numericValue, -4500);
 });
