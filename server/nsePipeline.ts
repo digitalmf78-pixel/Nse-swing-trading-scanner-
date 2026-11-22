@@ -859,34 +859,33 @@ class NsePipelineEngine {
   } {
     const asOfMs = Date.parse(`${asOfDate}T00:00:00Z`);
     const cutoff30dMs = Number.isFinite(asOfMs) ? asOfMs - 29 * 24 * 60 * 60 * 1000 : 0;
-    const window30d = seriesSlice.filter((d) => {
-      const ms = Date.parse(`${d.date}T00:00:00Z`);
-      return ms >= cutoff30dMs && d.delivPer !== null;
-    });
 
-    let dailyGt60Count = 0;
+    // Align delivery values to the exchange-session calendar. Missing delivery
+    // values (or a missing symbol row) must not be skipped to form a false 5D window.
+    const sessionWindow = this.sessionDates.filter((date) => {
+      const ms = Date.parse(`${date}T00:00:00Z`);
+      return ms >= cutoff30dMs && date <= asOfDate;
+    });
+    const rowByDate = new Map(seriesSlice.map((row) => [row.date, row]));
+    const deliveryBySession = sessionWindow.map((date) => rowByDate.get(date)?.delivPer ?? null);
+    const validDeliveryValues = deliveryBySession.filter((value): value is number => value !== null);
+
+    const dailyGt60Count = validDeliveryValues.filter((value) => value >= 60.0).length;
     let rolling5dGt60Count = 0;
-    for (let i = 0; i < window30d.length; i++) {
-      if ((window30d[i].delivPer ?? 0) >= 60.0) dailyGt60Count++;
-      if (i >= 4) {
-        const avg5 =
-          ((window30d[i - 4].delivPer ?? 0) +
-            (window30d[i - 3].delivPer ?? 0) +
-            (window30d[i - 2].delivPer ?? 0) +
-            (window30d[i - 1].delivPer ?? 0) +
-            (window30d[i].delivPer ?? 0)) /
-          5;
-        if (avg5 >= 60.0) rolling5dGt60Count++;
-      }
+    for (let i = 4; i < deliveryBySession.length; i++) {
+      const fiveSessionValues = deliveryBySession.slice(i - 4, i + 1);
+      if (fiveSessionValues.some((value) => value === null)) continue;
+      const avg5 = (fiveSessionValues as number[]).reduce((sum, value) => sum + value, 0) / 5;
+      if (avg5 >= 60.0) rolling5dGt60Count++;
     }
 
     let deliveryCategory: DeliveryCategory = 'NONE';
-    if (window30d.length < 5) {
-      if (isIpo && window30d.length >= 2) {
+    if (validDeliveryValues.length < 5) {
+      if (isIpo && validDeliveryValues.length >= 2) {
         const avgDelivShort =
-          window30d.reduce((acc, d) => acc + (d.delivPer ?? 0), 0) / window30d.length;
+          validDeliveryValues.reduce((acc, value) => acc + value, 0) / validDeliveryValues.length;
         const passA = avgDelivShort >= 60.0;
-        const passB = dailyGt60Count >= Math.ceil(window30d.length * 0.6);
+        const passB = dailyGt60Count >= Math.ceil(validDeliveryValues.length * 0.6);
         if (passA && passB) deliveryCategory = 'A_AND_B';
         else if (passA) deliveryCategory = 'A_ONLY';
         else if (passB) deliveryCategory = 'B_ONLY';
@@ -894,6 +893,7 @@ class NsePipelineEngine {
         deliveryCategory = 'WAIT_FOR_DATA';
       }
     } else {
+      // Keep the existing A threshold: at least five qualifying 5-session windows.
       const passA = rolling5dGt60Count >= 5;
       const passB = dailyGt60Count >= 5;
       if (passA && passB) deliveryCategory = 'A_AND_B';
@@ -905,7 +905,7 @@ class NsePipelineEngine {
       deliveryCategory,
       rolling5dGt60Count,
       dailyGt60Count,
-      valid30dCount: window30d.length,
+      valid30dCount: validDeliveryValues.length,
     };
   }
 
@@ -3235,39 +3235,11 @@ class NsePipelineEngine {
         );
 
       const seriesHistory = history.filter((d) => d.series === latest.series);
-      const window30d = seriesHistory.filter((d) => {
-        const ms = Date.parse(`${d.date}T00:00:00Z`);
-        return ms >= cutoff30dMs && d.delivPer !== null;
-      });
-
-      let dailyGt60Count = 0;
-      let rolling5dGt60Count = 0;
-      for (let i = 0; i < window30d.length; i++) {
-        if ((window30d[i].delivPer ?? 0) >= 60.0) dailyGt60Count++;
-        if (i >= 4) {
-          const avg5 =
-            ((window30d[i - 4].delivPer ?? 0) +
-              (window30d[i - 3].delivPer ?? 0) +
-              (window30d[i - 2].delivPer ?? 0) +
-              (window30d[i - 1].delivPer ?? 0) +
-              (window30d[i].delivPer ?? 0)) /
-            5;
-          if (avg5 >= 60.0) rolling5dGt60Count++;
-        }
-      }
-
-      let isDeliveryAB = false;
-      if (window30d.length < 5) {
-        if (isIpo && window30d.length >= 2) {
-          const avgDelivShort =
-            window30d.reduce((acc, d) => acc + (d.delivPer ?? 0), 0) / window30d.length;
-          const passA = avgDelivShort >= 60.0;
-          const passB = dailyGt60Count >= Math.ceil(window30d.length * 0.6);
-          isDeliveryAB = passA || passB;
-        }
-      } else {
-        isDeliveryAB = rolling5dGt60Count >= 5 || dailyGt60Count >= 5;
-      }
+      const deliveryResult = this.computeDeliveryAtSlice(seriesHistory, targetDate, isIpo);
+      const isDeliveryAB =
+        deliveryResult.deliveryCategory === 'A_AND_B' ||
+        deliveryResult.deliveryCategory === 'A_ONLY' ||
+        deliveryResult.deliveryCategory === 'B_ONLY';
       if (!isDeliveryAB) continue;
 
       const minLiqLookback = isIpo ? 2 : 20;
