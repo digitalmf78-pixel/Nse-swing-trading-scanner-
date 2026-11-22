@@ -32,3 +32,5 @@ jobs:
           ln -s "$RUNNER_TEMP/fundamental-pilot-deps/node_modules/fast-xml-parser" node_modules/fast-xml-parser
       - name: Run isolated TypeScript parser tests
         run: node --experimental-strip-types --test research/fundamental_pilot/*.test.ts
+      - name: Run isolated Python XBRL extractor tests
+        run: python3 -m unittest discover -s research/fundamental_pilot -p 'test_*.py' -v
