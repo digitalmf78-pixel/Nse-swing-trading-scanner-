@@ -110,10 +110,42 @@ jobs:
           grep -Eio '.{0,100}(integrated.?filing|xbrl|api/).{0,180}' artifacts/*.js \
             > artifacts/NSE_script_api_hints.txt || true
 
+      - name: Query official NSE Integrated Filing API for KSHINTL attachment URL
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --show-error \
+            --retry 3 --retry-all-errors --retry-delay 2 \
+            --connect-timeout 20 --max-time 120 \
+            --user-agent "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36" \
+            --referer "https://www.nseindia.in/companies-listing/corporate-integrated-filing" \
+            --header "Accept: application/json, text/plain, */*" \
+            --get "https://www.nseindia.in/api/integrated-filing-results" \
+            --data-urlencode "index=equities" \
+            --data-urlencode "symbol=KSHINTL" \
+            --data-urlencode "type=Integrated Filing- Financials" \
+            --data-urlencode "period_ended=2026-09-30" \
+            --data-urlencode "page=1" \
+            --data-urlencode "size=100" \
+            --output artifacts/KSHINTL_integrated_filing_api.json
+          test -s artifacts/KSHINTL_integrated_filing_api.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("artifacts/KSHINTL_integrated_filing_api.json")
+          data=json.loads(p.read_text())
+          print("Top-level keys:", list(data)[:30] if isinstance(data,dict) else type(data).__name__)
+          rows=data.get("data",[]) if isinstance(data,dict) else data
+          print("Rows:", len(rows) if isinstance(rows,list) else type(rows).__name__)
+          if isinstance(rows,list):
+              for row in rows:
+                  print(json.dumps(row, ensure_ascii=False))
+          PY
+
       - name: Upload verified archives for inspection
         uses: actions/upload-artifact@v4
         with:
-          name: nse-ind-as-xbrl-format-taxonomies-kshintl-and-index-source
+          name: nse-ind-as-xbrl-format-taxonomies-kshintl-and-api-response
           path: artifacts/
           if-no-files-found: error
           retention-days: 7
