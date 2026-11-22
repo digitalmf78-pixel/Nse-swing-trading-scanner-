@@ -11,7 +11,7 @@ const concepts={
 function extraction(start:string,end:string,values:{revenue?:number;profit?:number;ocf?:number}={}):XbrlExtraction {
   const facts=[];
   for(const [key,concept] of Object.entries(concepts)) {
-    const value=values[key as keyof typeof values];
+    const value=values[(key==='operatingCashFlow'?'ocf':key) as keyof typeof values];
     if(value===undefined) continue;
     facts.push({
       concept,contextRef:'duration',unitRef:'INR',rawValue:String(value),
