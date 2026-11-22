@@ -50,7 +50,7 @@ No zero, estimate, quarter subtraction, or synthetic value is generated.
 ## Validation evidence
 
 - Workflow: https://github.com/digitalmf78-pixel/Nse-swing-trading-scanner-/actions/runs/45063010496
-- Artifact: https://github.com/digitalmf78-pixel/Nse-swing-trading-scanner-/actions/runs/45063010496/artifacts/14770210400
+- Artifact: https://github.com/digitalmf78-pixel/Nse-swing-trading-scanner-/actions/runs/45063010496/artifacts/14770730575
 - The workflow completed successfully because it correctly detected and preserved the expected blocked state; it did not claim that quarterly OCF was calculated.
 - Parser warnings: 0 for all downloaded XML files.
 - Q1 explicit applicability fact was independently confirmed in the raw XML.
