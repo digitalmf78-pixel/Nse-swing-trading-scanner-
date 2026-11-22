@@ -1,3 +1,4 @@
+# Research-only rerun: verify official ITC consolidated 30-SEP-2026 XBRL download and raw-fact extraction.
 name: NSE ITC consolidated real XBRL pilot
 
 on:
