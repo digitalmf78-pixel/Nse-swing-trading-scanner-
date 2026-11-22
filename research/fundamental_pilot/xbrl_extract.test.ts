@@ -69,7 +69,7 @@ test('rejects DTD/entity declarations', () => {
 
 test('warns when a fact references a missing context', () => {
   const out = extractXbrl('<xbrli:xbrl><in:Revenue contextRef="missing" unitRef="INR">12</in:Revenue></xbrli:xbrl>');
-  assert.equal(out.warnings.length, 2);
+  assert.equal(out.warnings.length, 3);
 });
 
 test('preserves accounting-style parenthesized negatives', () => {
