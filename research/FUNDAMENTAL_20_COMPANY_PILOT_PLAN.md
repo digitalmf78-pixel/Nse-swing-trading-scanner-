@@ -158,3 +158,36 @@ Pilot output should be a separate CSV plus concise exception report. Do not popu
 ## Final status
 
 Design/protocol only. No company filing set has yet been fetched and parsed as a complete 20-company pilot. No production cache, scanner runtime code, main branch, or Google AI Studio app was changed.
+
+
+## 8. Follow-up read-only code-path audit (2026-11-22)
+
+Additional files inspected on the research branch: `server/liveFetcher.ts`, `server/geminiResearch.ts`, `server/nsePipeline.ts`, `src/types/trading.ts`, `package.json`, and the relevant data directories.
+
+### What the code actually does today
+
+- `FundamentalProfile.operatingCashFlowInr` exists in the shared type.
+- The baseline input loader maps `OperatingCashFlowINR` into that field.
+- The independent free-source CSV merge still has no OCF metric mapping.
+- A separate runtime path exists in `server/liveFetcher.ts`: Yahoo Finance timeseries requests `annualOperatingCashFlow` and `trailingOperatingCashFlow`; the selected value is converted to INR using a detected reporting currency and an FX conversion helper, then saved in `live_fundamental_overrides.json`.
+- This is a secondary vendor feed, not an official NSE XBRL OCF extraction. The Yahoo selection prefers trailing OCF before annual OCF, so the stored value can be trailing-period rather than a clearly labelled FY amount.
+- The inspected NSE XBRL parser's `ParsedXbrlMetrics` type and XBRL-only fallback currently contain revenue growth, profit growth, ROE, debt/equity, interest coverage and EPS fields, but no OCF field. The XBRL-only fallback explicitly assigns `operatingCashFlowInr: null`.
+- Therefore, OCF is not absent from the whole app: it can arrive through Yahoo/live overrides or baseline CSV. What is absent is OCF mapping in the free-source CSV merge and an official NSE XBRL OCF parser path.
+- The profile model stores one profile-level `financialPeriodEnd`, source and official filing URL. The Yahoo/XBRL merge can supplement individual metrics while updating this shared period/source label. That makes it unsafe to assume every displayed metric has the same source or period.
+- The committed `fundamental_free_source_cache.csv` is empty. The committed `live_fundamental_overrides.json` is also empty. Thus there is no committed live sample to test or infer current company coverage from.
+
+### Test readiness
+
+- `package.json` exposes `build` and `lint` scripts, but no test script.
+- The repository root and inspected server/source directories contain no visible dedicated test suite for fundamental merge, OCF mapping, period/basis consistency or revision precedence.
+- Before any runtime patch, add isolated fixture tests on the research branch or a separate test-only branch; do not run a production data collection as a substitute for deterministic tests.
+
+### Updated technical decision
+
+1. Do not simply add an `OperatingCashFlow` case to the free-source mapper and call the issue fixed. That would map a number without solving source, period, unit, basis and filing lineage.
+2. Treat Yahoo OCF as a provisional secondary value only, clearly labelled with its period end, trailing/annual nature, source and currency conversion. It must not be relabelled as official NSE-verified.
+3. Build official OCF parsing from the XBRL cash-flow statement only after identifying and validating issuer taxonomy concepts, context duration, units/scale and consolidated/standalone context. Taxonomy tags must not be guessed from a single filing.
+4. Keep each metric's provenance independent. A profile-level source/period can remain a summary only; it must not be used as proof of every metric's lineage.
+5. The 20-company pilot remains NOT STARTED: no official filing set has yet been retrieved and parsed. No claims of company-level coverage or accuracy are made.
+
+No runtime code, cache, main branch, or Google AI Studio app was changed during this audit.
