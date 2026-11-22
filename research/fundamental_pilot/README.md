@@ -10,6 +10,15 @@ This folder is isolated from the scanner runtime. The intended production implem
 - `xbrl_extract.test.ts` contains synthetic tests for context/entity metadata, standard facts, nil facts, inline scale/sign, fractions, DTD rejection, and broken references.
 - Run with `npm run test:fundamental-pilot` after installing project dependencies.
 
+## Sector and context safety gates
+
+- `sector_metric_policy.ts` is a research-only applicability guard, not a calculator or production metric mapper.
+- Bank ROCE, industrial Debt/Equity and industrial EBIT/interest coverage are explicitly marked not applicable as generic formulas.
+- Bank revenue/profit growth, ROE and OCF remain blocked pending bank-specific definitions and period/basis validation.
+- NBFC, insurance and unknown-sector profiles fail closed rather than inheriting industrial formulas.
+- Context selection requires exact dates, duration-vs-instant shape, no dimensions for group totals, and an explicit matching filing-level consolidation basis.
+- These guards do not prove taxonomy concepts are correctly mapped; all seven metrics remain unapproved for production.
+
 ## Python prototype
 
 `xbrl_extract.py` is retained as an earlier research prototype only. It is not part of the Google AI Studio runtime path and is not the preferred implementation.
