@@ -50,3 +50,45 @@ test('preserves zero and negative facts as actual values, not missing',()=>{
   assert.equal(result.currentValue,-20);
   assert.equal(result.comparablePriorValue,0);
 });
+
+
+test('blocks TEMBO current standalone profit when exact-period XBRL conflicts with NSE PDF',()=>{
+  const result=assessStatementComparativeGuard({
+    currentXbrl:874786000,
+    priorOriginalXbrl:313187000,
+    currentPdfCurrent:465433000,
+    currentPdfPriorComparative:313187000,
+    priorOriginalPdf:313187000,
+  });
+  assert.equal(result.status,'CURRENT_XBRL_PDF_CONFLICT');
+  assert.equal(result.currentValue,874786000);
+  assert.equal(result.comparablePriorValue,null);
+  assert.equal(result.productionApproved,false);
+});
+
+test('accepts TEMBO standalone revenue only after all four source values reconcile',()=>{
+  const result=assessStatementComparativeGuard({
+    currentXbrl:4342363000,
+    priorOriginalXbrl:4544821000,
+    currentPdfCurrent:4342363000,
+    currentPdfPriorComparative:4544821000,
+    priorOriginalPdf:4544821000,
+  });
+  assert.equal(result.status,'MATCHED_ALL_PERIODS');
+  assert.equal(result.comparablePriorValue,4544821000);
+  assert.equal(result.productionApproved,false);
+});
+
+test('accepts TEMBO standalone OCF statement values as candidate-only after reconciliation',()=>{
+  const result=assessStatementComparativeGuard({
+    currentXbrl:-636439000,
+    priorOriginalXbrl:644929000,
+    currentPdfCurrent:-636439000,
+    currentPdfPriorComparative:644929000,
+    priorOriginalPdf:644929000,
+  });
+  assert.equal(result.status,'MATCHED_ALL_PERIODS');
+  assert.equal(result.currentValue,-636439000);
+  assert.equal(result.comparablePriorValue,644929000);
+  assert.equal(result.productionApproved,false);
+});
