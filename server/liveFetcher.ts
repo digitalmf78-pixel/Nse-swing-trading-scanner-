@@ -87,11 +87,17 @@ export interface LiveFundamentalRecord {
   sources?: string[];
   providerSector: string;
   revenueGrowthPct: number | null;
+  revenueGrowthPeriodEnd?: string;
   profitGrowthPct: number | null;
+  profitGrowthPeriodEnd?: string;
   roePct: number | null;
+  roePeriodEnd?: string;
   rocePct: number | null;
+  rocePeriodEnd?: string;
   debtToEquity: number | null;
+  debtToEquityPeriodEnd?: string;
   interestCoverage: number | null;
+  interestCoveragePeriodEnd?: string;
   operatingCashFlowInr: number | null;
   operatingCashFlowPeriodEnd?: string;
   freeCashFlowInr: number | null;
@@ -192,17 +198,20 @@ function mergeFundamentalRecords(
 ): LiveFundamentalRecord {
   if (!prev) return next;
   const mergedSources = Array.from(new Set([...(prev.sources || []), ...(next.sources || [])]));
-  const nextPeriodIsNewer =
-    Boolean(next.financialPeriodEnd) &&
-    (!prev.financialPeriodEnd || next.financialPeriodEnd > prev.financialPeriodEnd);
-  const nextPeriodIsOlder =
-    Boolean(next.financialPeriodEnd) &&
-    Boolean(prev.financialPeriodEnd) &&
-    next.financialPeriodEnd < prev.financialPeriodEnd;
-  // Never carry missing metrics from an older reporting period into a newer period.
-  // For an older incoming record, retain the newer stored metrics instead.
-  const mergePeriodMetric = (nextValue: number | null, prevValue: number | null): number | null =>
-    nextPeriodIsNewer ? nextValue : nextPeriodIsOlder ? prevValue : nextValue ?? prevValue;
+  // Each fundamental is merged against its own statement reporting date, not the profile-wide date.
+  const mergeDatedMetric = (nextValue: number | null, nextDate: string | undefined, prevValue: number | null, prevDate: string | undefined): { value: number | null; periodEnd: string } => {
+    const validNextDate = nextDate && /^\d{4}-\d{2}-\d{2}$/.test(nextDate) ? nextDate : '';
+    const validPrevDate = prevDate && /^\d{4}-\d{2}-\d{2}$/.test(prevDate) ? prevDate : '';
+    if (validNextDate && (!validPrevDate || validNextDate >= validPrevDate)) return { value: nextValue, periodEnd: validNextDate };
+    if (validPrevDate) return { value: prevValue, periodEnd: validPrevDate };
+    return nextValue !== null ? { value: nextValue, periodEnd: '' } : { value: prevValue, periodEnd: '' };
+  };
+  const rev = mergeDatedMetric(next.revenueGrowthPct, next.revenueGrowthPeriodEnd, prev.revenueGrowthPct, prev.revenueGrowthPeriodEnd);
+  const profit = mergeDatedMetric(next.profitGrowthPct, next.profitGrowthPeriodEnd, prev.profitGrowthPct, prev.profitGrowthPeriodEnd);
+  const roe = mergeDatedMetric(next.roePct, next.roePeriodEnd, prev.roePct, prev.roePeriodEnd);
+  const roce = mergeDatedMetric(next.rocePct, next.rocePeriodEnd, prev.rocePct, prev.rocePeriodEnd);
+  const de = mergeDatedMetric(next.debtToEquity, next.debtToEquityPeriodEnd, prev.debtToEquity, prev.debtToEquityPeriodEnd);
+  const ic = mergeDatedMetric(next.interestCoverage, next.interestCoveragePeriodEnd, prev.interestCoverage, prev.interestCoveragePeriodEnd);
   const bestPeriod =
     next.financialPeriodEnd && (!prev.financialPeriodEnd || next.financialPeriodEnd >= prev.financialPeriodEnd)
       ? next.financialPeriodEnd
@@ -222,12 +231,18 @@ function mergeFundamentalRecords(
     companyName: next.companyName || prev.companyName,
     firstTradeDateIso: next.firstTradeDateIso || prev.firstTradeDateIso,
     nextEarningsDate: next.nextEarningsDate || prev.nextEarningsDate,
-    revenueGrowthPct: mergePeriodMetric(next.revenueGrowthPct, prev.revenueGrowthPct),
-    profitGrowthPct: mergePeriodMetric(next.profitGrowthPct, prev.profitGrowthPct),
-    roePct: mergePeriodMetric(next.roePct, prev.roePct),
-    rocePct: mergePeriodMetric(next.rocePct, prev.rocePct),
-    debtToEquity: mergePeriodMetric(next.debtToEquity, prev.debtToEquity),
-    interestCoverage: mergePeriodMetric(next.interestCoverage, prev.interestCoverage),
+    revenueGrowthPct: rev.value,
+    revenueGrowthPeriodEnd: rev.periodEnd,
+    profitGrowthPct: profit.value,
+    profitGrowthPeriodEnd: profit.periodEnd,
+    roePct: roe.value,
+    roePeriodEnd: roe.periodEnd,
+    rocePct: roce.value,
+    rocePeriodEnd: roce.periodEnd,
+    debtToEquity: de.value,
+    debtToEquityPeriodEnd: de.periodEnd,
+    interestCoverage: ic.value,
+    interestCoveragePeriodEnd: ic.periodEnd,
     operatingCashFlowInr:
       next.operatingCashFlowInr === null
         ? prev.operatingCashFlowInr
@@ -663,11 +678,17 @@ async function fetchYahooSingleExchange(
     firstTradeDateIso,
     nextEarningsDate,
     revenueGrowthPct: revGrowth,
+    revenueGrowthPeriodEnd: latestTs(ts, 'annualTotalRevenue')?.asOfDate || '',
     profitGrowthPct: profGrowth,
+    profitGrowthPeriodEnd: latestTs(ts, 'annualNetIncome')?.asOfDate || '',
     roePct,
+    roePeriodEnd: alignedAnnualNetIncome !== null && annualEquity ? annualEquity.asOfDate : '',
     rocePct,
+    rocePeriodEnd: rocePct !== null ? (totalAssetsPoint && currLiabPoint && annualEbitPoint && annualEbitPoint.asOfDate === totalAssetsPoint.asOfDate && totalAssetsPoint.asOfDate === currLiabPoint.asOfDate ? totalAssetsPoint.asOfDate : annualEquity?.asOfDate || '') : '',
     debtToEquity,
+    debtToEquityPeriodEnd: debtToEquity !== null && annualEquity ? annualEquity.asOfDate : '',
     interestCoverage,
+    interestCoveragePeriodEnd: alignedEbit !== null ? (trailingEbitPoint && trailingInterestPoint && trailingEbitPoint.asOfDate === trailingInterestPoint.asOfDate ? trailingEbitPoint.asOfDate : annualEbitPoint?.asOfDate || '') : '',
     operatingCashFlowInr,
     operatingCashFlowPeriodEnd,
     freeCashFlowInr,
@@ -973,11 +994,17 @@ export async function fetchYahooFundamentalsForSymbol(
       firstTradeDateIso: primary.firstTradeDateIso || bseRec.firstTradeDateIso,
       nextEarningsDate: primary.nextEarningsDate || bseRec.nextEarningsDate,
       revenueGrowthPct: primary.revenueGrowthPct ?? (sameFinancialPeriod ? bseRec.revenueGrowthPct : null),
+      revenueGrowthPeriodEnd: primary.revenueGrowthPeriodEnd || (sameFinancialPeriod ? bseRec.revenueGrowthPeriodEnd : ''),
       profitGrowthPct: primary.profitGrowthPct ?? (sameFinancialPeriod ? bseRec.profitGrowthPct : null),
+      profitGrowthPeriodEnd: primary.profitGrowthPeriodEnd || (sameFinancialPeriod ? bseRec.profitGrowthPeriodEnd : ''),
       roePct: primary.roePct ?? (sameFinancialPeriod ? bseRec.roePct : null),
+      roePeriodEnd: primary.roePeriodEnd || (sameFinancialPeriod ? bseRec.roePeriodEnd : ''),
       rocePct: primary.rocePct ?? (sameFinancialPeriod ? bseRec.rocePct : null),
+      rocePeriodEnd: primary.rocePeriodEnd || (sameFinancialPeriod ? bseRec.rocePeriodEnd : ''),
       debtToEquity: primary.debtToEquity ?? (sameFinancialPeriod ? bseRec.debtToEquity : null),
+      debtToEquityPeriodEnd: primary.debtToEquityPeriodEnd || (sameFinancialPeriod ? bseRec.debtToEquityPeriodEnd : ''),
       interestCoverage: primary.interestCoverage ?? (sameFinancialPeriod ? bseRec.interestCoverage : null),
+      interestCoveragePeriodEnd: primary.interestCoveragePeriodEnd || (sameFinancialPeriod ? bseRec.interestCoveragePeriodEnd : ''),
       operatingCashFlowInr: primary.operatingCashFlowInr ?? (sameFinancialPeriod ? bseRec.operatingCashFlowInr : null),
       freeCashFlowInr: primary.freeCashFlowInr ?? (sameFinancialPeriod ? bseRec.freeCashFlowInr : null),
       trailingPE: primary.trailingPE ?? bseRec.trailingPE,
@@ -1011,11 +1038,17 @@ export async function fetchYahooFundamentalsForSymbol(
       sources: ['NSE XBRL (' + xbrlBasisLabel + ')'],
       providerSector: '',
       revenueGrowthPct: xbrl.revenueGrowthPct,
+      revenueGrowthPeriodEnd: xbrl.periodEnd,
       profitGrowthPct: xbrl.profitGrowthPct,
+      profitGrowthPeriodEnd: xbrl.periodEnd,
       roePct: xbrl.roePct,
+      roePeriodEnd: xbrl.periodEnd,
       rocePct: null,
+      rocePeriodEnd: '',
       debtToEquity: xbrl.debtToEquity,
+      debtToEquityPeriodEnd: xbrl.periodEnd,
       interestCoverage: xbrl.interestCoverage,
+      interestCoveragePeriodEnd: xbrl.periodEnd,
       operatingCashFlowInr: null,
       freeCashFlowInr: null,
       trailingPE: null,
@@ -1061,13 +1094,18 @@ export async function fetchYahooFundamentalsForSymbol(
         (xbrlNewerOrEqual && xbrl.revenueGrowthPct !== null
           ? xbrl.revenueGrowthPct
           : null) ?? primary.revenueGrowthPct,
+      revenueGrowthPeriodEnd: xbrlNewerOrEqual && xbrl.revenueGrowthPct !== null ? xbrl.periodEnd : primary.revenueGrowthPeriodEnd,
       profitGrowthPct:
         (xbrlNewerOrEqual && xbrl.profitGrowthPct !== null
           ? xbrl.profitGrowthPct
           : null) ?? primary.profitGrowthPct,
+      profitGrowthPeriodEnd: xbrlNewerOrEqual && xbrl.profitGrowthPct !== null ? xbrl.periodEnd : primary.profitGrowthPeriodEnd,
       roePct: primary.roePct ?? (xbrlNewerOrEqual ? xbrl.roePct : null),
+      roePeriodEnd: primary.roePct === null && xbrlNewerOrEqual && xbrl.roePct !== null ? xbrl.periodEnd : primary.roePeriodEnd,
       debtToEquity: usableXbrlDe ?? primary.debtToEquity,
+      debtToEquityPeriodEnd: usableXbrlDe !== null ? xbrl.periodEnd : primary.debtToEquityPeriodEnd,
       interestCoverage: usableXbrlIc ?? primary.interestCoverage,
+      interestCoveragePeriodEnd: usableXbrlIc !== null ? xbrl.periodEnd : primary.interestCoveragePeriodEnd,
       epsCurr:
         (xbrlNewerOrEqual && xbrl.epsCurr !== null ? xbrl.epsCurr : null) ?? primary.epsCurr,
       epsPrev:
