@@ -150,7 +150,7 @@ jobs:
           const sevenMetricXbrlPipeline=revisionGatePassed ? buildSevenMetricXbrlPipeline('NON_FINANCIAL',
             {extraction:parsedByKey.current,periodType:'YTD',periodStart:'2026-04-01',periodEnd:'2026-09-30',basis:'CONSOLIDATED',filingBasis:'CONSOLIDATED'},
             {extraction:parsedByKey.prior,periodType:'YTD',periodStart:'2025-04-01',periodEnd:'2025-09-30',basis:'CONSOLIDATED',filingBasis:'CONSOLIDATED'},
-            {revenue:'in-capmkt:RevenueFromOperations',profit:'in-capmkt:ProfitLossForPeriod',operatingCashFlow:'in-capmkt:CashFlowsFromUsedInOperatingActivities'}) : null;
+            {revenue:'in-capmkt:RevenueFromOperations',profit:'in-capmkt:ProfitOrLossAttributableToOwnersOfParent',profitAttribution:'OWNERS_OF_PARENT',operatingCashFlow:'in-capmkt:CashFlowsFromUsedInOperatingActivities'}) : null;
           const pipelineStatus=revisionGatePassed?'CANDIDATE_ONLY':'REVISION_REVIEW_REQUIRED';
 
           if (matched.length!==9 || keys.length!==9) throw new Error(`Expected 9 exact concept/period/dimension/unit matches, got matched=${matched.length}, keys=${keys.length}`);
