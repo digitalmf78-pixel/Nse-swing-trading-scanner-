@@ -8,9 +8,10 @@ This folder is isolated from the scanner runtime. The intended production implem
 - It uses `fast-xml-parser` (MIT; TypeScript declarations; ESM/CommonJS support) and rejects DTD/entity declarations.
 - It has a 25 MB input limit and intentionally rejects ZIP input; archive decompression is a separate ingestion step.
 - `xbrl_extract.test.ts` contains synthetic tests for context/entity metadata, standard facts, nil facts, inline scale/sign, fractions, DTD rejection, and broken references.
-- `sector_metric_policy.test.ts` covers bank-sector exclusions and rejects segment/dimensional facts when selecting group totals.
+- `sector_metric_policy.test.ts` covers bank-sector exclusions and exact period/basis/group-context checks.
+- `group_fact_selection.ts` selects only one unique undimensioned group fact after exact context checks; segment facts cannot be added to manufacture a group total. Its dedicated tests cover ambiguity, wrong periods and unresolved contexts.
 - `statement_reconciliation.test.ts` covers named statement-presentation variants and fail-closed mapping decisions.
-- Run with `npm run test:fundamental-pilot` after installing project dependencies.
+- The isolated GitHub Actions test workflow runs every `research/fundamental_pilot/*.test.ts` file. Latest verified run: 30 tests passed, 0 failed. The package script `npm run test:fundamental-pilot` currently runs only `xbrl_extract.test.ts`, not the complete research test suite.
 
 ## Sector and context safety gates
 
@@ -22,6 +23,8 @@ This folder is isolated from the scanner runtime. The intended production implem
 - Context selection requires exact dates, duration-vs-instant shape, no dimensions for group totals, and an explicit matching filing-level consolidation basis.
 - The ITC pilot found two PBT presentations in the same consolidated filing: main financial-results PBT and segment-results PBT. The XBRL candidate matches the main financial-results PBT; the segment presentation includes the associates/JV share in its bridge. Both can be arithmetically reconciled, but the scanner's intended PBT definition remains unselected and mapping stays blocked.
 - The HDFC Bank prior-year pair pilot matched 311 raw fact keys across two original consolidated banking filings, with 11 unmatched keys and no conflicting duplicates. Those unmatched keys remain unresolved.
+- The KSH International standalone prior-year pair pilot matched 31 same-shape concept/dimension/unit keys across original filings, with zero unmatched keys, zero conflicting duplicates and zero parser warnings. It exposed comparable Revenue, Profit, Finance Costs and H1 OCF raw facts; these remain mechanical comparisons, not approved metric mappings.
+- The ITC prior-year pilot matched nine exact concept/period/dimension/unit facts and now distinguishes the main Financial Results PBT from the alternate segment-results PBT presentation. PBT mapping remains blocked until the scanner's intended definition is explicitly chosen.
 - These guards do not prove taxonomy concepts are correctly mapped; all seven metrics remain unapproved for production.
 
 ## Python prototype
@@ -49,7 +52,7 @@ NSE official references:
 - It does not yet derive quarter-only values from YTD periods or calculate ratios.
 - It does not yet handle ZIP decompression, Inline XBRL continuation chains, or every issuer-specific taxonomy extension.
 - The synthetic test suite is not evidence of real-issuer parser correctness.
-- A real NSE issuer filing's raw bytes could not yet be downloaded in the research environment. KSHINTL's official human-readable filing was inspected, but the parser has not been run against its raw XBRL/iXBRL bytes.
+- Real official NSE raw XBRL bytes have now been downloaded and parsed for ITC, HDFC Bank and KSH International in isolated GitHub Actions runs. This validates selected real-issuer parser paths only; it does not prove complete taxonomy coverage across the NSE universe.
 - Do not connect this pilot to app runtime until real filing fixtures, taxonomy mapping, period/basis/revision rules, and cross-source reconciliation pass.
 
 ## Data quality rules
