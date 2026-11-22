@@ -122,9 +122,9 @@ export function validateFundamentalProfile(profile: FundamentalProfile): Fundame
     }
     if (record.value === null || !Number.isFinite(record.value)) add(`${path}.value`,'INVALID_VALUE','Validated metric requires a finite numeric value');
     if (!record.unit) add(path,'UNIT_REQUIRED','Validated metric requires an explicit unit');
-    if (record.currency !== null && !/^[A-Z]{3}$/.test(record.currency)) add(\`${path}.currency\`,'INVALID_CURRENCY','Currency must be an ISO 4217 code or null for non-currency units');
-    if (record.unit === 'INR' && record.currency !== 'INR') add(\`${path}.currency\`,'CURRENCY_REQUIRED','INR-denominated metrics must declare INR currency');
-    if (record.unit !== 'INR' && record.currency !== null) add(\`${path}.currency\`,'CURRENCY_UNIT_MISMATCH','Non-currency units such as PERCENT or RATIO must have null currency');
+    if (record.currency !== null && !/^[A-Z]{3}$/.test(record.currency)) add(`${path}.currency`,'INVALID_CURRENCY','Currency must be an ISO 4217 code or null for non-currency units');
+    if (record.unit === 'INR' && record.currency !== 'INR') add(`${path}.currency`,'CURRENCY_REQUIRED','INR-denominated metrics must declare INR currency');
+    if (record.unit !== 'INR' && record.currency !== null) add(`${path}.currency`,'CURRENCY_UNIT_MISMATCH','Non-currency units such as PERCENT or RATIO must have null currency');
     if (!record.formulaId?.trim() || !record.formulaVersion?.trim()) add(path,'FORMULA_REQUIRED','Validated metric requires formula ID and version');
     if (!record.filings.length) add(`${path}.filings`,'FILING_REQUIRED','Validated metric requires filing provenance');
     if (!record.rawFacts.length) add(`${path}.rawFacts`,'FACT_REQUIRED','Validated metric requires raw fact evidence');
