@@ -7,6 +7,7 @@ This folder is isolated from the scanner runtime. The intended production implem
 - `xbrl_extract.ts` extracts raw XBRL/iXBRL facts, contexts, entity identifiers, periods, dimensions, units, nil flags, decimals, inline scale/sign, and basic inline fractions.
 - `nse_filing_pair.ts` is the shared TypeScript resolver for exactly one official NSE Original filing per period and basis. It rejects ambiguous pairs, wrong basis/version, and non-official archive URLs. The ITC, HDFC Bank and KSHINTL workflows now use it instead of Python metadata selection.
 - `nse_revision_pair.ts` resolves a single Original plus the complete set of Revision rows for the same issuer/period/basis. It sorts revisions chronologically and rejects duplicate sequence IDs; it never silently selects the latest revision.
+- `fundamental_profile.ts` defines the seven-metric provenance-first TypeScript data contract and validates status, issuer, ISIN, period, basis, official exchange source, units, raw fact references and formula version. Unvalidated metrics must carry null values and an explanation; a profile cannot silently mix NSE and BSE sources.
 - It uses `fast-xml-parser` (MIT; TypeScript declarations; ESM/CommonJS support) and rejects DTD/entity declarations.
 - It has a 25 MB input limit and intentionally rejects ZIP input; archive decompression is a separate ingestion step.
 - It fails closed for numeric facts with missing/unresolved contexts or units, duplicate context/unit IDs, unsupported scale/sign attributes, Inline XBRL format transformations, and unresolved continuation chains. Warnings must be treated as a validation failure by the issuer-pilot workflows.
@@ -14,7 +15,7 @@ This folder is isolated from the scanner runtime. The intended production implem
 - `sector_metric_policy.test.ts` covers bank-sector exclusions and exact period/basis/group-context checks.
 - `group_fact_selection.ts` selects only one unique undimensioned group fact after exact context checks; segment facts cannot be added to manufacture a group total. Its dedicated tests cover ambiguity, wrong periods and unresolved contexts.
 - `statement_reconciliation.test.ts` covers named statement-presentation variants and fail-closed mapping decisions.
-- The isolated GitHub Actions test workflow runs every `research/fundamental_pilot/*.test.ts` file. Latest verified run: 43 tests passed, 0 failed. The package script `npm run test:fundamental-pilot` currently runs only `xbrl_extract.test.ts`, not the complete research test suite.
+- The isolated GitHub Actions test workflow runs every `research/fundamental_pilot/*.test.ts` file. Latest verified run: 47 tests passed, 0 failed. The package script `npm run test:fundamental-pilot` currently runs only `xbrl_extract.test.ts`, not the complete research test suite.
 
 ## Sector and context safety gates
 
@@ -28,6 +29,7 @@ This folder is isolated from the scanner runtime. The intended production implem
 - The HDFC Bank prior-year pair pilot matched 311 raw fact keys across two original consolidated banking filings, with 11 unmatched keys and no conflicting duplicates. Those unmatched keys remain unresolved.
 - The KSH International standalone prior-year pair pilot matched 31 same-shape concept/dimension/unit keys across original filings, with zero unmatched keys, zero conflicting duplicates and zero parser warnings. It exposed comparable Revenue, Profit, Finance Costs and H1 OCF raw facts; these remain mechanical comparisons, not approved metric mappings.
 - The GAIL revision-history pilot found one Original and two Revision rows for the same consolidated 30-JUN-2026 period. All three XBRL XML payloads were byte-identical (SHA-256 identical); each revision matched all 159 fact keys with zero changes. This is a regression case proving the resolver preserves all revisions instead of silently selecting one.
+- The ARSS Infrastructure standalone 30-JUN-2026 pair also had one Original and one Revision; both XML files were byte-identical and all 68 fact keys matched without changes.
 - The ITC prior-year pilot matched nine exact concept/period/dimension/unit facts and now distinguishes the main Financial Results PBT from the alternate segment-results PBT presentation. PBT mapping remains blocked until the scanner's intended definition is explicitly chosen.
 - These guards do not prove taxonomy concepts are correctly mapped; all seven metrics remain unapproved for production.
 
