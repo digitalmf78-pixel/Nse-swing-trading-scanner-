@@ -932,26 +932,26 @@ export async function fetchYahooFundamentalsForSymbol(
   } else if (primary && bseRec) {
     // Supplement missing fields from BSE (.BO) without clobbering newer .NS fields
     const sources = new Set([...(primary.sources || []), 'BSE (.BO)']);
+    const sameFinancialPeriod =
+      Boolean(primary.financialPeriodEnd) &&
+      primary.financialPeriodEnd === bseRec.financialPeriodEnd;
     primary = {
       ...primary,
       sources: Array.from(sources),
       source: `${primary.source} + BSE (.BO)`,
-      financialPeriodEnd:
-        bseRec.financialPeriodEnd > primary.financialPeriodEnd
-          ? bseRec.financialPeriodEnd
-          : primary.financialPeriodEnd,
+      // Do not mix BSE metrics from a different reporting period into the NSE record.
       providerSector: primary.providerSector || bseRec.providerSector,
       companyName: primary.companyName || bseRec.companyName,
       firstTradeDateIso: primary.firstTradeDateIso || bseRec.firstTradeDateIso,
       nextEarningsDate: primary.nextEarningsDate || bseRec.nextEarningsDate,
-      revenueGrowthPct: primary.revenueGrowthPct ?? bseRec.revenueGrowthPct,
-      profitGrowthPct: primary.profitGrowthPct ?? bseRec.profitGrowthPct,
-      roePct: primary.roePct ?? bseRec.roePct,
-      rocePct: primary.rocePct ?? bseRec.rocePct,
-      debtToEquity: primary.debtToEquity ?? bseRec.debtToEquity,
-      interestCoverage: primary.interestCoverage ?? bseRec.interestCoverage,
-      operatingCashFlowInr: primary.operatingCashFlowInr ?? bseRec.operatingCashFlowInr,
-      freeCashFlowInr: primary.freeCashFlowInr ?? bseRec.freeCashFlowInr,
+      revenueGrowthPct: primary.revenueGrowthPct ?? (sameFinancialPeriod ? bseRec.revenueGrowthPct : null),
+      profitGrowthPct: primary.profitGrowthPct ?? (sameFinancialPeriod ? bseRec.profitGrowthPct : null),
+      roePct: primary.roePct ?? (sameFinancialPeriod ? bseRec.roePct : null),
+      rocePct: primary.rocePct ?? (sameFinancialPeriod ? bseRec.rocePct : null),
+      debtToEquity: primary.debtToEquity ?? (sameFinancialPeriod ? bseRec.debtToEquity : null),
+      interestCoverage: primary.interestCoverage ?? (sameFinancialPeriod ? bseRec.interestCoverage : null),
+      operatingCashFlowInr: primary.operatingCashFlowInr ?? (sameFinancialPeriod ? bseRec.operatingCashFlowInr : null),
+      freeCashFlowInr: primary.freeCashFlowInr ?? (sameFinancialPeriod ? bseRec.freeCashFlowInr : null),
       trailingPE: primary.trailingPE ?? bseRec.trailingPE,
       priceToBook: primary.priceToBook ?? bseRec.priceToBook,
       marketCapInr: primary.marketCapInr ?? bseRec.marketCapInr,
@@ -1037,7 +1037,7 @@ export async function fetchYahooFundamentalsForSymbol(
         (xbrlNewerOrEqual && xbrl.profitGrowthPct !== null
           ? xbrl.profitGrowthPct
           : null) ?? primary.profitGrowthPct,
-      roePct: primary.roePct ?? xbrl.roePct,
+      roePct: primary.roePct ?? (xbrlNewerOrEqual ? xbrl.roePct : null),
       debtToEquity: usableXbrlDe ?? primary.debtToEquity,
       interestCoverage: usableXbrlIc ?? primary.interestCoverage,
       epsCurr:
