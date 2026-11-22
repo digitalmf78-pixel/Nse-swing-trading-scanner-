@@ -87,8 +87,8 @@ Not proved:
 
 ## Workflow evidence
 
-- Workflow run: https://github.com/digitalmf78-pixel/Nse-swing-trading-scanner-/actions/runs/45059460142
+- Workflow run: https://github.com/digitalmf78-pixel/Nse-swing-trading-scanner-/actions/runs/45059528746
 - Workflow definition: `.github/workflows/nse-itc-prior-year-comparison.yml`
-- Artifact ID: `14768512372` (first-pass artifact; retention is 7 days). The corrected run artifact is available from the latest workflow run.
+- Artifact ID: `14769161040` (retention is 7 days). The corrected run includes the exact 9/9 matching assertion and guarded mechanical YoY diagnostics.
 
 Keep this work on the research branch. Do not connect it to scanner runtime until comparable-period, sector, revision, unit and accounting formula policies are validated across more issuers.
