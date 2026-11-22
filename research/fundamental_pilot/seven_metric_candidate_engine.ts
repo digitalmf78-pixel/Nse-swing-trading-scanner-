@@ -27,6 +27,34 @@ export interface SevenMetricCandidateReport {
   productionApproved: false;
 }
 
+function factMatchesPeriod(
+  fact: ComparableMetricFact,
+  period: SevenMetricPeriodInput,
+): boolean {
+  return fact.periodType === period.periodType
+    && fact.periodStart === period.periodStart
+    && fact.periodEnd === period.periodEnd
+    && fact.basis === period.basis;
+}
+
+function blockedGrowth(metric: 'REVENUE_GROWTH'|'PROFIT_GROWTH'): GrowthCandidateResult {
+  return {
+    metric,status:'BLOCKED_PERIOD_ALIGNMENT',growthPercent:null,
+    formulaId:'same_period_yoy_growth',formulaVersion:'1.0.0',
+    explanation:'Raw fact period or basis does not match the filing-period envelope; value withheld.',
+    productionApproved:false,
+  };
+}
+
+function blockedOcf(): OcfCandidateResult {
+  return {
+    status:'BLOCKED_PERIOD_ALIGNMENT',currentValue:null,priorValue:null,
+    absoluteChange:null,percentageChange:null,currentDirection:null,priorDirection:null,
+    productionApproved:false,
+    explanation:'Raw OCF fact period or basis does not match the filing-period envelope; value withheld.',
+  };
+}
+
 function candidateStatus(status: string): MetricDataStatus {
   if (status === 'CANDIDATE_ONLY') return 'VALIDATED';
   if (status === 'BLOCKED_MISSING_VALUE') return 'MISSING';
@@ -46,13 +74,19 @@ export function buildSevenMetricCandidateReport(
   prior: SevenMetricPeriodInput,
 ): SevenMetricCandidateReport {
   const revenueGrowth = current.revenue && prior.revenue
-    ? calculateGrowthCandidate('REVENUE_GROWTH', current.revenue, prior.revenue)
+    ? (factMatchesPeriod(current.revenue,current) && factMatchesPeriod(prior.revenue,prior)
+      ? calculateGrowthCandidate('REVENUE_GROWTH', current.revenue, prior.revenue)
+      : blockedGrowth('REVENUE_GROWTH'))
     : null;
   const profitGrowth = current.profit && prior.profit
-    ? calculateGrowthCandidate('PROFIT_GROWTH', current.profit, prior.profit)
+    ? (factMatchesPeriod(current.profit,current) && factMatchesPeriod(prior.profit,prior)
+      ? calculateGrowthCandidate('PROFIT_GROWTH', current.profit, prior.profit)
+      : blockedGrowth('PROFIT_GROWTH'))
     : null;
   const operatingCashFlow = current.operatingCashFlow && prior.operatingCashFlow
-    ? calculateOcfCandidate(current.operatingCashFlow, prior.operatingCashFlow)
+    ? (factMatchesPeriod(current.operatingCashFlow,current) && factMatchesPeriod(prior.operatingCashFlow,prior)
+      ? calculateOcfCandidate(current.operatingCashFlow, prior.operatingCashFlow)
+      : blockedOcf())
     : null;
 
   const statuses: Partial<Record<
