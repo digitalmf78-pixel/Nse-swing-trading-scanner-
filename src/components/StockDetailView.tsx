@@ -1509,13 +1509,13 @@ export const StockDetailView: React.FC<StockDetailViewProps> = ({
                         <td className="py-2.5 px-3 text-right font-mono text-slate-900">
                           {c.formattedValue}
                           {(() => {
-                            const periodEnd = c.key === 'revenueGrowthPct' ? data.fundamentals.revenueGrowthPeriodEnd
-                              : c.key === 'profitGrowthPct' ? data.fundamentals.profitGrowthPeriodEnd
-                              : c.key === 'roePct' ? data.fundamentals.roePeriodEnd
-                              : c.key === 'rocePct' ? data.fundamentals.rocePeriodEnd
-                              : c.key === 'debtToEquity' ? data.fundamentals.debtToEquityPeriodEnd
-                              : c.key === 'interestCoverage' ? data.fundamentals.interestCoveragePeriodEnd
-                              : c.key === 'operatingCashFlowInr' ? data.fundamentals.operatingCashFlowPeriodEnd : '';
+                            const periodEnd = c.key === 'revenueGrowthPct' ? data.fundamentals?.revenueGrowthPeriodEnd
+                              : c.key === 'profitGrowthPct' ? data.fundamentals?.profitGrowthPeriodEnd
+                              : c.key === 'roePct' ? data.fundamentals?.roePeriodEnd
+                              : c.key === 'rocePct' ? data.fundamentals?.rocePeriodEnd
+                              : c.key === 'debtToEquity' ? data.fundamentals?.debtToEquityPeriodEnd
+                              : c.key === 'interestCoverage' ? data.fundamentals?.interestCoveragePeriodEnd
+                              : c.key === 'operatingCashFlowInr' ? data.fundamentals?.operatingCashFlowPeriodEnd : '';
                             return periodEnd ? <div className="mt-0.5 text-[10px] text-slate-500">Period: {periodEnd}</div> : null;
                           })()}
                         </td>
