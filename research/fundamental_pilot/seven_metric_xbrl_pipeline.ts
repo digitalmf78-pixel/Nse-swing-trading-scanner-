@@ -16,6 +16,8 @@ export interface XbrlFilingPeriodInput {
 export interface IssuerMetricConceptMap {
   revenue: string;
   profit: string;
+  /** Consolidated profit growth must use the owners-of-parent allocation; standalone uses the entity result. */
+  profitAttribution: 'OWNERS_OF_PARENT' | 'STANDALONE_ENTITY';
   operatingCashFlow: string;
 }
 
@@ -87,6 +89,13 @@ export function buildSevenMetricXbrlPipeline(
   prior:XbrlFilingPeriodInput,
   conceptMap:IssuerMetricConceptMap,
 ):SevenMetricXbrlPipelineReport {
+  if (current.basis!==prior.basis) throw new Error('Current and prior filing basis must match before profit-attribution mapping');
+  if (current.basis==='CONSOLIDATED' && conceptMap.profitAttribution!=='OWNERS_OF_PARENT') {
+    throw new Error('Consolidated Profit Growth must use the profit attributable to owners of the parent; total group profit is not an accepted substitute');
+  }
+  if (current.basis==='STANDALONE' && conceptMap.profitAttribution!=='STANDALONE_ENTITY') {
+    throw new Error('Standalone Profit Growth must use the standalone entity profit result');
+  }
   const currentSelections={
     revenue:selectForPeriod(current,conceptMap.revenue),
     profit:selectForPeriod(current,conceptMap.profit),
