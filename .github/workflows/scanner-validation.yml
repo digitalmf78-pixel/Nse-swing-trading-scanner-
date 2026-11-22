@@ -77,7 +77,7 @@ jobs:
             echo "- Node: $(node --version 2>/dev/null || echo unavailable)"
             echo "- npm: $(npm --version 2>/dev/null || echo unavailable)"
             echo "- Read-only data audit: ${{ steps.dataaudit.outcome }}"
-            echo "- Fundamental tests: ${{ steps.tests.outcome }}\n            echo "- TypeScript check: ${{ steps.typecheck.outcome }}""
+            echo "- Fundamental tests: ${{ steps.tests.outcome }}"\n            echo "- TypeScript check: ${{ steps.typecheck.outcome }}"
             echo "- Production build: ${{ steps.build.outcome }}"
             echo
             echo "This report validates TypeScript compilation and the Vite production frontend build."
