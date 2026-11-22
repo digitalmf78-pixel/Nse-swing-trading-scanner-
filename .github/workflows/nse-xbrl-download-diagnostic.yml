@@ -184,27 +184,58 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          url="https://nsearchives.nseindia.in/corporate/xbrl/INTEGRATED_FILING_INDAS_1753217_04112026090644_WEB.xml"
-          curl --fail --location --show-error \
-            --retry 5 --retry-all-errors --retry-delay 3 \
-            --connect-timeout 20 --max-time 180 \
-            --user-agent "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36" \
-            --referer "https://www.nseindia.in/companies-listing/corporate-integrated-filing" \
-            --header "Accept: application/xml,text/xml,*/*" \
-            --output artifacts/KSHINTL_2026-09-30_original_NSE_XBRL.xml \
-            "$url"
-          test -s artifacts/KSHINTL_2026-09-30_original_NSE_XBRL.xml
+          path="/corporate/xbrl/INTEGRATED_FILING_INDAS_1753217_04112026090644_WEB.xml"
+          referer="https://nsearchives.nseindia.com/corporate/ixbrl/INTEGRATED_FILING_INDAS_209920_04112026210644_iXBRL_WEB.html"
+          mkdir -p artifacts/xbrl-attempts
+          success=""
+          for host in nsearchives.nseindia.in nsearchives.nseindia.com; do
+            for mode in browser referer_cookie; do
+              out="artifacts/xbrl-attempts/${host}-${mode}.response"
+              headers="artifacts/xbrl-attempts/${host}-${mode}.headers"
+              if [ "$mode" = "referer_cookie" ]; then
+                curl --silent --show-error --location --max-time 60 \
+                  --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36" \
+                  --cookie-jar artifacts/xbrl-attempts/cookies.txt \
+                  --output /dev/null "https://www.nseindia.in/companies-listing/corporate-integrated-filing" || true
+                extra=(--cookie artifacts/xbrl-attempts/cookies.txt --referer "$referer" --header "Origin: https://www.nseindia.in")
+              else
+                extra=(--referer "https://www.nseindia.in/static/companies-listing/xbrl-information")
+              fi
+              code="$(curl --silent --show-error --location --max-time 120 \
+                --retry 2 --retry-all-errors --retry-delay 2 \
+                --connect-timeout 20 \
+                --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36" \
+                "${extra[@]}" \
+                --header "Accept: application/xml,text/xml,application/octet-stream,*/*" \
+                --dump-header "$headers" --output "$out" \
+                --write-out "%{http_code}" "https://$host$path" || true)"
+              echo "$host $mode HTTP=$code bytes=$(wc -c < "$out" 2>/dev/null || echo 0)"
+              if grep -Eqi '<([[:alnum:]_]+:)?xbrl([ >])' "$out"; then
+                cp "$out" artifacts/KSHINTL_2026-09-30_original_NSE_XBRL.xml
+                success="yes"
+                break 2
+              fi
+            done
+          done
+          if [ -z "$success" ]; then
+            echo "No tested host/header combination returned an XBRL root. Response titles and leading text:"
+            for f in artifacts/xbrl-attempts/*.response; do
+              echo "### $f"
+              head -c 500 "$f" || true
+              echo
+            done
+            echo "The original XML was not obtained; preserve proxy responses for diagnosis."
+            exit 1
+          fi
           file artifacts/KSHINTL_2026-09-30_original_NSE_XBRL.xml | tee artifacts/KSHINTL-XML-file-type.txt
           wc -c artifacts/KSHINTL_2026-09-30_original_NSE_XBRL.xml | tee artifacts/KSHINTL-XML-file-size.txt
           sha256sum artifacts/KSHINTL_2026-09-30_original_NSE_XBRL.xml | tee artifacts/KSHINTL-XML-SHA256.txt
-          head -c 300 artifacts/KSHINTL_2026-09-30_original_NSE_XBRL.xml
-          echo
 
       - name: Upload verified archives for inspection
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: nse-ind-as-xbrl-format-taxonomies-kshintl-xbrl-proxy-diagnostic
+          name: nse-ind-as-xbrl-format-taxonomies-kshintl-xbrl-host-header-diagnostic
           path: artifacts/
           if-no-files-found: error
           retention-days: 7
