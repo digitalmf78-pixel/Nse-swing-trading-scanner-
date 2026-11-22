@@ -149,3 +149,5 @@ jobs:
           retention-days: 7
 
 # Quarterly OCF is never guessed when the Q1 YTD cash-flow statement is absent.
+
+# Missing historical originals are reported as MISSING, never coerced to zero.
