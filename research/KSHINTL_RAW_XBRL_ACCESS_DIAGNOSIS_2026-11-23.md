@@ -32,28 +32,54 @@ returned the exact original standalone filing row:
 - iXBRL HTML size reported by NSE: 95.21 KB
 
 Official XBRL URL returned by the API:
-https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1753217_04112026090644_WEB.xml
+https://nsearchives.nseindia.in/corporate/xbrl/INTEGRATED_FILING_INDAS_1753217_04112026090644_WEB.xml
 
 Official human-readable iXBRL rendering:
-https://nsearchives.nseindia.com/corporate/ixbrl/INTEGRATED_FILING_INDAS_209920_04112026210644_iXBRL_WEB.html
+https://nsearchives.nseindia.in/corporate/ixbrl/INTEGRATED_FILING_INDAS_209920_04112026210644_iXBRL_WEB.html
 
-## Root cause of raw issuer XBRL download failure
+## Corrected raw XML access finding
 
-The filing URL and row metadata are valid; the API successfully returned them. The failure occurs only when attempting to retrieve the raw XML bytes from the cloud runner.
+The earlier diagnosis that raw XML was region-blocked was incomplete and is superseded by the successful run below.
 
-1. Direct GET to the exact `nsearchives.nseindia.com/corporate/xbrl/...xml` URL returned HTTP 400 from the GitHub-hosted runner.
-2. The NSE website's own front-end JavaScript was inspected. Its XBRL download handler calls:
-   `/api/download_xbrl?fileUrl=` + `encodeURIComponent(JSON.stringify(url))`.
-3. Repeating the request through that official NSE download endpoint returned HTTP 200 but the body was a 22,073-byte HTML page, not XML. The response headers identify AkamaiNetStorage; the page title is "Service Temporarily Unavailable" and the message is "This site is not accessible in your region at the moment."
-4. This establishes a regional access restriction on raw filing delivery from the GitHub Actions runner location. It is not a missing file, bad API row, ZIP-format issue, or TypeScript parser error.
-5. The human-readable iXBRL URL downloads successfully (97,498 bytes), but it is rendered HTML, not the raw iXBRL instance. It contains no `ix:nonFraction`, `xbrli:context`, or other inline-XBRL fact markup, so it must not be passed to the raw XBRL extractor as a valid fixture.
+- The API endpoint returned the exact KSHINTL XBRL URL and filing metadata.
+- A first attempt through the NSE website proxy `/api/download_xbrl` returned an Akamai region-restriction HTML page instead of XML.
+- The exact archive URL was then fetched directly from `nsearchives.nseindia.in` and `nsearchives.nseindia.com` using the correct archive host and browser-style headers.
+- Both archive hosts returned HTTP 200 and the same original 86,742-byte XBRL XML.
+- The direct response headers identified `content-type: application/xml`.
+- The returned document begins with an XML declaration and an `xbrli:xbrl` root; it is not an HTML block page.
 
-## Download workflow evidence
+Therefore the file is available. The working route is the direct NSE archive host request; the NSE proxy endpoint is not required for this tested filing.
 
-- API response correctly contains the KSHINTL row and the raw XBRL URL.
-- Raw XBRL direct-download attempt: HTTP 400.
-- NSE proxy route: HTTP 200, but returns region-restriction HTML instead of XML.
-- The response preview and headers were saved in a temporary Actions artifact for diagnosis (7-day retention); they are not treated as a filing fixture.
+## Original XML evidence
+
+- File: `KSHINTL_2026-09-30_original_NSE_XBRL.xml`
+- Size: 86,742 bytes
+- SHA-256: `4db8678cf8f79372a7c4506ac6f16eeaf7125d75d8f58d79c64db53add9b4442`
+- NSE filing row: sequence ID 209920, Original, Standalone, Un-Audited, 30-SEP-2026
+- Temporary artifact: `nse-kshintl-real-xbrl-diagnostic`
+- Artifact ID: `14768745504`
+- Workflow run: `45058154097`
+- Artifact expiry: 2026-11-29
+
+## Real TypeScript parser result
+
+The existing research-only TypeScript extractor ran against the downloaded original XBRL bytes.
+
+- Contexts: 43
+- Facts: 398
+- Units: 3
+- Warnings: 0
+- Key-fact assertions: PASS
+
+The workflow asserted exact concept/context/unit/value combinations for:
+- Q2 revenue and profit (`OneD`, 2026-07-01 to 2026-09-30)
+- H1 YTD revenue and profit (`FourD`, 2026-04-01 to 2026-09-30)
+- closing equity, current and non-current borrowings (`OneI`, instant 2026-09-30)
+- H1 YTD operating cash flow
+- Q2 and H1 finance costs
+
+The parser result and assertions are recorded in:
+`research/fundamental_pilot/KSHINTL_REAL_XBRL_PARSER_VALIDATION_2026-11-23.md`.
 
 ## Separate CI test issue fixed
 
@@ -63,22 +89,12 @@ The earlier parser-test workflow failed before executing tests because it ran `n
 
 This is unrelated to the XBRL parser. The research workflow now installs only `fast-xml-parser@5.12.1` into a temporary dependency directory and runs Node 22's TypeScript stripping test runner, without resolving unrelated app dependencies.
 
-Verified run:
+Verified latest unit-test run:
 - workflow: Fundamental pilot tests
-- run ID: 45057318672
+- run ID: 45058251366
 - result: SUCCESS
-- tests: 11 passed, 0 failed
-- duration: 256 ms
+- 11 tests passed, 0 failed (the suite is the isolated synthetic parser regression suite; the real-file assertions are run separately in the NSE diagnostic workflow).
 
-These are synthetic parser regression tests only; they do not prove real issuer filing compatibility.
+## Remaining limitation
 
-## Next safe action
-
-Obtain the exact raw XML bytes through a network route located in India or another official exchange route that is not region-blocked. Once the exact XML is available:
-1. verify it is XML, not an HTML block page;
-2. preserve the API row metadata and raw file hash;
-3. run the TypeScript extractor against the actual bytes;
-4. compare extracted contexts, units, periods, and facts with the official filing rendering and issuer filing;
-5. record all parser gaps before any seven-metric mapping.
-
-Do not fabricate an XBRL fixture from the rendered HTML or PDF. Do not weaken the parser to accept an HTML block page. Do not connect this research parser to the scanner runtime yet.
+This validates one real KSHINTL standalone unaudited instance. It does not prove full taxonomy coverage, multi-issuer compatibility, consolidated filing support, revision selection, seven-metric mapping, or ratio formulas. Keep the parser disconnected from scanner runtime until those are validated.
