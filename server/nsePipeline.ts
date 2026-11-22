@@ -549,7 +549,7 @@ class NsePipelineEngine {
       const cachePeriod = (r.FinancialPeriod || '').trim();
       // Free-source metrics are only merged into a profile from the same reporting period.
       // A missing/invalid period cannot safely be aligned and must not silently enter the scorecard.
-      if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(cachePeriod)) continue;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(cachePeriod)) continue;
       if (!prof) {
         prof = this.emptyFundamentalProfile(sym);
         prof.source = r.Provider || 'Free Source Cache';
