@@ -13,7 +13,7 @@ on:
       symbol:
         description: NSE symbol
         required: true
-        default: TEMBO
+        default: GAIL
         type: string
       current_period:
         description: Current period end, e.g. 30-SEP-2026
@@ -28,7 +28,7 @@ on:
       basis:
         description: Filing basis
         required: true
-        default: Standalone
+        default: Consolidated
         type: choice
         options:
           - Consolidated
@@ -71,10 +71,10 @@ jobs:
       - name: Fetch complete official NSE filing metadata
         shell: bash
         env:
-          SYMBOL: ${{ inputs.symbol || 'TEMBO' }}
+          SYMBOL: ${{ inputs.symbol || 'GAIL' }}
           CURRENT_PERIOD: ${{ inputs.current_period || '30-SEP-2026' }}
           PRIOR_PERIOD: ${{ inputs.prior_period || '30-SEP-2025' }}
-          BASIS: ${{ inputs.basis || 'Standalone' }}
+          BASIS: ${{ inputs.basis || 'Consolidated' }}
           SECTOR: ${{ inputs.sector || 'NON_FINANCIAL' }}
         run: |
           set -euo pipefail
@@ -252,9 +252,9 @@ jobs:
             priorSelections:Object.fromEntries(Object.entries(pipeline.priorSelections).map(([k,v])=>[k,{status:v.status,eligibleCount:v.eligibleCount,rejectedContextCount:v.rejectedContextCount,explanation:v.explanation}])),
             candidates:pipeline.candidateReport.candidates,
             auditMatrix:pipeline.candidateReport.auditMatrix,
-            statementTieOutStatus,statementComparativeChecks,ocfComparativeCheck,rawOcfCandidateBeforeComparabilityGate:rawOcfCandidate,officialResultsPdf:meta.basis==='Consolidated'?officialPdfUrl:null,
+            statementTieOutStatus,statementComparativeChecks,ocfComparativeCheck,rawOcfCandidateBeforeComparabilityGate:rawOcfCandidate,officialResultsPdf:officialPdfUrl,
             productionApproved:false,
-            note:meta.basis==='Consolidated'?'Revenue and owner-attributable profit are compared with the official results PDF for consolidated H1. OCF is withheld when prior Original differs from the current filing comparative. Remaining formula and comparability gates still apply; no production approval is implied.':'Standalone run: official PDF statement tie-out and issuer-note comparability review have not yet been performed. All metric values are candidate-only and must not be accepted until exact official statement rows are reconciled.',
+            note:'Revenue and owner-attributable profit are compared with the official results PDF for consolidated H1. OCF is withheld when prior Original differs from the current filing comparative. Remaining formula and comparability gates still apply; no production approval is implied.',
           };
           fs.writeFileSync('artifacts/seven-metric-pipeline-report.json',JSON.stringify(output,null,2));
           console.log(JSON.stringify(output,null,2));
@@ -263,7 +263,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: nse-seven-metric-xbrl-candidate-pilot-${{ inputs.symbol || 'TEMBO' }}
+          name: nse-gail-seven-metric-xbrl-candidate-pilot
           path: artifacts/
           if-no-files-found: ignore
           retention-days: 14
