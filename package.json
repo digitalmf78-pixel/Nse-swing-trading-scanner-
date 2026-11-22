@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test:fundamental-pilot": "tsx --test research/fundamental_pilot/xbrl_extract.test.ts"
+    "test:fundamental-pilot": "tsx --test research/fundamental_pilot/*.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
