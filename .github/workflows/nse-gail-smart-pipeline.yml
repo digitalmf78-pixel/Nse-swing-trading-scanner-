@@ -1,0 +1,228 @@
+name: NSE reusable seven-metric XBRL candidate pilot
+
+on:
+  push:
+    branches:
+      - research/free-fundamental-sources
+    paths:
+      - ".github/workflows/nse-gail-smart-pipeline.yml"
+      - "research/fundamental_pilot/seven_metric_xbrl_pipeline.ts"
+      - "research/fundamental_pilot/nse_integrated_filing_client.ts"
+  workflow_dispatch:
+    inputs:
+      symbol:
+        description: NSE symbol
+        required: true
+        default: GAIL
+        type: string
+      current_period:
+        description: Current period end, e.g. 30-SEP-2026
+        required: true
+        default: 30-SEP-2026
+        type: string
+      prior_period:
+        description: Prior-year period end, e.g. 30-SEP-2025
+        required: true
+        default: 30-SEP-2025
+        type: string
+      basis:
+        description: Filing basis
+        required: true
+        default: Consolidated
+        type: choice
+        options:
+          - Consolidated
+          - Standalone
+      sector:
+        description: Issuer sector mapping
+        required: true
+        default: NON_FINANCIAL
+        type: choice
+        options:
+          - NON_FINANCIAL
+          - BANK
+          - NBFC
+          - INSURANCE
+          - UNKNOWN
+
+permissions:
+  contents: read
+
+jobs:
+  real-issuer-xbrl-candidate-pilot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          ref: research/free-fundamental-sources
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install isolated XBRL parser dependency
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/nse-generic-pilot-deps" --no-save --no-package-lock fast-xml-parser@5.12.1
+          mkdir -p node_modules
+          ln -s "$RUNNER_TEMP/nse-generic-pilot-deps/node_modules/fast-xml-parser" node_modules/fast-xml-parser
+      - name: Fetch complete official NSE filing metadata
+        shell: bash
+        env:
+          SYMBOL: ${{ inputs.symbol || 'GAIL' }}
+          CURRENT_PERIOD: ${{ inputs.current_period || '30-SEP-2026' }}
+          PRIOR_PERIOD: ${{ inputs.prior_period || '30-SEP-2025' }}
+          BASIS: ${{ inputs.basis || 'Consolidated' }}
+          SECTOR: ${{ inputs.sector || 'NON_FINANCIAL' }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          symbol="$(printf '%s' "$SYMBOL" | tr '[:lower:]' '[:upper:]')"
+          if [[ ! "$symbol" =~ ^[A-Z0-9&.-]{1,24}$ ]]; then echo "Invalid NSE symbol" >&2; exit 1; fi
+          for period in "$CURRENT_PERIOD" "$PRIOR_PERIOD"; do
+            if [[ ! "$period" =~ ^[0-9]{2}-[A-Z]{3}-[0-9]{4}$ ]]; then echo "Invalid NSE period: $period" >&2; exit 1; fi
+          done
+          if [ "$CURRENT_PERIOD" = "$PRIOR_PERIOD" ]; then echo "Current and prior periods must differ" >&2; exit 1; fi
+          if [[ "$BASIS" != "Standalone" && "$BASIS" != "Consolidated" ]]; then echo "Invalid basis" >&2; exit 1; fi
+          : > artifacts/filing-rows.jsonl
+          complete=false
+          pages=0
+          for page in $(seq 1 20); do
+            curl --fail --location --show-error --retry 3 --retry-all-errors --retry-delay 2               --connect-timeout 20 --max-time 90               --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36"               --referer "https://www.nseindia.in/companies-listing/corporate-integrated-filing"               --header "Accept: application/json, text/plain, */*"               --get "https://www.nseindia.in/api/integrated-filing-results"               --data-urlencode "index=equities" --data-urlencode "symbol=$symbol"               --data-urlencode "type=Integrated Filing- Financials"               --data-urlencode "page=$page" --data-urlencode "size=100"               --output "artifacts/page-$page.json"
+            jq -e '.data | type == "array"' "artifacts/page-$page.json" >/dev/null
+            count="$(jq '.data | length' "artifacts/page-$page.json")"
+            jq -c '.data[]' "artifacts/page-$page.json" >> artifacts/filing-rows.jsonl
+            pages="$page"
+            if [ "$count" -lt 100 ]; then complete=true; break; fi
+          done
+          PAGES="$pages" COMPLETE="$complete" python - <<'PY'
+          import json,os
+          from pathlib import Path
+          rows=[json.loads(line) for line in Path("artifacts/filing-rows.jsonl").read_text().splitlines() if line.strip()]
+          payload={"symbol":os.environ["SYMBOL"].upper(),"currentPeriod":os.environ["CURRENT_PERIOD"],"priorPeriod":os.environ["PRIOR_PERIOD"],"basis":os.environ["BASIS"],"sector":os.environ["SECTOR"],"pagesFetched":int(os.environ["PAGES"]),"paginationComplete":os.environ["COMPLETE"]=="true","rows":rows}
+          Path("artifacts/nse-filing-metadata.json").write_text(json.dumps(payload,indent=2))
+          print(json.dumps({k:v for k,v in payload.items() if k!="rows"}|{"rowCount":len(rows)},indent=2))
+          PY
+      - name: Resolve both periods and enforce Original/Revision gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import { selectNseIssuerPeriodHistory } from './research/fundamental_pilot/nse_integrated_filing_client.ts';
+          const input=JSON.parse(fs.readFileSync('artifacts/nse-filing-metadata.json','utf8'));
+          const request={symbol:input.symbol,basis:input.basis};
+          const current=selectNseIssuerPeriodHistory(input.rows,{...request,period:input.currentPeriod});
+          const prior=selectNseIssuerPeriodHistory(input.rows,{...request,period:input.priorPeriod});
+          const allowed=input.paginationComplete && current.status==='ORIGINAL_ONLY' && prior.status==='ORIGINAL_ONLY';
+          const output={
+            symbol:input.symbol,basis:input.basis,currentPeriod:input.currentPeriod,priorPeriod:input.priorPeriod,
+            rowCount:input.rows.length,pagesFetched:input.pagesFetched,paginationComplete:input.paginationComplete,
+            current:{status:current.status,original:current.original,revisions:current.revisions},
+            prior:{status:prior.status,original:prior.original,revisions:prior.revisions},
+            pipelineAllowed:allowed,
+            gateStatus:allowed?'ORIGINAL_ONLY_BOTH_PERIODS':'REVISION_OR_FILING_REVIEW_REQUIRED',
+            productionApproved:false,
+          };
+          fs.writeFileSync('artifacts/filing-history-selection.json',JSON.stringify(output,null,2));
+          console.log(JSON.stringify(output,null,2));
+          JS
+      - name: Download both exact-period Original XBRL files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/xbrl
+          if [ "$(jq -r '.pipelineAllowed' artifacts/filing-history-selection.json)" != "true" ]; then
+            echo "Candidate pipeline blocked until both periods have complete Original-only histories." | tee artifacts/xbrl-download-status.txt
+            exit 0
+          fi
+          python - <<'PY' > artifacts/xbrl-download-list.tsv
+          import json
+          from pathlib import Path
+          d=json.loads(Path("artifacts/filing-history-selection.json").read_text())
+          for key in ("current","prior"):
+              row=d[key]["original"]
+              print(key,str(row["seq_Id"]),row["xbrl"],sep=chr(9))
+          PY
+          ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36"
+          cookie_jar="artifacts/xbrl/nse-cookies.txt"
+          curl --silent --show-error --location --max-time 60 --user-agent "$ua" --cookie-jar "$cookie_jar" --output /dev/null "https://www.nseindia.in/companies-listing/corporate-integrated-filing" || true
+          failed=0
+          while IFS=$'	' read -r key seq url; do
+            out="artifacts/xbrl/$key"_"$seq".xml
+            response="artifacts/xbrl/$key"_"$seq".response
+            curl --silent --show-error --location --max-time 120 --user-agent "$ua" --cookie "$cookie_jar"               --referer "https://www.nseindia.in/companies-listing/corporate-integrated-filing"               --header "Accept: application/xml,text/xml,application/octet-stream,*/*"               --get "https://www.nseindia.in/api/download_xbrl" --data-urlencode "fileUrl=$url"               --output "$response" || true
+            if grep -Eqi '<([[:alnum:]_]+:)?xbrl([ >])' "$response"; then
+              mv "$response" "$out"
+            else
+              direct="https://nsearchives.nseindia.in/corporate/xbrl/$(basename "$url")"
+              curl --silent --show-error --location --max-time 120 --user-agent "$ua" --cookie "$cookie_jar"                 --referer "https://www.nseindia.in/companies-listing/corporate-integrated-filing"                 --header "Accept: application/xml,text/xml,application/octet-stream,*/*"                 --output "$out" "$direct" || true
+            fi
+            if grep -Eqi '<([[:alnum:]_]+:)?xbrl([ >])' "$out" 2>/dev/null; then
+              echo "DOWNLOADED $key seq=$seq bytes=$(wc -c < "$out")"
+            else
+              echo "FAILED $key seq=$seq"
+              failed=1
+            fi
+          done < artifacts/xbrl-download-list.tsv
+          if [ "$failed" -ne 0 ]; then exit 1; fi
+      - name: Parse both filings and run seven-metric candidate pipeline
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import crypto from 'node:crypto';
+          import { extractXbrl } from './research/fundamental_pilot/xbrl_extract.ts';
+          import { buildSevenMetricXbrlPipeline } from './research/fundamental_pilot/seven_metric_xbrl_pipeline.ts';
+          const meta=JSON.parse(fs.readFileSync('artifacts/nse-filing-metadata.json','utf8'));
+          const selection=JSON.parse(fs.readFileSync('artifacts/filing-history-selection.json','utf8'));
+          if(!selection.pipelineAllowed) {
+            const blocked={status:selection.gateStatus,selection,productionApproved:false,note:'No candidate calculations were run because Original/revision history or pagination was not fully resolved.'};
+            fs.writeFileSync('artifacts/seven-metric-pipeline-report.json',JSON.stringify(blocked,null,2));
+            console.log(JSON.stringify(blocked,null,2));
+            process.exit(0);
+          }
+          const files={};
+          for(const key of ['current','prior']) {
+            const row=selection[key].original;
+            const path='artifacts/xbrl/'+key+'_'+row.seq_Id+'.xml';
+            const xml=fs.readFileSync(path,'utf8');
+            const parsed=extractXbrl(xml);
+            if(parsed.contextCount<1||parsed.factCount<1||Object.keys(parsed.units).length<1) throw new Error('Empty XBRL parse for '+key);
+            files[key]={path,sequenceId:String(row.seq_Id),bytes:Buffer.byteLength(xml),sha256:crypto.createHash('sha256').update(xml).digest('hex'),parsed};
+          }
+          const currentDate=meta.currentPeriod.split('-');
+          const priorDate=meta.priorPeriod.split('-');
+          const periodStart=(end)=>end.slice(0,4)+'-04-01';
+          const periodEnd=(date)=>{const m={JAN:'01',FEB:'02',MAR:'03',APR:'04',MAY:'05',JUN:'06',JUL:'07',AUG:'08',SEP:'09',OCT:'10',NOV:'11',DEC:'12'};return date[2]+'-'+m[date[1]]+'-'+date[0];};
+          const currentEnd=periodEnd(currentDate),priorEnd=periodEnd(priorDate);
+          const pipeline=buildSevenMetricXbrlPipeline(meta.sector,
+            {extraction:files.current.parsed,periodType:'YTD',periodStart:periodStart(currentEnd),periodEnd:currentEnd,basis:meta.basis.toUpperCase(),filingBasis:meta.basis.toUpperCase()},
+            {extraction:files.prior.parsed,periodType:'YTD',periodStart:periodStart(priorEnd),periodEnd:priorEnd,basis:meta.basis.toUpperCase(),filingBasis:meta.basis.toUpperCase()},
+            {revenue:'in-capmkt:RevenueFromOperations',profit:'in-capmkt:ProfitLossForPeriod',operatingCashFlow:'in-capmkt:CashFlowsFromUsedInOperatingActivities'});
+          const output={
+            status:'REAL_NSE_XBRL_CANDIDATE_PIPELINE_COMPLETED',
+            symbol:meta.symbol,sector:meta.sector,basis:meta.basis,currentPeriod:meta.currentPeriod,priorPeriod:meta.priorPeriod,
+            filings:Object.fromEntries(Object.entries(files).map(([k,v])=>[k,{sequenceId:v.sequenceId,bytes:v.bytes,sha256:v.sha256,contexts:v.parsed.contextCount,facts:v.parsed.factCount,unitCount:Object.keys(v.parsed.units).length,warnings:v.parsed.warnings}])),
+            currentSelections:Object.fromEntries(Object.entries(pipeline.currentSelections).map(([k,v])=>[k,{status:v.status,eligibleCount:v.eligibleCount,rejectedContextCount:v.rejectedContextCount,explanation:v.explanation}])),
+            priorSelections:Object.fromEntries(Object.entries(pipeline.priorSelections).map(([k,v])=>[k,{status:v.status,eligibleCount:v.eligibleCount,rejectedContextCount:v.rejectedContextCount,explanation:v.explanation}])),
+            candidates:pipeline.candidateReport.candidates,
+            auditMatrix:pipeline.candidateReport.auditMatrix,
+            productionApproved:false,
+            note:'Mechanical same-period candidate results only. No PDF statement tie-out, accounting-definition approval or production approval is implied.',
+          };
+          fs.writeFileSync('artifacts/seven-metric-pipeline-report.json',JSON.stringify(output,null,2));
+          console.log(JSON.stringify(output,null,2));
+          JS
+      - name: Upload GAIL official filing and candidate artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nse-gail-seven-metric-xbrl-candidate-pilot
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 14
