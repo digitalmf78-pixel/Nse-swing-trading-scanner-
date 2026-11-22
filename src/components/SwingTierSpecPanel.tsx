@@ -135,13 +135,13 @@ export const SwingTierSpecPanel: React.FC<SwingTierSpecPanelProps> = ({
                 </span>
               </div>
               <p className="text-[11px] text-slate-700 leading-relaxed">
-                <strong>Matlab:</strong> Institutional delivery accumulation bhi ho chuki hai AUR aaj volume breakout + green candle + momentum confirm ho gaya hai. Sabse strong swing setup.
+                <strong>Matlab:</strong> 30D delivery participation criteria meet ho chuke hain AUR aaj volume breakout + green candle + momentum confirm ho gaya hai. Yeh strong swing setup hai.
               </p>
               <ul className="space-y-1 text-[11px] font-mono text-slate-700 list-disc list-inside tabular-nums">
                 <li>20D Avg Turnover &gt;= ₹1.5 Cr (Liquid)</li>
                 <li>30D Delivery A OR B qualified</li>
                 <li>Price &gt; 21-Session EMA (Uptrend)</li>
-                <li>DelivQty Ratio &gt;= 1.20x (Smart-money buy)</li>
+                <li>DelivQty Ratio &gt;= 1.20x (Delivery quantity expansion)</li>
                 <li>20D RVOL &gt; 1.50x (Volume surge)</li>
                 <li>EOD Change % &gt; 0% (Green close)</li>
                 <li>RSI(14) between 45.0 and 78.0</li>
@@ -159,7 +159,7 @@ export const SwingTierSpecPanel: React.FC<SwingTierSpecPanelProps> = ({
                 </span>
               </div>
               <p className="text-[11px] text-slate-700 leading-relaxed">
-                <strong>Matlab:</strong> Silent institutional buying chal rahi hai (Delivery A/B + EMA21 ke upar + DelivQty expansion), bas abhi RVOL &gt; 1.5x breakout candle aana baaki hai.
+                <strong>Matlab:</strong> Delivery participation criteria meet hain (Delivery A/B + EMA21 ke upar + DelivQty expansion), bas abhi RVOL &gt; 1.5x breakout candle aana baaki hai.
               </p>
               <ul className="space-y-1 text-[11px] font-mono text-slate-700 list-disc list-inside tabular-nums">
                 <li>20D Avg Turnover &gt;= ₹1.5 Cr (Liquid)</li>
@@ -202,7 +202,7 @@ export const SwingTierSpecPanel: React.FC<SwingTierSpecPanelProps> = ({
               <strong>T2</strong> (Accumulation) filter karo → 3M Result Gate &amp; Fundamental Audit (&gt;=4/7) check karo → Stock Detail me U-Turn Zone &amp; ATR Stop dekho.
             </span>
             <span className="font-mono text-slate-500">
-              Delivery A = 5D Avg &gt;= 60% · Delivery B = Day Deliv &gt;= 60% (5+ sessions)
+              A = Last 30 calendar days mein kam se kam 5 rolling 5-trading-session averages &gt;= 60% · B = Last 30 calendar days mein kam se kam 5 trading sessions ki daily delivery &gt;= 60%
             </span>
           </div>
         </div>
