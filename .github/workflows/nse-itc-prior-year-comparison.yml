@@ -1,4 +1,5 @@
 name: NSE ITC prior-year comparable XBRL audit
+# Research-only: compares original filings with the exact same consolidated reporting basis.
 
 on:
   push:
