@@ -135,7 +135,7 @@ export function computeTrendStrength(data: StockDetailData): TrendStrengthResult
     trackBgClass = 'bg-emerald-100';
     potentialNote =
       potentialLeftPct !== null && potentialLeftPct <= 3
-        ? 'High institutional & earnings momentum, though price is near ceiling — tighten stops.'
+        ? 'Strong earnings and volume/delivery momentum, though price is near ceiling — tighten stops.'
         : 'Strong EPS delta + RVOL + delivery accumulation support continuation upside.';
   } else if (totalScore >= 55) {
     tierLabel = 'Constructive Setup';
