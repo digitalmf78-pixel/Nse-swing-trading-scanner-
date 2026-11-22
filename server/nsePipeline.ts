@@ -866,7 +866,7 @@ class NsePipelineEngine {
       const ms = Date.parse(`${date}T00:00:00Z`);
       return ms >= cutoff30dMs && date <= asOfDate;
     });
-    const rowByDate = new Map(seriesSlice.map((row) => [row.date, row]));
+    const rowByDate = new Map<string, DailyBhavRow>(seriesSlice.map((row) => [row.date, row] as const));
     const deliveryBySession = sessionWindow.map((date) => rowByDate.get(date)?.delivPer ?? null);
     const validDeliveryValues = deliveryBySession.filter((value): value is number => value !== null);
 
