@@ -70,12 +70,9 @@ export async function getFxRateToInr(currency: string): Promise<number> {
     // fallback handled below
   }
 
-  if (cached && cached.rate > 0) return cached.rate;
-  // Reasonable last-resort static fallbacks only if Yahoo FX endpoint fails transiently
-  if (curr === 'USD') return 84.5;
-  if (curr === 'EUR') return 90;
-  if (curr === 'GBP') return 107;
-  throw new Error(`Unable to obtain a reliable ${curr} to INR exchange rate`);
+  // Do not reuse an expired FX quote or a hard-coded rate: either can silently
+  // misstate INR-denominated cash-flow and valuation figures.
+  throw new Error(`Unable to obtain a current ${curr} to INR exchange rate`);
 }
 
 export interface LiveFundamentalRecord {
