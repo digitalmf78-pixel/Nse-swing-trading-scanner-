@@ -34,14 +34,14 @@ export function calculateOcfCandidate(
   prior: ComparableMetricFact,
 ): OcfCandidateResult {
   const gate=calculateGrowthCandidate('REVENUE_GROWTH',current,prior);
-  const allowed=new Set(['CANDIDATE_ONLY','BLOCKED_MISSING_VALUE','BLOCKED_UNIT_MISMATCH','BLOCKED_DIMENSIONAL_FACT','BLOCKED_BASIS_MISMATCH','BLOCKED_PERIOD_TYPE_MISMATCH','BLOCKED_PERIOD_ALIGNMENT']);
+  const allowed=new Set(['CANDIDATE_ONLY','BLOCKED_MISSING_VALUE','BLOCKED_UNIT_MISMATCH','BLOCKED_DIMENSIONAL_FACT','BLOCKED_BASIS_MISMATCH','BLOCKED_PERIOD_TYPE_MISMATCH','BLOCKED_PERIOD_ALIGNMENT','BLOCKED_NON_POSITIVE_PRIOR_BASE']);
   if (current.concept!=='in-capmkt:CashFlowsFromUsedInOperatingActivities' || prior.concept!=='in-capmkt:CashFlowsFromUsedInOperatingActivities') {
     return {status:'BLOCKED_CONCEPT_MISMATCH',currentValue:null,priorValue:null,absoluteChange:null,percentageChange:null,currentDirection:null,priorDirection:null,productionApproved:false,explanation:'OCF must come from CashFlowsFromUsedInOperatingActivities in the cash flow statement'};
   }
   if (!allowed.has(gate.status)) {
     return {status:'BLOCKED_CONCEPT_MISMATCH',currentValue:null,priorValue:null,absoluteChange:null,percentageChange:null,currentDirection:null,priorDirection:null,productionApproved:false,explanation:'OCF candidate period/unit/context gate failed'};
   }
-  if (gate.status!=='CANDIDATE_ONLY') {
+  if (gate.status!=='CANDIDATE_ONLY' && gate.status!=='BLOCKED_NON_POSITIVE_PRIOR_BASE') {
     return {status:gate.status as OcfCandidateStatus,currentValue:null,priorValue:null,absoluteChange:null,percentageChange:null,currentDirection:null,priorDirection:null,productionApproved:false,explanation:gate.explanation};
   }
   const currentValue=current.numericValue as number;
