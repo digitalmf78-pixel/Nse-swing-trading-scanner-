@@ -6,7 +6,9 @@ Research-only validation of the TypeScript pipeline using official NSE Integrate
 
 **Status: Candidate-only; not production approved.**
 
-Workflow run: https://github.com/digitalmf78-pixel/Nse-swing-trading-scanner-/actions/runs/45069858760
+Workflow run: https://github.com/digitalmf78-pixel/Nse-swing-trading-scanner-/actions/runs/45071137005
+
+Latest owner-attribution rerun: 11-Nov? No — the workflow run is the authoritative test result for the updated owner-profit concept map; the earlier unallocated profit result is superseded.
 
 ## Official filing pair and revision gate
 
@@ -48,7 +50,7 @@ All monetary values below are raw XBRL values in INR, shown in crore for readabi
 | Metric | Current H1 | Prior H1 | Candidate result |
 |---|---:|---:|---:|
 | Revenue from operations | ₹60,101.70 Cr | ₹44,385.21 Cr | +35.41% |
-| Profit/Loss for period | ₹8,738.12 Cr | ₹10,529.96 Cr | -17.02% |
+| Profit attributable to owners of parent (`ProfitOrLossAttributableToOwnersOfParent`) | ₹8,738.12 Cr | ₹10,529.96 Cr | -17.43% |
 | Operating cash flow | ₹8,362.97 Cr | ₹6,162.60 Cr | +₹2,200.37 Cr; +35.71% |
 
 The pipeline result was:
@@ -59,7 +61,7 @@ The pipeline result was:
 - Audit matrix: 3 candidate metrics, 4 blocked metrics
 - Production approval: `false`
 
-These are not certified comparable-growth conclusions. The ITC filing disclosures concerning acquisitions and GST/cess changes require comparability qualification. Profit/Loss for period also remains subject to the metric policy's numerator/attribution definition. OCF in this run was not independently reconciled to the signed results PDF.
+These are not certified comparable-growth conclusions. The ITC filing disclosures concerning acquisitions and GST/cess changes require comparability qualification. Profit Growth now uses the owners-of-parent allocation concept for consolidated filings; the earlier unallocated `ProfitLossForPeriod` candidate is not accepted. The owner-profit mapping remains candidate-only until official PDF statement-row tie-out. OCF in this run was not independently reconciled to the signed results PDF.
 
 ## Definition and production gates still open
 
