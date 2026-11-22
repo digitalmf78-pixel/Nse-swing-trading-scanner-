@@ -631,19 +631,6 @@ class NsePipelineEngine {
     for (const [rawSym, rec] of Object.entries(overrides)) {
       const sym = rawSym.trim().toUpperCase();
       const existing = this.fundamentalsBySymbol.get(sym) ?? this.emptyFundamentalProfile(sym);
-      const validRecDe =
-        rec.debtToEquity !== null &&
-        rec.debtToEquity !== undefined &&
-        rec.debtToEquity >= 0 &&
-        (rec.debtToEquity > 0.005 || existing.debtToEquity === null)
-          ? rec.debtToEquity
-          : existing.debtToEquity;
-      const validRecIc =
-        rec.interestCoverage !== null &&
-        rec.interestCoverage !== undefined &&
-        (rec.interestCoverage > 0.1 || existing.interestCoverage === null)
-          ? rec.interestCoverage
-          : existing.interestCoverage;
       const useRecRevenuePeriod = rec.revenueGrowthPeriodEnd
         ? (!existing.revenueGrowthPeriodEnd || rec.revenueGrowthPeriodEnd > existing.revenueGrowthPeriodEnd || (rec.revenueGrowthPeriodEnd === existing.revenueGrowthPeriodEnd && rec.revenueGrowthPct !== null && rec.revenueGrowthPct !== undefined))
         : (rec.revenueGrowthPct !== null && rec.revenueGrowthPct !== undefined && !existing.revenueGrowthPeriodEnd);
