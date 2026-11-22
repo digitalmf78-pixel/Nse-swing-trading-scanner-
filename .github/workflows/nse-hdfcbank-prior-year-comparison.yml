@@ -45,25 +45,24 @@ jobs:
             --data-urlencode "index=equities" --data-urlencode "symbol=HDFCBANK" \
             --data-urlencode "type=Integrated Filing- Financials" --data-urlencode "page=1" \
             --data-urlencode "size=100" --output artifacts/HDFCBANK_integrated_filing_api.json
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          rows=json.loads(Path("artifacts/HDFCBANK_integrated_filing_api.json").read_text()).get("data",[])
-          selected={}
-          for period,key in [("30-SEP-2026","current"),("30-SEP-2025","prior")]:
-              hits=[r for r in rows if r.get("symbol")=="HDFCBANK" and r.get("qe_Date")==period
-                    and r.get("type_Sub")=="Original" and r.get("consolidated")=="Consolidated"
-                    and r.get("type")=="Integrated Filing- Financials" and r.get("xbrl")]
-              if len(hits)!=1:
-                  raise SystemExit(f"Expected exactly one {key} original consolidated HDFCBANK filing for {period}; got {len(hits)}")
-              selected[key]=hits[0]
-          metadata={}
-          for key,row in selected.items():
-              metadata[key]={k:row.get(k) for k in ["symbol","smName","seq_Id","qe_Date","type","type_Sub","audited","consolidated","broadcast_Date","creation_Date","revised_Date","revision_Remark","ixbrl","xbrl"]}
-              Path(f"artifacts/HDFCBANK_{key}_xbrl_url.txt").write_text(row["xbrl"])
-          Path("artifacts/HDFCBANK_pair_metadata.json").write_text(json.dumps(metadata,indent=2))
-          print(json.dumps(metadata,indent=2))
-          PY
+          node --experimental-strip-types --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import { resolveOriginalNseFilingPair } from './research/fundamental_pilot/nse_filing_pair.ts';
+          const rows=JSON.parse(fs.readFileSync('artifacts/HDFCBANK_integrated_filing_api.json','utf8')).data ?? [];
+          const selected=resolveOriginalNseFilingPair(rows,{
+            symbol:'HDFCBANK',
+            basis:'Consolidated',
+            currentPeriod:'30-SEP-2026',
+            priorPeriod:'30-SEP-2025',
+          });
+          const metadata={};
+          for (const [key,row] of Object.entries(selected)) {
+            metadata[key]=Object.fromEntries(['symbol','smName','seq_Id','qe_Date','type','type_Sub','audited','consolidated','broadcast_Date','creation_Date','revised_Date','revision_Remark','ixbrl','xbrl'].map(field=>[field,row[field] ?? null]));
+            fs.writeFileSync(`artifacts/HDFCBANK_${key}_xbrl_url.txt`,row.xbrl);
+          }
+          fs.writeFileSync('artifacts/HDFCBANK_pair_metadata.json',JSON.stringify(metadata,null,2));
+          console.log(JSON.stringify(metadata,null,2));
+          JS
       - name: Download both original NSE XBRL instances
         shell: bash
         run: |
