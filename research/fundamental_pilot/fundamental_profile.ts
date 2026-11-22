@@ -23,6 +23,8 @@ export interface FilingProvenance {
   sourceUrl: string;
   publishedAt: string;
   submission: FilingSubmission;
+  revisedAt: string | null;
+  revisionRemark: string | null;
   auditStatus: AuditStatus;
   basis: FilingBasis;
   periodEnd: string;
@@ -117,7 +119,10 @@ export function validateFundamentalProfile(profile: FundamentalProfile): Fundame
       continue;
     }
     if (record.value === null || !Number.isFinite(record.value)) add(`${path}.value`,'INVALID_VALUE','Validated metric requires a finite numeric value');
-    if (!record.currency || !record.unit) add(path,'UNIT_REQUIRED','Validated metric requires explicit currency and unit');
+    if (!record.unit) add(path,'UNIT_REQUIRED','Validated metric requires an explicit unit');
+    if (record.currency !== null && !/^[A-Z]{3}$/.test(record.currency)) add(\`${path}.currency\`,'INVALID_CURRENCY','Currency must be an ISO 4217 code or null for non-currency units');
+    if (record.unit === 'INR' && record.currency !== 'INR') add(\`${path}.currency\`,'CURRENCY_REQUIRED','INR-denominated metrics must declare INR currency');
+    if (record.unit !== 'INR' && record.currency !== null) add(\`${path}.currency\`,'CURRENCY_UNIT_MISMATCH','Non-currency units such as PERCENT or RATIO must have null currency');
     if (!record.formulaId?.trim() || !record.formulaVersion?.trim()) add(path,'FORMULA_REQUIRED','Validated metric requires formula ID and version');
     if (!record.filings.length) add(`${path}.filings`,'FILING_REQUIRED','Validated metric requires filing provenance');
     if (!record.rawFacts.length) add(`${path}.rawFacts`,'FACT_REQUIRED','Validated metric requires raw fact evidence');
@@ -138,6 +143,8 @@ export function validateFundamentalProfile(profile: FundamentalProfile): Fundame
       if (!isOfficialSource(filing.exchange,filing.sourceUrl)) add(fp,'UNTRUSTED_SOURCE','Source URL is not an official exchange archive/domain');
       if (!Number.isFinite(Date.parse(filing.publishedAt))) add(fp,'INVALID_PUBLICATION_DATE','Publication timestamp must be parseable');
       if (filing.auditStatus==='UNKNOWN') add(fp,'AUDIT_STATUS_UNKNOWN','Validated metrics cannot rely on unknown audit status');
+      if (filing.submission==='REVISION' && (!filing.revisedAt?.trim() || !filing.revisionRemark?.trim())) add(fp,'REVISION_METADATA_REQUIRED','Revision filings must preserve revised timestamp and revision remark');
+      if (filing.submission==='ORIGINAL' && filing.revisedAt!==null) add(fp,'ORIGINAL_HAS_REVISION_DATE','Original filing must not carry a revision timestamp');
       documentIds.add(filing.documentId);
       exchanges.add(filing.exchange);
     }
