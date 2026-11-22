@@ -81,6 +81,6 @@ Additional raw facts extracted (not approved as ratios):
 - Workflow: [NSE KSHINTL prior-year original XBRL comparison](https://github.com/digitalmf78-pixel/Nse-swing-trading-scanner-/blob/research/free-fundamental-sources/.github/workflows/nse-kshintl-prior-year-comparison.yml)
 - Initial successful structural run: [GitHub Actions run 45060668527](https://github.com/digitalmf78-pixel/Nse-swing-trading-scanner-/actions/runs/45060668527)
 - Updated run with metric summaries: [GitHub Actions run 45060813574](https://github.com/digitalmf78-pixel/Nse-swing-trading-scanner-/actions/runs/45060813574)
-- Artifact (7-day retention): [KSHINTL raw XML and comparison evidence](https://github.com/digitalmf78-pixel/Nse-swing-trading-scanner-/actions/runs/45060813574/artifacts)
+- Artifact (7-day retention): [KSHINTL raw XML and comparison evidence](https://github.com/digitalmf78-pixel/Nse-swing-trading-scanner-/actions/runs/45060813574/artifacts/14768939159)
 
 Keep all work on the isolated research branch. Main branch, scanner filters, live-price path, UI and Google AI Studio app remain unchanged.
