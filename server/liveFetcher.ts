@@ -360,19 +360,6 @@ function latestTs(map: Record<string, TimeseriesPoint[]>, key: string): Timeseri
   return arr && arr.length > 0 ? arr[arr.length - 1] : null;
 }
 
-function latestTsAtDate(
-  map: Record<string, TimeseriesPoint[]>,
-  key: string,
-  asOfDate: string
-): TimeseriesPoint | null {
-  const arr = map[key];
-  if (!arr || !asOfDate) return null;
-  for (let i = arr.length - 1; i >= 0; i -= 1) {
-    if (arr[i].asOfDate === asOfDate) return arr[i];
-  }
-  return null;
-}
-
 function yoyTsGrowthPct(
   map: Record<string, TimeseriesPoint[]>,
   key: string
@@ -473,19 +460,10 @@ async function fetchYahooSingleExchange(
     quoteCurrency && quoteCurrency !== 'INR' ? getFxRateToInr(quoteCurrency) : Promise.resolve(1),
   ]);
 
-  // 1. Revenue Growth YoY (prefer annual timeseries YoY, fallback to financialData)
-  let revGrowth = yoyTsGrowthPct(ts, 'annualTotalRevenue');
-  if (revGrowth === null) {
-    const fg = rawVal(fin.revenueGrowth);
-    if (fg !== null) revGrowth = fg * 100;
-  }
-
-  // 2. Profit Growth YoY
-  let profGrowth = yoyTsGrowthPct(ts, 'annualNetIncome');
-  if (profGrowth === null) {
-    const eg = rawVal(fin.earningsGrowth);
-    if (eg !== null) profGrowth = eg * 100;
-  }
+  // 1–2. Annual YoY growth: use dated annual statement points only.
+  // Yahoo financialData growth ratios do not expose a matching reporting-period date.
+  const revGrowth = yoyTsGrowthPct(ts, 'annualTotalRevenue');
+  const profGrowth = yoyTsGrowthPct(ts, 'annualNetIncome');
 
   // 3. ROE % — use annual profit and equity from the same reporting date.
   const annualNetIncome = latestTs(ts, 'annualNetIncome');
@@ -496,12 +474,10 @@ async function fetchYahooSingleExchange(
       : null;
   const equity =
     annualEquity && alignedAnnualNetIncome !== null ? annualEquity.value : null;
-  let roePct = rawVal(fin.returnOnEquity);
-  if (roePct !== null) {
-    roePct = roePct * 100;
-  } else if (alignedAnnualNetIncome !== null && equity !== null && equity > 0) {
-    roePct = (alignedAnnualNetIncome / equity) * 100;
-  }
+  const roePct =
+    alignedAnnualNetIncome !== null && equity !== null && equity > 0
+      ? (alignedAnnualNetIncome / equity) * 100
+      : null;
 
   // 4. ROCE % — annual EBIT and balance-sheet components must share an end date.
   const annualEbitPoint =
@@ -531,17 +507,13 @@ async function fetchYahooSingleExchange(
   }
 
   // 5. Debt / Equity (sanitize negative equity -> null).
-  let debtToEquity = rawVal(fin.debtToEquity);
-  if (debtToEquity !== null) {
-    debtToEquity = debtToEquity / 100;
-  } else if (
+  const debtToEquity =
     annualDebtPoint &&
     annualEquity &&
     annualDebtPoint.asOfDate === annualEquity.asOfDate &&
     annualEquity.value > 0
-  ) {
-    debtToEquity = annualDebtPoint.value / annualEquity.value;
-  }
+      ? annualDebtPoint.value / annualEquity.value
+      : null;
   if (debtToEquity !== null && debtToEquity < 0) {
     debtToEquity = null;
   }
@@ -577,9 +549,9 @@ async function fetchYahooSingleExchange(
   const rawOcf =
     latestTs(ts, 'trailingOperatingCashFlow')?.value ??
     latestTs(ts, 'annualOperatingCashFlow')?.value ??
-    rawVal(fin.operatingCashflow);
+    null;
   const operatingCashFlowInr = rawOcf !== null ? rawOcf * fxFinToInr : null;
-  const rawFcf = latestTs(ts, 'annualFreeCashFlow')?.value ?? rawVal(fin.freeCashflow);
+  const rawFcf = latestTs(ts, 'annualFreeCashFlow')?.value ?? null;
   const freeCashFlowInr = rawFcf !== null ? rawFcf * fxFinToInr : null;
 
   const qRevDate = latestTs(ts, 'quarterlyTotalRevenue')?.asOfDate || '';
