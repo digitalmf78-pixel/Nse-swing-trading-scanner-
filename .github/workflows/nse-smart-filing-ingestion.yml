@@ -80,7 +80,7 @@ jobs:
             pages="$page"
             if [ "$count" -lt 100 ]; then complete=true; break; fi
           done
-          python - <<'PY'
+          PAGES="$pages" COMPLETE="$complete" python - <<'PY'
           import json, os
           from pathlib import Path
           rows=[]
@@ -101,8 +101,6 @@ jobs:
           SYMBOL: ${{ inputs.symbol || 'ITC' }}
           PERIOD: ${{ inputs.period || '30-SEP-2026' }}
           BASIS: ${{ inputs.basis || 'Consolidated' }}
-          PAGES: ${{ env.pages }}
-          COMPLETE: ${{ env.complete }}
       - name: Resolve exact Original and full Revision history with TypeScript
         shell: bash
         run: |
