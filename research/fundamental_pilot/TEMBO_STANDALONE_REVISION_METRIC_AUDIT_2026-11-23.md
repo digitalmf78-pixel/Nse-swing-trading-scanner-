@@ -91,3 +91,32 @@ Therefore no Revenue Growth, Profit Growth or OCF growth percentage is released 
 - Production approval: **NO**.
 
 The workflow and all raw artifacts remain on the isolated research branch. The scanner runtime and Google AI Studio app remain untouched.
+
+
+## Follow-up: official PDF statement tie-out — critical Profit fact conflict
+
+The full current NSE-hosted results PDF has now been inspected. It explicitly presents the standalone and consolidated statements in separate columns, in ₹ lakhs.
+
+| Metric | Current H1 2026 XBRL candidate | Current H1 2026 official standalone PDF | Result |
+|---|---:|---:|---|
+| Revenue from operations | ₹4,342.363 lakh | ₹4,342.363 lakh | MATCH |
+| Profit/(Loss) for period | ₹8,747.860 lakh | ₹4,654.33 lakh | **CONFLICT — BLOCK** |
+| Net cash generated from operating activities | −₹6,364.39 lakh | −₹6,364.39 lakh | MATCH |
+
+Sources: current official NSE results attachment, standalone statement and cash-flow statement; [official current results PDF](https://nsearchives.nseindia.com/corporate/TEMBO_13112026183052_Final_Outcome_of_BM_13-11-26_SD.pdf).
+
+The profit conflict is not a unit conversion issue: the XBRL fact is INR 874,786,000 (₹8,747.86 lakh), while the PDF reports ₹4,654.33 lakh. The same YTD context has XBRL PBT INR 670,160,000 and TaxExpense INR −204,626,000. The reported PDF PBT is ₹6,701.60 lakh and tax expense totals ₹2,047.27 lakh, giving reported profit ₹4,654.33 lakh. The XBRL profit fact therefore does not reconcile to the statement and appears to reflect a sign/formula or source-fact inconsistency. We do not infer which upstream party caused it.
+
+The prior-year PDF shows standalone H1 2025 profit ₹3,131.87 lakh, matching the prior Original/Revision XBRL candidate. The current profit XBRL fact remains blocked; no profit growth is released. For reference only, the PDF-to-PDF reported profit change would be +48.61%, but it is **not** accepted as a pipeline metric until the source conflict is reconciled and the fact-selection policy is corrected.
+
+The prior-year standalone cash-flow comparative in the current 2026 PDF is OCF ₹6,449.29 lakh, matching the prior-year XBRL candidate ₹6,449.29 lakh. Current standalone OCF is −₹6,364.39 lakh in both XBRL and PDF. This confirms the raw cash-flow figures tie out, but the large negative swing still requires business/working-capital note interpretation before treating it as a quality signal.
+
+### Updated readiness decision
+
+- Revenue: source/PDF matched; candidate-only pending note/comparability review.
+- Profit: **XBRL/PDF conflict; REVIEW_REQUIRED; no growth value released.**
+- OCF: XBRL/PDF matched for current and prior H1 comparative; candidate-only pending working-capital and note review.
+- Prior-year Original vs Revision: the three prior metric facts remain identical.
+- Production approval: **NO**.
+
+This is a concrete false-confidence case: the XBRL selector returned a unique, undimensioned, exact-period fact with zero parser warnings, yet the selected Profit fact conflicts materially with the official standalone results statement. Parser success and unique-context selection are not enough; issuer statement tie-out is a mandatory independent gate.
