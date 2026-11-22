@@ -27,10 +27,10 @@ test('orchestrates revenue, profit and OCF candidates while blocking four unreso
   assert.equal(report.candidates.profitGrowth?.growthPercent,20);
   assert.equal(report.candidates.operatingCashFlow?.absoluteChange,50);
   assert.equal(report.auditMatrix.candidateCount,3);
-  assert.equal(report.auditMatrix.metrics.ROE.decision,'FORMULA_BLOCKED_DEFINITION');
-  assert.equal(report.auditMatrix.metrics.ROCE.decision,'FORMULA_BLOCKED_DEFINITION');
-  assert.equal(report.auditMatrix.metrics.DEBT_EQUITY.decision,'FORMULA_BLOCKED_DEFINITION');
-  assert.equal(report.auditMatrix.metrics.INTEREST_COVERAGE.decision,'FORMULA_BLOCKED_DEFINITION');
+  assert.equal(report.auditMatrix.metrics.ROE.decision,'DATA_BLOCKED');
+  assert.equal(report.auditMatrix.metrics.ROCE.decision,'DATA_BLOCKED');
+  assert.equal(report.auditMatrix.metrics.DEBT_EQUITY.decision,'DATA_BLOCKED');
+  assert.equal(report.auditMatrix.metrics.INTEREST_COVERAGE.decision,'DATA_BLOCKED');
   assert.equal(report.productionApproved,false);
   assert.equal(report.auditMatrix.productionApproved,false);
 });
