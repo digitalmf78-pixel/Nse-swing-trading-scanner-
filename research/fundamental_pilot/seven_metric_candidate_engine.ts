@@ -12,6 +12,9 @@ export interface SevenMetricPeriodInput {
   revenue: ComparableMetricFact | null;
   profit: ComparableMetricFact | null;
   operatingCashFlow: ComparableMetricFact | null;
+  revenueSelectionStatus?: MetricDataStatus;
+  profitSelectionStatus?: MetricDataStatus;
+  operatingCashFlowSelectionStatus?: MetricDataStatus;
 }
 
 export interface SevenMetricCandidateReport {
@@ -55,6 +58,17 @@ function blockedOcf(): OcfCandidateResult {
   };
 }
 
+function missingFactStatus(
+  current: MetricDataStatus | undefined,
+  prior: MetricDataStatus | undefined,
+): MetricDataStatus {
+  const statuses=[current,prior].filter((value):value is MetricDataStatus=>value!==undefined);
+  if(statuses.includes('CONFLICT')) return 'CONFLICT';
+  if(statuses.includes('BLOCKED')) return 'BLOCKED';
+  if(statuses.includes('NOT_APPLICABLE')) return 'NOT_APPLICABLE';
+  return 'MISSING';
+}
+
 function candidateStatus(status: string): MetricDataStatus {
   if (status === 'CANDIDATE_ONLY') return 'VALIDATED';
   if (status === 'BLOCKED_MISSING_VALUE') return 'MISSING';
@@ -93,13 +107,13 @@ export function buildSevenMetricCandidateReport(
     'REVENUE_GROWTH'|'PROFIT_GROWTH'|'ROE'|'ROCE'|'DEBT_EQUITY'|'INTEREST_COVERAGE'|'OPERATING_CASH_FLOW',
     MetricDataStatus
   >> = {
-    REVENUE_GROWTH: revenueGrowth ? candidateStatus(revenueGrowth.status) : 'MISSING',
-    PROFIT_GROWTH: profitGrowth ? candidateStatus(profitGrowth.status) : 'MISSING',
+    REVENUE_GROWTH: revenueGrowth ? candidateStatus(revenueGrowth.status) : missingFactStatus(current.revenueSelectionStatus,prior.revenueSelectionStatus),
+    PROFIT_GROWTH: profitGrowth ? candidateStatus(profitGrowth.status) : missingFactStatus(current.profitSelectionStatus,prior.profitSelectionStatus),
     ROE: 'BLOCKED',
     ROCE: 'BLOCKED',
     DEBT_EQUITY: 'BLOCKED',
     INTEREST_COVERAGE: 'BLOCKED',
-    OPERATING_CASH_FLOW: operatingCashFlow ? candidateStatus(operatingCashFlow.status) : 'MISSING',
+    OPERATING_CASH_FLOW: operatingCashFlow ? candidateStatus(operatingCashFlow.status) : missingFactStatus(current.operatingCashFlowSelectionStatus,prior.operatingCashFlowSelectionStatus),
   };
 
   return {
