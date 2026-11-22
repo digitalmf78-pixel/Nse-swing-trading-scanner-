@@ -137,3 +137,5 @@ jobs:
           path: artifacts/
           if-no-files-found: error
           retention-days: 7
+
+# Quarterly OCF is never guessed when the Q1 YTD cash-flow statement is absent.
