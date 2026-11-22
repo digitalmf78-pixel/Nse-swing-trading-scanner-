@@ -52,6 +52,7 @@ interface Thresholds {
 }
 
 interface StreakInfo {
+  lastScanDate: string;
   consecutiveStreak: number;
   totalQualifyingSessions: number;
   firstStreakDate: string;
@@ -166,6 +167,7 @@ class NsePipelineEngine {
       const sym = (r.TckrSymb || '').trim().toUpperCase();
       if (!sym) continue;
       map.set(sym, {
+        lastScanDate: (r.LastScanDate || '').trim(),
         consecutiveStreak: toNum(r.ConsecutiveAorBScanSessions) ?? 0,
         totalQualifyingSessions: toNum(r.TotalAorBQualifyingScanSessions) ?? 0,
         firstStreakDate: (r.FirstDateOfCurrentStreak || '').trim(),
@@ -1473,8 +1475,9 @@ class NsePipelineEngine {
       const valid30dCount = delivSlice.valid30dCount;
       const computedCategory = delivSlice.deliveryCategory;
 
-      // Use streak file only if latestSessionDate matches streak's LastScanDate; otherwise compute dynamically across all sessions
-      const useStaticStreak = this.latestSessionDate === '2026-11-13';
+      // Use cached streak data only when this symbol's CSV snapshot matches the actual latest NSE session.
+      // Otherwise, ignore the stale snapshot and recompute from available bhavcopy history.
+      const useStaticStreak = streak?.lastScanDate === this.latestSessionDate;
       const dynamicStreak = useStaticStreak
         ? null
         : this.computeDynamicStreak(seriesHistory, isIpo);
