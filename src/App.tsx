@@ -708,7 +708,7 @@ export default function App() {
                             {ms.highRvolUp} Up / {ms.highRvolDown} Down
                           </div>
                           <div className="text-[11px] font-mono text-slate-500">
-                            Institutional participation
+                            High-RVOL participation
                           </div>
                         </div>
 
