@@ -54,6 +54,23 @@ The shared `statement_comparative_guard.ts` returned `RECLASSIFIED_COMPARATIVE_R
 Official prior Original results PDF (31-Oct-2025):  
 https://nsearchives.nseindia.com/corporate/Himanshugail_31102025142548_BMoutcome.pdf
 
+### Reclassification bridge — quantified from both official PDFs
+
+The two statements expose the exact subtotal bridge (₹ crore):
+
+| Cash-flow bridge line | Prior Original PDF (31-Oct-2025) | Current FY27 PDF comparative (30-Oct-2026) | Difference |
+|---|---:|---:|---:|
+| Subtotal of operating adjustments | 783.21 | 884.29 | +101.08 |
+| Operating profit before working-capital changes | 6,377.45 | 6,478.53 | +101.08 |
+| Changes in working capital | 512.80 | 533.60 | +20.80 |
+| Cash generated from operations | 6,890.25 | 7,012.13 | +121.88 |
+| Direct taxes paid | (1,142.91) | (1,142.91) | 0.00 |
+| Net operating cash flow | 5,747.34 | 5,869.22 | +121.88 |
+
+The arithmetic fully explains the ₹121.88 Cr OCF movement at subtotal level: ₹101.08 Cr arises before working-capital changes and ₹20.80 Cr in the working-capital subtotal; tax paid is unchanged. The FY27 filing explicitly says prior-period figures were regrouped/reclassified to correspond with current-period classification/disclosure (note 3 to consolidated cash flows). The original and current comparative statements also present different detailed line-item groupings, so this subtotal bridge is not proof that the underlying cash economics changed.
+
+**Decision:** classify this as a disclosed comparative regrouping/reclassification, not as an unexplained XBRL parser defect. However, until each affected detailed adjustment and working-capital line is mapped across the two presentations, OCF YoY remains REVIEW_REQUIRED; neither ₹5,747.34 Cr nor ₹5,869.22 Cr is silently selected as the comparable base. No OCF growth output is released.
+
 ## Final seven-metric audit matrix
 
 - Revenue Growth: candidate-only, +24.71%, official PDF matched.
