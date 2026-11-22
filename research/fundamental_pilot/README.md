@@ -10,7 +10,7 @@ This folder is isolated from the scanner runtime. The intended production implem
 - `fundamental_profile.ts` defines the seven-metric provenance-first TypeScript data contract and validates status, issuer, ISIN, period, basis, official exchange source, units, raw fact references and formula version. Unvalidated metrics must carry null values and an explanation; a profile cannot silently mix NSE and BSE sources.
 - `metric_growth_candidate.ts` calculates only mechanical same-period YoY Revenue/Profit Growth candidates after exact concept, unit, basis, undimensioned group context and calendar alignment checks. It blocks TTM, negative/zero prior bases and period mismatches. Its output is explicitly `CANDIDATE_ONLY` and can never mark itself production-approved.
 - `operating_cashflow_candidate.ts` compares only same-period cash-flow-statement OCF facts. It preserves positive/negative direction, withholds percentage change for a zero/negative prior base, and never derives quarterly OCF by subtracting YTD values.
-- `quarterly_ocf_from_ytd.ts` can derive quarterly OCF only from four exact current/prior H1-YTD and Q1-YTD facts with matching concept, unit, basis, dimensions and dates. Any mismatch blocks the derivation.
+- `quarterly_ocf_from_ytd.ts` can derive quarterly OCF only from four exact current/prior H1-YTD and Q1-YTD facts with matching concept, unit, basis, dimensions and dates. Any mismatch blocks the derivation. The KSHINTL four-filing workflow checks whether Q1 YTD cash-flow facts actually exist before attempting a Q2 derivation.
 - `metric_definition_policy.ts` is the explicit seven-metric readiness catalog: Revenue Growth, Profit Growth and OCF are candidate-only for non-financials; ROE, ROCE, Debt/Equity and Interest Coverage stay blocked until definitions and statement mappings are resolved. Bank, NBFC, Insurance and unknown-sector paths are separately gated.
 - It uses `fast-xml-parser` (MIT; TypeScript declarations; ESM/CommonJS support) and rejects DTD/entity declarations.
 - It has a 25 MB input limit and intentionally rejects ZIP input; archive decompression is a separate ingestion step.
@@ -19,7 +19,7 @@ This folder is isolated from the scanner runtime. The intended production implem
 - `sector_metric_policy.test.ts` covers bank-sector exclusions and exact period/basis/group-context checks.
 - `group_fact_selection.ts` selects only one unique undimensioned group fact after exact context checks; segment facts cannot be added to manufacture a group total. Its dedicated tests cover ambiguity, wrong periods and unresolved contexts.
 - `statement_reconciliation.test.ts` covers named statement-presentation variants and fail-closed mapping decisions.
-- The isolated GitHub Actions test workflow runs every `research/fundamental_pilot/*.test.ts` file. Latest verified run: 92 tests passed, 0 failed. The package script `npm run test:fundamental-pilot` currently runs only `xbrl_extract.test.ts`, not the complete research test suite.
+- The isolated GitHub Actions test workflow runs every `research/fundamental_pilot/*.test.ts` file. Latest verified run: 101 tests passed, 0 failed. The package script `npm run test:fundamental-pilot` currently runs only `xbrl_extract.test.ts`, not the complete research test suite.
 
 ## Sector and context safety gates
 
