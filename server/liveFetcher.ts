@@ -75,7 +75,7 @@ export async function getFxRateToInr(currency: string): Promise<number> {
   if (curr === 'USD') return 84.5;
   if (curr === 'EUR') return 90;
   if (curr === 'GBP') return 107;
-  return 1;
+  throw new Error(`Unable to obtain a reliable ${curr} to INR exchange rate`);
 }
 
 export interface LiveFundamentalRecord {
