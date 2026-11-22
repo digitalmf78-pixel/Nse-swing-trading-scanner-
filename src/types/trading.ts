@@ -104,11 +104,17 @@ export interface FundamentalProfile {
   periodAlignmentStatus: string;
   providerSector: string;
   revenueGrowthPct: number | null;
+  revenueGrowthPeriodEnd: string;
   profitGrowthPct: number | null;
+  profitGrowthPeriodEnd: string;
   roePct: number | null;
+  roePeriodEnd: string;
   rocePct: number | null;
+  rocePeriodEnd: string;
   debtToEquity: number | null;
+  debtToEquityPeriodEnd: string;
   interestCoverage: number | null;
+  interestCoveragePeriodEnd: string;
   operatingCashFlowInr: number | null;
   operatingCashFlowPeriodEnd: string;
   freeCashFlowInr: number | null;
