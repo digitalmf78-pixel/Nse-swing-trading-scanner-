@@ -152,8 +152,12 @@ jobs:
             --header "Accept: application/xml, text/xml, */*" \
             --get "https://www.nseindia.in/api/download_xbrl" \
             --data-urlencode "fileUrl=$file_url_json" \
+            --dump-header artifacts/KSHINTL-xbrl-proxy-headers.txt \
             --output artifacts/KSHINTL_2026-09-30_original_standalone_NSE_XBRL.xml
           test -s artifacts/KSHINTL_2026-09-30_original_standalone_NSE_XBRL.xml
+          echo "Proxy response preview:"
+          head -c 2500 artifacts/KSHINTL_2026-09-30_original_standalone_NSE_XBRL.xml | tee artifacts/KSHINTL-xbrl-proxy-preview.txt
+          echo
           file artifacts/KSHINTL_2026-09-30_original_standalone_NSE_XBRL.xml | tee artifacts/KSHINTL-raw-xbrl-file-type.txt
           wc -c artifacts/KSHINTL_2026-09-30_original_standalone_NSE_XBRL.xml | tee artifacts/KSHINTL-raw-xbrl-file-size.txt
           sha256sum artifacts/KSHINTL_2026-09-30_original_standalone_NSE_XBRL.xml | tee artifacts/KSHINTL-raw-xbrl-SHA256.txt
@@ -161,6 +165,10 @@ jobs:
           import xml.etree.ElementTree as ET
           from pathlib import Path
           p=Path("artifacts/KSHINTL_2026-09-30_original_standalone_NSE_XBRL.xml")
+          raw=p.read_text(errors="replace")
+          if "<html" in raw[:2000].lower() or "<!doctype html" in raw[:2000].lower():
+              print("NSE proxy returned HTML, not an XML instance; preserving response for diagnosis")
+              raise SystemExit("Proxy response is HTML, not XBRL XML")
           root=ET.parse(p).getroot()
           ns={"x":"http://www.xbrl.org/2003/instance"}
           contexts=root.findall(".//x:context",ns)
@@ -173,9 +181,10 @@ jobs:
           PY
 
       - name: Upload verified archives for inspection
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: nse-ind-as-xbrl-format-taxonomies-kshintl-xbrl-proxy
+          name: nse-ind-as-xbrl-format-taxonomies-kshintl-xbrl-proxy-diagnostic
           path: artifacts/
           if-no-files-found: error
           retention-days: 7
