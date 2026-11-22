@@ -124,3 +124,29 @@ Inspected: README, INSTRUCTION, LICENSE, settings, NSE client, symbol/scrip mast
 3. Use Jayadityas repository only as design reference for company master, manifests, raw archive and exchange discovery; its parser/metrics layer is not implemented in inspected tree.
 4. Do not integrate either repository into app runtime now. Next step is a read-only 20-company filing pilot, with original/revised filings and consolidated/standalone pairs deliberately tested. Record actual coverage and discrepancies for each of seven metrics.
 5. No application runtime code, scanner filters, ranking, UI, APIs, or reload behavior changed. Only this research document is updated.
+## Scanner read-only audit and pilot readiness (2026-11-22)
+
+Inspected the Google AI Studio scanner main branch without changing it: `server/nsePipeline.ts`, `src/types/trading.ts`, `src/components/FundamentalAuditTable.tsx`, `data/inputs/fundamental_thresholds.json`, `data/inputs/fundamental_metrics.csv`, and `data/research/fundamental_free_source_cache.csv`.
+
+### Current pilot readiness
+- `data/inputs/fundamental_metrics.csv` is empty in the inspected main-branch snapshot.
+- `data/research/fundamental_free_source_cache.csv` is also empty. Therefore no 20-company source comparison can be truthfully reported as completed from these files.
+- Threshold configuration exists (growth >= 0, ROE >= 10%, ROCE >= 12%, D/E <= 1, interest coverage >= 3x, positive OCF required), but thresholds do not establish that source values are correct.
+
+### Important ingestion gaps found (read-only observation; no fixes made)
+- `mergeFreeSourceCache()` currently maps RevenueGrowthPct, ProfitGrowthPct, ROEPercent, ROCEPercent, DebtToEquity and InterestCoverage, but does not map an OperatingCashFlow metric. The profile has operatingCashFlowInr, yet this free-source cache path cannot populate it.
+- The cache CSV is row-per-metric, but the merge code initializes source URL, provider, financial period and retrieved date only when it first creates a profile. Later metric rows for that same symbol do not retain independent per-metric source/period/basis metadata. This can make a profile-level source/period label misleading if rows differ.
+- The inspected cache merge does not read an explicit consolidated/standalone basis or per-metric filing/revision identity from the row. Such fields must be part of the pilot evidence and cannot be inferred from a company-level profile.
+- Empty CSV files mean the current snapshot has no rows to validate; they do not prove the underlying source collectors are broken, only that these committed data files contain no pilot observations.
+
+### Official source verification
+- NSE Integrated Filing – Financial page was rechecked on 2026-11-22. It exposes quarter end, original/revised submission, audited/unaudited, consolidated/standalone, XBRL link, broadcast timestamp, revised timestamp and remarks. Search result showed 31,173 records in the displayed filing table. Source: https://www.nseindia.in/companies-listing/corporate-integrated-filing
+- A live NSE-hosted iXBRL example exposes reporting-period start/end, audited status, basis, and units (example states Amount in Lakhs). Source: https://nsearchives.nseindia.com/corporate/ixbrl/INTEGRATED_FILING_INDAS_209920_04112026210644_iXBRL_WEB.html
+- These official fields support a strong provenance contract, but the example alone does not validate our parser or seven metric calculations.
+
+### Decision / next safe step
+1. Do not claim the 20-company pilot is complete; it has not been run from the currently committed cache files.
+2. Before integration, define a row-level metric schema including symbol/ISIN, metric, value, unit, period start/end, filing date/time, original/revised status, basis, audited status, source URL, concept/formula version and retrieval timestamp.
+3. Add explicit OCF mapping and per-metric provenance in a separate research-only proposal; do not change runtime code until the user approves a scoped implementation.
+4. Select 20 symbols from the scanner's actual eligible universe, then fetch and compare original official NSE/BSE filing documents. Mark absent/sector-inapplicable values explicitly; never infer or zero-fill.
+5. Main branch, scanner filters, ranking, UI, APIs, reload behavior and Google AI Studio app remain unchanged by this audit. Only this research document records the findings.
