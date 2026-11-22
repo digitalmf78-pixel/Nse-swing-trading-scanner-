@@ -60,3 +60,49 @@ test('blocks invalid calendar and leap-day alignment',()=>{
   const prior=fact({periodStart:'2023-02-28',periodEnd:'2023-03-31',periodType:'YTD'});
   assert.equal(calculateGrowthCandidate('REVENUE_GROWTH',current,prior).status,'BLOCKED_PERIOD_ALIGNMENT');
 });
+
+test('ITC Q2 RevenueFromOperations pilot reproduces the mechanical +43.86% comparison',()=>{
+  const r=calculateGrowthCandidate('REVENUE_GROWTH',
+    fact({numericValue:30578.40}),
+    fact({numericValue:21255.86,periodStart:'2025-07-01',periodEnd:'2025-09-30'}));
+  assert.equal(r.status,'CANDIDATE_ONLY');
+  assert.equal(r.growthPercent,43.86);
+});
+
+test('ITC Q2 ProfitLossForPeriod pilot reproduces the mechanical -18.46% comparison',()=>{
+  const concept='in-capmkt:ProfitLossForPeriod';
+  const r=calculateGrowthCandidate('PROFIT_GROWTH',
+    fact({concept,numericValue:4229.33}),
+    fact({concept,numericValue:5186.55,periodStart:'2025-07-01',periodEnd:'2025-09-30'}));
+  assert.equal(r.growthPercent,-18.46);
+});
+
+test('ITC H1 RevenueFromOperations pilot reproduces the mechanical +35.41% comparison',()=>{
+  const r=calculateGrowthCandidate('REVENUE_GROWTH',
+    fact({numericValue:60101.70,periodType:'YTD',periodStart:'2026-04-01'}),
+    fact({numericValue:44385.21,periodType:'YTD',periodStart:'2025-04-01',periodEnd:'2025-09-30'}));
+  assert.equal(r.growthPercent,35.41);
+});
+
+test('ITC H1 ProfitLossForPeriod pilot reproduces the mechanical -17.02% comparison',()=>{
+  const concept='in-capmkt:ProfitLossForPeriod';
+  const r=calculateGrowthCandidate('PROFIT_GROWTH',
+    fact({concept,numericValue:8738.12,periodType:'YTD',periodStart:'2026-04-01'}),
+    fact({concept,numericValue:10529.96,periodType:'YTD',periodStart:'2025-04-01',periodEnd:'2025-09-30'}));
+  assert.equal(r.growthPercent,-17.02);
+});
+
+test('KSHINTL Q2 RevenueFromOperations pilot reproduces the mechanical +85.31% comparison',()=>{
+  const r=calculateGrowthCandidate('REVENUE_GROWTH',
+    fact({numericValue:1319.654}),
+    fact({numericValue:712.148,periodStart:'2025-07-01',periodEnd:'2025-09-30'}));
+  assert.equal(r.growthPercent,85.31);
+});
+
+test('KSHINTL Q2 ProfitLossForPeriod pilot reproduces the mechanical +62.05% comparison',()=>{
+  const concept='in-capmkt:ProfitLossForPeriod';
+  const r=calculateGrowthCandidate('PROFIT_GROWTH',
+    fact({concept,numericValue:47.953}),
+    fact({concept,numericValue:29.591,periodStart:'2025-07-01',periodEnd:'2025-09-30'}));
+  assert.equal(r.growthPercent,62.05);
+});
