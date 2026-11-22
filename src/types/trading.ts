@@ -110,7 +110,9 @@ export interface FundamentalProfile {
   debtToEquity: number | null;
   interestCoverage: number | null;
   operatingCashFlowInr: number | null;
+  operatingCashFlowPeriodEnd: string;
   freeCashFlowInr: number | null;
+  freeCashFlowPeriodEnd: string;
   earningsQualityStatus: string;
   valuationStatus: string;
   trailingPE: number | null;
