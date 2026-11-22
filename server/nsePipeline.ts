@@ -638,6 +638,20 @@ class NsePipelineEngine {
         (rec.interestCoverage > 0.1 || existing.interestCoverage === null)
           ? rec.interestCoverage
           : existing.interestCoverage;
+      const useRecOcfPeriod =
+        rec.operatingCashFlowInr !== null &&
+        rec.operatingCashFlowInr !== undefined &&
+        (!rec.operatingCashFlowPeriodEnd
+          ? !existing.operatingCashFlowPeriodEnd
+          : !existing.operatingCashFlowPeriodEnd ||
+            rec.operatingCashFlowPeriodEnd >= existing.operatingCashFlowPeriodEnd);
+      const useRecFcfPeriod =
+        rec.freeCashFlowInr !== null &&
+        rec.freeCashFlowInr !== undefined &&
+        (!rec.freeCashFlowPeriodEnd
+          ? !existing.freeCashFlowPeriodEnd
+          : !existing.freeCashFlowPeriodEnd ||
+            rec.freeCashFlowPeriodEnd >= existing.freeCashFlowPeriodEnd);
       const merged: FundamentalProfile = {
         ...existing,
         asOfDate: rec.asOfDate || existing.asOfDate,
@@ -658,10 +672,10 @@ class NsePipelineEngine {
         rocePct: rec.rocePct ?? existing.rocePct,
         debtToEquity: validRecDe !== null && validRecDe >= 0 ? validRecDe : null,
         interestCoverage: validRecIc !== null && validRecIc > 0.1 ? validRecIc : null,
-        operatingCashFlowInr: rec.operatingCashFlowInr ?? existing.operatingCashFlowInr,
-        operatingCashFlowPeriodEnd: rec.operatingCashFlowPeriodEnd || existing.operatingCashFlowPeriodEnd,
-        freeCashFlowInr: rec.freeCashFlowInr ?? existing.freeCashFlowInr,
-        freeCashFlowPeriodEnd: rec.freeCashFlowPeriodEnd || existing.freeCashFlowPeriodEnd,
+        operatingCashFlowInr: useRecOcfPeriod ? rec.operatingCashFlowInr! : existing.operatingCashFlowInr,
+        operatingCashFlowPeriodEnd: useRecOcfPeriod ? (rec.operatingCashFlowPeriodEnd || '') : existing.operatingCashFlowPeriodEnd,
+        freeCashFlowInr: useRecFcfPeriod ? rec.freeCashFlowInr! : existing.freeCashFlowInr,
+        freeCashFlowPeriodEnd: useRecFcfPeriod ? (rec.freeCashFlowPeriodEnd || '') : existing.freeCashFlowPeriodEnd,
         trailingPE: rec.trailingPE ?? existing.trailingPE,
         priceToBook: rec.priceToBook ?? existing.priceToBook,
         marketCapInr: rec.marketCapInr ?? existing.marketCapInr,
