@@ -80,3 +80,11 @@ test('blocks mismatched YTD start/end dates across years',()=>{
     fact(80,'2025-04-01','2025-09-30'),fact(30,'2025-03-31','2025-06-30'),
   ).status,'BLOCKED_PERIOD_ALIGNMENT');
 });
+
+test('rejects impossible calendar dates without throwing',()=>{
+  const r=deriveQuarterlyOcfFromYtd(
+    fact(100,'2026-04-01','2026-02-30'),fact(40,'2026-04-01','2026-06-30'),
+    fact(80,'2025-04-01','2025-09-30'),fact(30,'2025-04-01','2025-06-30'),
+  );
+  assert.equal(r.status,'BLOCKED_PERIOD_ALIGNMENT');
+});
