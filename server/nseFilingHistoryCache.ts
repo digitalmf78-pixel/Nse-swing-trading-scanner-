@@ -97,7 +97,7 @@ export async function collectNseFilingHistoryForSymbols(
   options: { concurrency?: number; fetchImpl?: typeof fetch } = {},
 ): Promise<NseFilingHistoryCollectionReport> {
   const symbols = [...new Set(rawSymbols.map(s => s.trim().toUpperCase()).filter(Boolean))];
-  const concurrency = options.concurrency ?? 2;
+  const concurrency = options.concurrency ?? 1;
   if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 5) {
     throw new Error('concurrency must be an integer from 1 to 5');
   }
