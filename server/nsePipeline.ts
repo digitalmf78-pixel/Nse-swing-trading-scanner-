@@ -2004,7 +2004,7 @@ class NsePipelineEngine {
 
     const summary =
       status === 'BULLISH'
-        ? `Institutional delivery accumulation dominates (${deliveryExpandingUp} up vs ${deliveryExpandingDown} down on >=1.2x DelivQty) with ${aboveEma21Pct.toFixed(0)}% liquid stocks above EMA21 (${emaCrossBullishCount} fresh EMA 21/44 crosses).`
+        ? `High-delivery up sessions dominate (${deliveryExpandingUp} up vs ${deliveryExpandingDown} down on >=1.2x DelivQty) with ${aboveEma21Pct.toFixed(0)}% liquid stocks above EMA21 (${emaCrossBullishCount} fresh EMA 21/44 crosses).`
         : status === 'BEARISH'
           ? `Distribution pressure outweighs accumulation (${deliveryExpandingDown} down vs ${deliveryExpandingUp} up on >=1.2x DelivQty); keep strict stop & selective Tier 1 discipline.`
           : `Mixed EOD delivery flow (${deliveryExpandingUp} up vs ${deliveryExpandingDown} down on >=1.2x DelivQty; ${breadthPct.toFixed(0)}% A/D breadth) — stay selective on Tier 1 setups.`;
@@ -3068,7 +3068,7 @@ class NsePipelineEngine {
       ipoRows.length === 0
         ? 'No recent IPOs (<1 year) detected yet; run Quote Calendar & IPO Sync to scan first-trade dates across all NSE symbols.'
         : status === 'BULLISH'
-          ? `IPO cohort (<1Y, ${ipoRows.length} stocks) shows strong institutional accumulation (${deliveryExpandingUp} up vs ${deliveryExpandingDown} down on >=1.2x DelivQty) with ${uTurnReadyCount} U-Turn Ready setups.`
+          ? `IPO cohort (<1Y, ${ipoRows.length} stocks) shows strong delivery participation (${deliveryExpandingUp} up vs ${deliveryExpandingDown} down on >=1.2x DelivQty) with ${uTurnReadyCount} U-Turn Ready setups.`
           : status === 'BEARISH'
             ? `Post-listing distribution pressure across recent IPOs (${deliveryExpandingDown} down vs ${deliveryExpandingUp} up on >=1.2x DelivQty); wait for U-Turn zone confirmation.`
             : `Selective IPO rotation (${advancers} adv / ${decliners} dec · Avg Deliv ${avgDeliveryPct.toFixed(1)}%) — focus on liquid U-Turn Confirmed/Trigger IPOs.`;
