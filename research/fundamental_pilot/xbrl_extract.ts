@@ -241,16 +241,25 @@ export function extractXbrl(xml: string): XbrlExtraction {
           const concept = attr(node, 'name') ?? key;
           const raw = textOf(node).trim();
           const nil = (attr(node, 'nil') ?? 'false').toLowerCase() === 'true';
-          const scale = parseScale(attr(node, 'scale'));
+          const scaleRaw = attr(node, 'scale');
+          const scale = parseScale(scaleRaw);
           const sign = attr(node, 'sign');
           const format = attr(node, 'format');
           const continuedAt = attr(node, 'continuedat');
           const unitRef = attr(node, 'unitref');
           let numeric: number | null = null;
           if (!nil && raw && (unitRef || tag === 'nonfraction' || tag === 'fraction')) {
-            // Fail closed: do not guess at Inline XBRL transformation rules or
-            // concatenate continuation chains until their specifications are implemented.
-            if (format) {
+            // Fail closed: never normalize a value without a resolved context/unit,
+            // a supported scale/sign, or implemented Inline XBRL transformations.
+            if (!contextRef || !contexts[contextRef]) {
+              warnings.push(`Fact ${concept} references an unresolved context; numeric value withheld`);
+            } else if (unitRef && !units[unitRef]) {
+              warnings.push(`Fact ${concept} references an unresolved unit ${unitRef}; numeric value withheld`);
+            } else if (scaleRaw !== null && scale === null) {
+              warnings.push(`Fact ${concept} has unsupported scale ${scaleRaw}; numeric value withheld`);
+            } else if (sign !== null && sign !== '-' && sign !== '+') {
+              warnings.push(`Fact ${concept} has unsupported sign ${sign}; numeric value withheld`);
+            } else if (format) {
               warnings.push(`Fact ${concept} uses unsupported Inline XBRL format transformation ${format}; numeric value withheld`);
             } else if (continuedAt) {
               warnings.push(`Fact ${concept} uses continuedAt=${continuedAt}; numeric value withheld until continuation resolution is implemented`);
