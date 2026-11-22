@@ -21,7 +21,7 @@ This folder is isolated from the scanner runtime. The intended production implem
 - `sector_metric_policy.test.ts` covers bank-sector exclusions and exact period/basis/group-context checks.
 - `group_fact_selection.ts` selects only one unique undimensioned group fact after exact context checks; segment facts cannot be added to manufacture a group total. Its dedicated tests cover ambiguity, wrong periods and unresolved contexts.
 - `statement_reconciliation.test.ts` covers named statement-presentation variants and fail-closed mapping decisions.
-- The isolated GitHub Actions test workflow runs every `research/fundamental_pilot/*.test.ts` file. Latest verified run: 121 tests passed, 0 failed. The package script `npm run test:fundamental-pilot` currently runs only `xbrl_extract.test.ts`, not the complete research test suite.
+- The isolated GitHub Actions test workflow runs every `research/fundamental_pilot/*.test.ts` file. Latest verified run: 124 tests passed, 0 failed. The package script `npm run test:fundamental-pilot` currently runs only `xbrl_extract.test.ts`, not the complete research test suite.
 
 ## Sector and context safety gates
 
