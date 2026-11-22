@@ -1434,7 +1434,7 @@ export const StockDetailView: React.FC<StockDetailViewProps> = ({
                   </h3>
                   <p className="text-xs text-slate-500">
                     {data.fundamentals
-                      ? `${data.fundamentals.source || 'Cached'} · Period End ${data.fundamentals.financialPeriodEnd || '—'} · Pub ${data.fundamentals.publicationDate || data.summary.latestFilingDate || '—'}`
+                      ? `${data.fundamentals.source || 'Cached'} · Reference Period End ${data.fundamentals.financialPeriodEnd || '—'} · Pub ${data.fundamentals.publicationDate || data.summary.latestFilingDate || '—'}`
                       : 'No fundamental ratio record cached for this symbol yet'}
                   </p>
                 </div>
@@ -1553,6 +1553,17 @@ export const StockDetailView: React.FC<StockDetailViewProps> = ({
               </h3>
               {data.fundamentals ? (
                 <dl className="divide-y divide-slate-100 text-xs">
+                  <div className="py-2 flex justify-between">
+                    <dt className="text-slate-500">Free Cash Flow (Annual)</dt>
+                    <dd className="font-mono text-slate-900 text-right">
+                      {data.fundamentals.freeCashFlowInr !== null
+                        ? `₹${data.fundamentals.freeCashFlowInr.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
+                        : '—'}
+                      <div className="text-[10px] text-slate-500">
+                        Period: {data.fundamentals.freeCashFlowPeriodEnd || 'Date unavailable'}
+                      </div>
+                    </dd>
+                  </div>
                   <div className="py-2 flex justify-between">
                     <dt className="text-slate-500">Trailing P/E</dt>
                     <dd className="font-mono text-slate-900">
