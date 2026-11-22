@@ -19,7 +19,7 @@ const blocked=(status:QuarterlyOcfDerivationStatus,explanation:string):Quarterly
   status,currentQuarterValue:null,priorQuarterValue:null,currentQuarterStart:null,currentQuarterEnd:null,
   priorQuarterStart:null,priorQuarterEnd:null,yoyPercent:null,productionApproved:false,explanation,
 });
-const validDate=(s:string)=>/^\d{4}-\d{2}-\d{2}$/.test(s)&&new Date(`${s}T00:00:00Z`).toISOString?.().slice(0,10)===s;
+const validDate=(s:string)=>{if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(s))return false;const d=new Date(`${s}T00:00:00Z`);return !Number.isNaN(d.getTime())&&d.toISOString().slice(0,10)===s;}
 const shiftYear=(s:string):string|null=>{
   if(!validDate(s)) return null;
   const [y,m,d]=s.split('-').map(Number);
