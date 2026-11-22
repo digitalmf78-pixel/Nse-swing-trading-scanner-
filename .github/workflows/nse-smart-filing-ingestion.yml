@@ -97,10 +97,6 @@ jobs:
           Path("artifacts/nse-filing-metadata.json").write_text(json.dumps(payload,indent=2))
           print(json.dumps({k:v for k,v in payload.items() if k!="rows"} | {"rowCount":len(rows)},indent=2))
           PY
-        env:
-          SYMBOL: ${{ inputs.symbol || 'ITC' }}
-          PERIOD: ${{ inputs.period || '30-SEP-2026' }}
-          BASIS: ${{ inputs.basis || 'Consolidated' }}
       - name: Resolve exact Original and full Revision history with TypeScript
         shell: bash
         run: |
