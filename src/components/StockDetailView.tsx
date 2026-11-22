@@ -119,7 +119,7 @@ export const StockDetailView: React.FC<StockDetailViewProps> = ({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/stock/${encodeURIComponent(sym)}`, { signal });
+      const res = await fetch(`/api/stock/${encodeURIComponent(sym)}`, { cache: 'no-store', signal });
       const json = await res.json();
       if (!res.ok) {
         throw new Error(json.error || `HTTP ${res.status}`);
