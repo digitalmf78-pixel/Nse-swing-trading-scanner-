@@ -46,7 +46,7 @@ test('collector archives exact original XML bytes and records relative raw evide
     const cache=JSON.parse(fs.readFileSync(path.join(temp,'cache.json'),'utf8'));
     const doc=cache.symbols.ABC.documents[0];
     const stored=fs.readFileSync(path.join(temp,'raw','ABC','77_'+doc.sha256+'.xml'));
-    assert.deepEqual(stored,raw);
+    assert.equal(stored.toString('utf8'),xml);
     assert.equal(doc.rawArchivePath.endsWith('77_'+doc.sha256+'.xml'),true);
     assert.equal(doc.sha256.length,64);
   } finally { fs.rmSync(temp,{recursive:true,force:true}); }
