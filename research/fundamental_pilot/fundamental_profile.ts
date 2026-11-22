@@ -92,7 +92,9 @@ function isOfficialSource(exchange: FilingExchange, sourceUrl: string): boolean 
 }
 
 function isIsoDate(value: string): boolean {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`));
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 
 /** Research-only integrity validator. It does not calculate or approve any metric formula. */
