@@ -96,8 +96,8 @@ function textOf(value: XmlValue): string {
   return '';
 }
 
-function descendants(root: XmlValue, wanted: string): Array<{ name: string; node: XmlObject }> {
-  const found: Array<{ name: string; node: XmlObject }> = [];
+function descendants(root: XmlValue, wanted: string): Array<{ name: string; node: XmlValue }> {
+  const found: Array<{ name: string; node: XmlValue }> = [];
   const visit = (value: XmlValue): void => {
     if (Array.isArray(value)) {
       for (const item of value) visit(item);
@@ -106,7 +106,8 @@ function descendants(root: XmlValue, wanted: string): Array<{ name: string; node
     if (!value || typeof value !== 'object') return;
     for (const [key, child] of Object.entries(value as XmlObject)) {
       if (key.startsWith('@_') || key === '#text') continue;
-      for (const node of asObjects(child)) {
+      const children = Array.isArray(child) ? child : [child];
+      for (const node of children) {
         if (localName(key) === wanted.toLowerCase()) found.push({ name: key, node });
         visit(node);
       }
@@ -179,11 +180,16 @@ export function extractXbrl(xml: string): XbrlExtraction {
   for (const { node } of descendants(parsed, 'context')) {
     const id = attr(node, 'id');
     if (!id) continue;
-    const identifier = descendants(node, 'identifier')[0]?.node;
+    const identifierNode = descendants(node, 'identifier')[0]?.node;
+    const identifier = identifierNode && typeof identifierNode === 'object'
+      ? identifierNode as XmlObject
+      : null;
     const dimensions = descendants(node, 'explicitMember')
       .concat(descendants(node, 'typedMember'))
-      .map(({ name, node: member }) => {
-        const dimension = attr(member, 'dimension') ?? '';
+      .map(({ node: member }) => {
+        const dimension = member && typeof member === 'object'
+          ? attr(member as XmlObject, 'dimension') ?? ''
+          : '';
         return `${dimension}=${textOf(member).trim()}`;
       });
     contexts[id] = {
