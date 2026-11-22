@@ -117,6 +117,14 @@ async function fetchOriginal(
     signal: AbortSignal.timeout(filingQuery?.timeoutMs ?? 30000),
   });
   if (!response.ok) throw new Error(`${symbol}: NSE XBRL archive returned HTTP ${response.status}`);
+  if (response.url) {
+    const finalUrl = new URL(response.url);
+    if (finalUrl.protocol !== 'https:'
+        || !['nsearchives.nseindia.in', 'nsearchives.nseindia.com'].includes(finalUrl.hostname)
+        || !finalUrl.pathname.startsWith('/corporate/xbrl/')) {
+      throw new Error(`${symbol}: XBRL archive redirected outside the official NSE archive allowlist`);
+    }
+  }
   const declaredLength = Number(response.headers.get('content-length') ?? 0);
   if (declaredLength > 25 * 1024 * 1024) throw new Error(`${symbol}: XBRL archive exceeds 25 MB limit`);
   const xml = await response.text();
