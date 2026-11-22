@@ -471,7 +471,7 @@ async function startServer() {
         }
         const detail = nsePipeline.getStockDetail(symbol);
         return res.json({
-          saved: Boolean(result.record),
+          saved: Boolean(result.record) && !result.error,
           symbol,
           totalSavedCount: result.totalSavedCount,
           error: result.error || null,
