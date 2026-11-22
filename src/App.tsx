@@ -218,6 +218,7 @@ export default function App() {
       const scannerMessage =
         json.message || `Scanner reloaded through EOD ${json.latestSessionDate || ''}.`;
       let fundamentalMessage = `Selected stock ${selectedSymbol} fundamentals refresh was not confirmed.`;
+      let fundamentalRefreshTone: 'ok' | 'err' = 'ok';
 
       // Refresh only the selected stock here; a full-universe live fetch is intentionally not
       // coupled to the scanner reload because it can trigger hundreds of external requests.
@@ -241,7 +242,9 @@ export default function App() {
           fundamentalMessage = fundJson.saved
             ? `Selected stock ${sym} fundamentals refreshed and cache reloaded.`
             : `Selected stock ${sym} fundamentals could not be refreshed: ${fundJson.error || 'No fresh record returned'}.`;
+          if (!fundJson.saved) fundamentalRefreshTone = 'err';
         } catch (fundErr) {
+          fundamentalRefreshTone = 'err';
           fundamentalMessage = `Selected stock ${sym} fundamentals refresh failed: ${(fundErr as Error).message}`;
         } finally {
           syncInFlightRef.current = false;
@@ -254,7 +257,7 @@ export default function App() {
       setScannerReloadSeq((n) => n + 1);
       setStockRefreshSeq((n) => n + 1);
       setScannerNotice({
-        tone: 'ok',
+        tone: fundamentalRefreshTone,
         text: `${scannerMessage} ${fundamentalMessage}`,
       });
     } catch (err) {
