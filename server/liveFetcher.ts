@@ -360,16 +360,35 @@ function latestTs(map: Record<string, TimeseriesPoint[]>, key: string): Timeseri
   return arr && arr.length > 0 ? arr[arr.length - 1] : null;
 }
 
+function latestTsAtDate(
+  map: Record<string, TimeseriesPoint[]>,
+  key: string,
+  asOfDate: string
+): TimeseriesPoint | null {
+  const arr = map[key];
+  if (!arr || !asOfDate) return null;
+  for (let i = arr.length - 1; i >= 0; i -= 1) {
+    if (arr[i].asOfDate === asOfDate) return arr[i];
+  }
+  return null;
+}
+
 function yoyTsGrowthPct(
   map: Record<string, TimeseriesPoint[]>,
   key: string
 ): number | null {
   const arr = map[key];
   if (!arr || arr.length < 2) return null;
-  const curr = arr[arr.length - 1].value;
-  const prev = arr[arr.length - 2].value;
-  if (Math.abs(prev) <= 0) return null;
-  return ((curr - prev) / Math.abs(prev)) * 100;
+  const currPoint = arr[arr.length - 1];
+  const prevPoint = arr[arr.length - 2];
+  const dayGap =
+    (Date.parse(`${currPoint.asOfDate}T00:00:00Z`) -
+      Date.parse(`${prevPoint.asOfDate}T00:00:00Z`)) /
+    86400000;
+  // Only compare adjacent annual periods; do not label a multi-year gap as YoY.
+  if (!Number.isFinite(dayGap) || dayGap < 330 || dayGap > 400) return null;
+  if (Math.abs(prevPoint.value) <= 0) return null;
+  return ((currPoint.value - prevPoint.value) / Math.abs(prevPoint.value)) * 100;
 }
 
 async function fetchYahooSingleExchange(
@@ -468,58 +487,90 @@ async function fetchYahooSingleExchange(
     if (eg !== null) profGrowth = eg * 100;
   }
 
-  // 3. ROE %
-  const netInc =
-    latestTs(ts, 'trailingNetIncome')?.value ?? latestTs(ts, 'annualNetIncome')?.value ?? null;
-  const equity = latestTs(ts, 'annualStockholdersEquity')?.value ?? null;
+  // 3. ROE % — use annual profit and equity from the same reporting date.
+  const annualNetIncome = latestTs(ts, 'annualNetIncome');
+  const annualEquity = latestTs(ts, 'annualStockholdersEquity');
+  const alignedAnnualNetIncome =
+    annualNetIncome && annualEquity && annualNetIncome.asOfDate === annualEquity.asOfDate
+      ? annualNetIncome.value
+      : null;
+  const equity =
+    annualEquity && alignedAnnualNetIncome !== null ? annualEquity.value : null;
   let roePct = rawVal(fin.returnOnEquity);
   if (roePct !== null) {
     roePct = roePct * 100;
-  } else if (netInc !== null && equity !== null && equity > 0) {
-    roePct = (netInc / equity) * 100;
+  } else if (alignedAnnualNetIncome !== null && equity !== null && equity > 0) {
+    roePct = (alignedAnnualNetIncome / equity) * 100;
   }
 
-  // 4. ROCE %
-  const ebit =
-    latestTs(ts, 'trailingEBIT')?.value ??
-    latestTs(ts, 'annualEBIT')?.value ??
-    latestTs(ts, 'trailingOperatingIncome')?.value ??
-    latestTs(ts, 'annualOperatingIncome')?.value ??
-    null;
-  const totalAssets = latestTs(ts, 'annualTotalAssets')?.value ?? null;
-  const currLiab = latestTs(ts, 'annualCurrentLiabilities')?.value ?? null;
+  // 4. ROCE % — annual EBIT and balance-sheet components must share an end date.
+  const annualEbitPoint =
+    latestTs(ts, 'annualEBIT') ?? latestTs(ts, 'annualOperatingIncome');
+  const totalAssetsPoint = latestTs(ts, 'annualTotalAssets');
+  const currLiabPoint = latestTs(ts, 'annualCurrentLiabilities');
+  const annualDebtPoint = latestTs(ts, 'annualTotalDebt');
   let rocePct: number | null = null;
-  if (ebit !== null && totalAssets !== null && currLiab !== null) {
-    const capEmployed = totalAssets - currLiab;
-    if (capEmployed > 0) rocePct = (ebit / capEmployed) * 100;
-  } else if (ebit !== null && equity !== null) {
-    const debt = latestTs(ts, 'annualTotalDebt')?.value ?? rawVal(fin.totalDebt) ?? 0;
-    const capEmployed = equity + debt;
-    if (capEmployed > 0) rocePct = (ebit / capEmployed) * 100;
+  if (
+    annualEbitPoint &&
+    totalAssetsPoint &&
+    currLiabPoint &&
+    annualEbitPoint.asOfDate === totalAssetsPoint.asOfDate &&
+    totalAssetsPoint.asOfDate === currLiabPoint.asOfDate
+  ) {
+    const capEmployed = totalAssetsPoint.value - currLiabPoint.value;
+    if (capEmployed > 0) rocePct = (annualEbitPoint.value / capEmployed) * 100;
+  } else if (
+    annualEbitPoint &&
+    annualEquity &&
+    annualDebtPoint &&
+    annualEbitPoint.asOfDate === annualEquity.asOfDate &&
+    annualEquity.asOfDate === annualDebtPoint.asOfDate
+  ) {
+    const capEmployed = annualEquity.value + annualDebtPoint.value;
+    if (capEmployed > 0) rocePct = (annualEbitPoint.value / capEmployed) * 100;
   }
 
-  // 5. Debt / Equity (sanitize negative equity -> null)
+  // 5. Debt / Equity (sanitize negative equity -> null).
   let debtToEquity = rawVal(fin.debtToEquity);
   if (debtToEquity !== null) {
     debtToEquity = debtToEquity / 100;
-  } else {
-    const debt = latestTs(ts, 'annualTotalDebt')?.value ?? rawVal(fin.totalDebt);
-    if (debt !== null && equity !== null && equity > 0) {
-      debtToEquity = debt / equity;
-    }
+  } else if (
+    annualDebtPoint &&
+    annualEquity &&
+    annualDebtPoint.asOfDate === annualEquity.asOfDate &&
+    annualEquity.value > 0
+  ) {
+    debtToEquity = annualDebtPoint.value / annualEquity.value;
   }
   if (debtToEquity !== null && debtToEquity < 0) {
     debtToEquity = null;
   }
 
-  // 6. Interest Coverage
-  const intExp =
-    latestTs(ts, 'trailingInterestExpense')?.value ??
-    latestTs(ts, 'annualInterestExpense')?.value ??
-    null;
+  // 6. Interest Coverage — pair EBIT and interest expense from the same period.
+  const trailingEbitPoint =
+    latestTs(ts, 'trailingEBIT') ?? latestTs(ts, 'trailingOperatingIncome');
+  const trailingInterestPoint = latestTs(ts, 'trailingInterestExpense');
+  const annualInterestPoint = latestTs(ts, 'annualInterestExpense');
+  let alignedEbit: number | null = null;
+  let alignedInterest: number | null = null;
+  if (
+    trailingEbitPoint &&
+    trailingInterestPoint &&
+    trailingEbitPoint.asOfDate === trailingInterestPoint.asOfDate
+  ) {
+    alignedEbit = trailingEbitPoint.value;
+    alignedInterest = trailingInterestPoint.value;
+  } else if (
+    annualEbitPoint &&
+    annualInterestPoint &&
+    annualEbitPoint.asOfDate === annualInterestPoint.asOfDate
+  ) {
+    alignedEbit = annualEbitPoint.value;
+    alignedInterest = annualInterestPoint.value;
+  }
   let interestCoverage: number | null = null;
-  if (ebit !== null && intExp !== null && Math.abs(intExp) > 0) {
-    interestCoverage = ebit / Math.abs(intExp);
+  if (alignedEbit !== null && alignedInterest !== null && Math.abs(alignedInterest) > 0) {
+    interestCoverage = alignedEbit / Math.abs(alignedInterest);
   }
 
   // 7. Operating & Free Cash Flow (convert statement reporting currency -> INR)
