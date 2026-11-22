@@ -1,5 +1,5 @@
 name: NSE HDFC Bank prior-year original XBRL comparison
-# Research-only pair comparison. No banking metric formula or scanner runtime mapping.
+# Research-only pair comparison. No banking metric formula or scanner runtime mapping. Every fact retains its original period, dimensions and unit.
 
 on:
   push:
