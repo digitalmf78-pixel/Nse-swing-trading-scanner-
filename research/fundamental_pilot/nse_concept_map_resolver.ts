@@ -23,9 +23,8 @@ export interface NseConceptMapResolution {
   productionApproved: false;
 }
 
-const LOCAL_NAMES: Record<ConceptMapMetric, string> = {
+const LOCAL_NAMES: Record<'REVENUE' | 'OPERATING_CASH_FLOW', string> = {
   REVENUE: 'RevenueFromOperations',
-  PROFIT: 'ProfitLossForPeriod',
   OPERATING_CASH_FLOW: 'CashFlowsFromUsedInOperatingActivities',
 };
 
@@ -47,8 +46,11 @@ function resolveAcrossPeriods(
   metric: ConceptMapMetric,
   current: XbrlExtraction,
   prior: XbrlExtraction,
+  basis: 'STANDALONE' | 'CONSOLIDATED',
 ): ConceptMapMetricResult {
-  const wanted = LOCAL_NAMES[metric];
+  const wanted = metric === 'PROFIT'
+    ? (basis === 'CONSOLIDATED' ? 'ProfitOrLossAttributableToOwnersOfParent' : 'ProfitLossForPeriod')
+    : LOCAL_NAMES[metric];
   const currentMatch = findUniqueConcept(current, wanted);
   const priorMatch = findUniqueConcept(prior, wanted);
   if (currentMatch.status === 'AMBIGUOUS' || priorMatch.status === 'AMBIGUOUS') {
@@ -84,9 +86,9 @@ export function resolveNseConceptMap(
   prior: XbrlExtraction,
 ): NseConceptMapResolution {
   const metrics = {
-    REVENUE: resolveAcrossPeriods('REVENUE', current, prior),
-    PROFIT: resolveAcrossPeriods('PROFIT', current, prior),
-    OPERATING_CASH_FLOW: resolveAcrossPeriods('OPERATING_CASH_FLOW', current, prior),
+    REVENUE: resolveAcrossPeriods('REVENUE', current, prior, basis),
+    PROFIT: resolveAcrossPeriods('PROFIT', current, prior, basis),
+    OPERATING_CASH_FLOW: resolveAcrossPeriods('OPERATING_CASH_FLOW', current, prior, basis),
   };
   if (sector !== 'NON_FINANCIAL') {
     for (const metric of Object.keys(metrics) as ConceptMapMetric[]) {
