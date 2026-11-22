@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { evaluateCashReconciliation, type CashReconciliationInput } from './cashflow_reconciliation_guard.ts';
+import { evaluateCashReconciliation, type CashReconciliationInput, type CashFlowFactValue } from './cashflow_reconciliation_guard.ts';
 
+const fact=(value:number|null,unit='INR',period='30-SEP-2025',basis:'Standalone'|'Consolidated'='Standalone'):CashFlowFactValue=>({value,unit,period,basis});
 const base:CashReconciliationInput = {
   period:'30-SEP-2025', basis:'Standalone', unit:'INR',
-  openingCash:100, netCashMovement:-20, closingCashFlowStatement:80,
-  closingCashBalanceSheet:80, operatingCashFlow:30, statementOperatingCashFlow:30,
+  openingCash:fact(100), netCashMovement:fact(-20), closingCashFlowStatement:fact(80),
+  closingCashBalanceSheet:fact(80), operatingCashFlow:fact(30), statementOperatingCashFlow:fact(30),
 };
 
 test('fully reconciled cash flow is candidate-only',()=>{
@@ -18,7 +19,7 @@ test('fully reconciled cash flow is candidate-only',()=>{
 });
 
 test('KSHINTL-like revised closing cash mismatch is REVIEW_REQUIRED',()=>{
-  const r=evaluateCashReconciliation({...base,closingCashFlowStatement:-235.95,closingCashBalanceSheet:85.89});
+  const r=evaluateCashReconciliation({...base,closingCashFlowStatement:fact(-235.95),closingCashBalanceSheet:fact(85.89)});
   assert.equal(r.status,'REVIEW_REQUIRED');
   assert.equal(r.checks.cashFlowClosingMatchesBalanceSheet,false);
   assert.equal(r.differences.closingCash,-321.84);
@@ -26,19 +27,19 @@ test('KSHINTL-like revised closing cash mismatch is REVIEW_REQUIRED',()=>{
 });
 
 test('opening plus net movement mismatch is REVIEW_REQUIRED',()=>{
-  const r=evaluateCashReconciliation({...base,netCashMovement:5});
+  const r=evaluateCashReconciliation({...base,netCashMovement:fact(5)});
   assert.equal(r.status,'REVIEW_REQUIRED');
   assert.equal(r.checks.openingPlusMovementEqualsClosing,false);
 });
 
 test('cash-flow OCF differing from statement row is REVIEW_REQUIRED',()=>{
-  const r=evaluateCashReconciliation({...base,operatingCashFlow:-778.69,statementOperatingCashFlow:-456.85});
+  const r=evaluateCashReconciliation({...base,operatingCashFlow:fact(-778.69),statementOperatingCashFlow:fact(-456.85)});
   assert.equal(r.status,'REVIEW_REQUIRED');
   assert.equal(r.checks.operatingCashFlowMatchesStatement,false);
 });
 
 test('missing values are blocked, not treated as zero',()=>{
-  const r=evaluateCashReconciliation({...base,closingCashBalanceSheet:null});
+  const r=evaluateCashReconciliation({...base,closingCashBalanceSheet:fact(null)});
   assert.equal(r.status,'BLOCKED_MISSING_VALUE');
   assert.equal(r.differences.closingCash,null);
 });
@@ -48,12 +49,27 @@ test('unpaired OCF cross-check is blocked',()=>{
   assert.equal(r.status,'BLOCKED_MISSING_VALUE');
 });
 
-test('invalid period, unit or tolerance is rejected',()=>{
+test('invalid tolerance is rejected',()=>{
   const r=evaluateCashReconciliation({...base,tolerance:-1});
   assert.equal(r.status,'BLOCKED_INVALID_INPUT');
 });
 
 test('explicit tolerance is applied consistently',()=>{
-  const r=evaluateCashReconciliation({...base,closingCashBalanceSheet:80.005,tolerance:0.01});
+  const r=evaluateCashReconciliation({...base,closingCashBalanceSheet:fact(80.005),tolerance:0.01});
   assert.equal(r.status,'RECONCILED_CANDIDATE');
+});
+
+test('mixed unit is rejected before arithmetic',()=>{
+  const r=evaluateCashReconciliation({...base,closingCashBalanceSheet:fact(8000000,'INR Lakhs')});
+  assert.equal(r.status,'BLOCKED_INVALID_INPUT');
+});
+
+test('mixed reporting period is rejected before arithmetic',()=>{
+  const r=evaluateCashReconciliation({...base,netCashMovement:fact(-20,'INR','31-DEC-2025')});
+  assert.equal(r.status,'BLOCKED_INVALID_INPUT');
+});
+
+test('mixed standalone and consolidated facts are rejected',()=>{
+  const r=evaluateCashReconciliation({...base,closingCashBalanceSheet:fact(80,'INR','30-SEP-2025','Consolidated')});
+  assert.equal(r.status,'BLOCKED_INVALID_INPUT');
 });
