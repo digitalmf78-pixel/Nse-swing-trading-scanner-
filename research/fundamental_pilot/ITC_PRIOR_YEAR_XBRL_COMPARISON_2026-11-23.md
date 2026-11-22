@@ -50,8 +50,6 @@ All source values below are raw INR from the XBRL instances. Crore conversion is
 |---|---|---:|---:|---:|
 | RevenueFromOperations | Q2 | 30,578.40 | 21,255.86 | +43.86% |
 | RevenueFromOperations | H1 YTD | 60,101.70 | 44,385.21 | +35.41% |
-| ProfitBeforeTax | Q2 | 5,597.66 | 6,912.32 | -19.02% |
-| ProfitBeforeTax | H1 YTD | 11,372.60 | 13,971.57 | -18.60% |
 | ProfitLossForPeriod | Q2 | 4,229.33 | 5,186.55 | -18.46% |
 | ProfitLossForPeriod | H1 YTD | 8,738.12 | 10,529.96 | -17.02% |
 | FinanceCosts | Q2 | 38.27 | 20.05 | +90.87% |
@@ -59,6 +57,17 @@ All source values below are raw INR from the XBRL instances. Crore conversion is
 | CashFlowsFromUsedInOperatingActivities | H1 YTD | 8,362.97 | 6,162.60 | +35.71% |
 
 Note: OCF is H1 YTD only in this selected pair. Do not create Q2 OCF by subtracting or inferring unless the exact first-quarter cash-flow period and policy are verified.
+
+## Critical concept-reconciliation warning: ProfitBeforeTax is not approved
+
+The generic XBRL concept candidate `ProfitBeforeTax` did not reconcile to ITC's published consolidated statement's reported PBT line:
+
+| Period | XBRL candidate (₹ Cr) | Published consolidated PBT (₹ Cr) | Difference (₹ Cr) |
+|---|---:|---:|---:|
+| Q2 FY2026-27 | 5,597.66 | 5,694.62 | 96.96 |
+| H1 FY2026-27 | 11,372.60 | 11,555.47 | 182.87 |
+
+The differences equal the reported share of profit of associates and joint ventures for the corresponding periods. The current candidate concept therefore appears not to represent the complete published consolidated PBT line. Do not map this fact to the scanner's PBT or Interest Coverage inputs until the taxonomy concept/context and accounting definition are explicitly resolved. This is a useful example of why concept-name matching alone is insufficient.
 
 ## Important comparability warning
 
@@ -84,6 +93,13 @@ Not proved:
 - A universal concept mapping across all issuers and sectors.
 - Production-ready growth formulas or comparability adjustment.
 - ROE, ROCE, Debt/Equity or Interest Coverage.
+
+## Official cross-check source
+
+- NSE Integrated Filing page shows the original consolidated ITC filing rows for 30-SEP-2026 and 30-SEP-2025: https://www.nseindia.in/companies-listing/corporate-integrated-filing?integratedType=Integrated+Filing-+Financials&symbol=ITC&tabIndex=equity
+- ITC's NSE-filed consolidated results and cash-flow statement (2-Nov-2026): https://nsearchives.nseindia.in/corporate/ITC_02112026181912_SE_Results_.pdf
+
+The official consolidated statement reports Revenue from Operations, Profit for the Period, Finance Costs and Net Cash from Operating Activities. It also explicitly states that Century Pulp and Paper and Sproutlife are included from 1-Aug-2026 and 1-Apr-2026 respectively, and that the results are not comparable with prior periods; the filing further says the GST/central-excise changes affect revenue comparability.
 
 ## Workflow evidence
 
