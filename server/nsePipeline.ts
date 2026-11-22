@@ -3175,7 +3175,6 @@ class NsePipelineEngine {
 
     const targetMs = Date.parse(`${targetDate}T00:00:00Z`);
     if (!Number.isFinite(targetMs)) return [];
-    const cutoff30dMs = targetMs - 29 * 24 * 60 * 60 * 1000;
     const ipoCutoffDate = this.sessionDates.length > 3 ? this.sessionDates[3] : '';
     const out: Array<{
       symbol: string;
