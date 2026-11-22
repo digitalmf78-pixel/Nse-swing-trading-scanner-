@@ -94,7 +94,7 @@ function saveNseFilingHistoryCache(cache: NseFilingHistoryCache): void {
  */
 export async function collectNseFilingHistoryForSymbols(
   rawSymbols: string[],
-  options: { concurrency?: number; fetchImpl?: typeof fetch } = {},
+  options: { concurrency?: number; fetchImpl?: typeof fetch; onIssuerComplete?: (symbol: string, succeeded: boolean, error?: string) => void } = {},
 ): Promise<NseFilingHistoryCollectionReport> {
   const symbols = [...new Set(rawSymbols.map(s => s.trim().toUpperCase()).filter(Boolean))];
   const concurrency = options.concurrency ?? 1;
@@ -126,10 +126,13 @@ export async function collectNseFilingHistoryForSymbols(
           complete: true,
         };
         succeeded.push(symbol);
+        options.onIssuerComplete?.(symbol, true);
         cache.updatedAtUtc = new Date().toISOString();
         saveNseFilingHistoryCache(cache);
       } catch (error) {
-        failed.push({ symbol, error: (error as Error).message });
+        const message = (error as Error).message;
+        failed.push({ symbol, error: message });
+        options.onIssuerComplete?.(symbol, false, message);
       }
     }
   });
@@ -141,4 +144,54 @@ export async function collectNseFilingHistoryForSymbols(
     cachedSymbols: Object.keys(cache.symbols).length,
     cacheFile: 'data/research/nse_official_filing_history.json',
   };
+}
+
+export interface NseFilingHistoryJobStatus {
+  running: boolean;
+  total: number;
+  processed: number;
+  succeeded: number;
+  failed: number;
+  currentSymbol: string;
+  startedAtUtc: string;
+  finishedAtUtc: string;
+  lastError: string | null;
+}
+
+let filingHistoryJob: NseFilingHistoryJobStatus = {
+  running: false, total: 0, processed: 0, succeeded: 0, failed: 0,
+  currentSymbol: '', startedAtUtc: '', finishedAtUtc: '', lastError: null,
+};
+
+export function getNseFilingHistoryJobStatus(): NseFilingHistoryJobStatus {
+  return { ...filingHistoryJob };
+}
+
+/** Start a background Bhavcopy-symbol filing sync; does not write scanner metric cache. */
+export function startNseFilingHistoryCollection(rawSymbols: string[]): NseFilingHistoryJobStatus {
+  if (filingHistoryJob.running) return getNseFilingHistoryJobStatus();
+  const symbols = [...new Set(rawSymbols.map(s => s.trim().toUpperCase()).filter(Boolean))];
+  filingHistoryJob = {
+    running: true, total: symbols.length, processed: 0, succeeded: 0, failed: 0,
+    currentSymbol: symbols[0] ?? '', startedAtUtc: new Date().toISOString(),
+    finishedAtUtc: '', lastError: null,
+  };
+  void collectNseFilingHistoryForSymbols(symbols, {
+    onIssuerComplete: (symbol, ok, error) => {
+      filingHistoryJob.processed += 1;
+      if (ok) filingHistoryJob.succeeded += 1;
+      else {
+        filingHistoryJob.failed += 1;
+        filingHistoryJob.lastError = `${symbol}: ${error ?? 'Unknown error'}`;
+      }
+      filingHistoryJob.currentSymbol = symbols[filingHistoryJob.processed] ?? '';
+    },
+  }).catch(error => {
+    filingHistoryJob.lastError = (error as Error).message;
+  }).finally(() => {
+    filingHistoryJob.running = false;
+    filingHistoryJob.currentSymbol = '';
+    filingHistoryJob.finishedAtUtc = new Date().toISOString();
+  });
+  return getNseFilingHistoryJobStatus();
 }
