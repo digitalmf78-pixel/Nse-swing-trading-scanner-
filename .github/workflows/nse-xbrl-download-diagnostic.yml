@@ -180,6 +180,26 @@ jobs:
               raise SystemExit("Downloaded XML did not contain expected XBRL contexts and units")
           PY
 
+      - name: Download original KSHINTL XBRL instance XML
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://nsearchives.nseindia.in/corporate/xbrl/INTEGRATED_FILING_INDAS_1753217_04112026090644_WEB.xml"
+          curl --fail --location --show-error \
+            --retry 5 --retry-all-errors --retry-delay 3 \
+            --connect-timeout 20 --max-time 180 \
+            --user-agent "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36" \
+            --referer "https://www.nseindia.in/companies-listing/corporate-integrated-filing" \
+            --header "Accept: application/xml,text/xml,*/*" \
+            --output artifacts/KSHINTL_2026-09-30_original_NSE_XBRL.xml \
+            "$url"
+          test -s artifacts/KSHINTL_2026-09-30_original_NSE_XBRL.xml
+          file artifacts/KSHINTL_2026-09-30_original_NSE_XBRL.xml | tee artifacts/KSHINTL-XML-file-type.txt
+          wc -c artifacts/KSHINTL_2026-09-30_original_NSE_XBRL.xml | tee artifacts/KSHINTL-XML-file-size.txt
+          sha256sum artifacts/KSHINTL_2026-09-30_original_NSE_XBRL.xml | tee artifacts/KSHINTL-XML-SHA256.txt
+          head -c 300 artifacts/KSHINTL_2026-09-30_original_NSE_XBRL.xml
+          echo
+
       - name: Upload verified archives for inspection
         if: always()
         uses: actions/upload-artifact@v4
