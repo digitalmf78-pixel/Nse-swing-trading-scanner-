@@ -1,0 +1,136 @@
+name: NSE ITC prior-year comparable XBRL audit
+
+on:
+  push:
+    branches:
+      - research/free-fundamental-sources
+    paths:
+      - ".github/workflows/nse-itc-prior-year-comparison.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prior-year-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install isolated parser dependency
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/xbrl-deps" --no-save --no-package-lock fast-xml-parser@5.12.1
+          mkdir -p node_modules
+          ln -s "$RUNNER_TEMP/xbrl-deps/node_modules/fast-xml-parser" node_modules/fast-xml-parser
+      - name: Resolve exact official NSE original consolidated filings
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          curl --fail --location --show-error --retry 3 --retry-all-errors --retry-delay 2 \
+            --connect-timeout 20 --max-time 120 \
+            --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36" \
+            --referer "https://www.nseindia.in/companies-listing/corporate-integrated-filing" \
+            --header "Accept: application/json, text/plain, */*" \
+            --get "https://www.nseindia.in/api/integrated-filing-results" \
+            --data-urlencode "index=equities" --data-urlencode "symbol=ITC" \
+            --data-urlencode "type=Integrated Filing- Financials" --data-urlencode "page=1" \
+            --data-urlencode "size=100" --output artifacts/ITC_integrated_filing_api.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          rows=json.loads(Path("artifacts/ITC_integrated_filing_api.json").read_text()).get("data",[])
+          wanted={"30-SEP-2026":"current","30-SEP-2025":"prior"}
+          selected={}
+          for period,key in wanted.items():
+              hits=[r for r in rows if r.get("symbol")=="ITC" and r.get("qe_Date")==period
+                    and r.get("type_Sub")=="Original" and r.get("consolidated")=="Consolidated"
+                    and r.get("type")=="Integrated Filing- Financials" and r.get("xbrl")]
+              if len(hits)!=1:
+                  raise SystemExit(f"Expected one {key} original consolidated filing for {period}, got {len(hits)}")
+              selected[key]=hits[0]
+          meta={}
+          for key,row in selected.items():
+              meta[key]={k:row.get(k) for k in ["symbol","smName","seq_Id","qe_Date","type","type_Sub","audited","consolidated","broadcast_Date","creation_Date","revised_Date","revision_Remark","ixbrl","xbrl"]}
+              Path(f"artifacts/ITC_{key}_xbrl_url.txt").write_text(row["xbrl"])
+          Path("artifacts/ITC_pair_metadata.json").write_text(json.dumps(meta,indent=2))
+          print(json.dumps(meta,indent=2))
+          PY
+      - name: Download both official original XML instances
+        shell: bash
+        run: |
+          set -euo pipefail
+          cookie_jar="artifacts/itc-nse-cookies.txt"
+          ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36"
+          for key in current prior; do
+            xbrl_url="$(cat "artifacts/ITC_${key}_xbrl_url.txt")"
+            downloaded=""
+            for site in www.nseindia.in www.nseindia.com; do
+              curl --silent --show-error --location --max-time 60 --user-agent "$ua" --cookie-jar "$cookie_jar" --output /dev/null "https://$site/companies-listing/corporate-integrated-filing" || true
+              out="artifacts/${site}-${key}-download.response"
+              curl --silent --show-error --location --max-time 120 --user-agent "$ua" --cookie "$cookie_jar" \
+                --referer "https://$site/companies-listing/corporate-integrated-filing" \
+                --header "Accept: application/xml,text/xml,*/*" --get "https://$site/api/download_xbrl" \
+                --data-urlencode "fileUrl=$xbrl_url" --output "$out" || true
+              if grep -Eqi '<([[:alnum:]_]+:)?xbrl([ >])' "$out"; then cp "$out" "artifacts/ITC_${key}.xml"; downloaded="yes"; break; fi
+            done
+            if [ -z "$downloaded" ]; then
+              for host in nsearchives.nseindia.in nsearchives.nseindia.com; do
+                out="artifacts/${host}-${key}-direct.response"
+                curl --silent --show-error --location --max-time 120 --user-agent "$ua" --cookie "$cookie_jar" \
+                  --referer "https://www.nseindia.in/companies-listing/corporate-integrated-filing" \
+                  --header "Accept: application/xml,text/xml,application/octet-stream,*/*" \
+                  --output "$out" "https://$host/corporate/xbrl/${xbrl_url##*/}" || true
+                if grep -Eqi '<([[:alnum:]_]+:)?xbrl([ >])' "$out"; then cp "$out" "artifacts/ITC_${key}.xml"; downloaded="yes"; break; fi
+              done
+            fi
+            if [ -z "$downloaded" ]; then echo "Unable to download official NSE XML for $key" >&2; exit 1; fi
+            sha256sum "artifacts/ITC_${key}.xml" | tee "artifacts/ITC_${key}_SHA256.txt"
+          done
+      - name: Parse both filings and compare exact prior-year contexts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import { extractXbrl } from './research/fundamental_pilot/xbrl_extract.ts';
+          const meta=JSON.parse(fs.readFileSync('artifacts/ITC_pair_metadata.json','utf8'));
+          const candidates=['RevenueFromOperations','ProfitLossForPeriod','ProfitBeforeTax','FinanceCosts','CashFlowsFromUsedInOperatingActivities'];
+          const outputs={};
+          for (const key of ['current','prior']) {
+            const xml=fs.readFileSync(`artifacts/ITC_${key}.xml`,'utf8');
+            const out=extractXbrl(xml);
+            if (!out.contextCount || !out.factCount || !Object.keys(out.units).length) throw new Error(`Empty parse for ${key}`);
+            const durationContexts=Object.values(out.contexts).filter(c=>c.periodStart&&c.periodEnd);
+            const instantContexts=Object.values(out.contexts).filter(c=>c.instant);
+            const facts=out.facts.filter(f=>candidates.some(c=>f.concept.toLowerCase().endsWith(':'+c.toLowerCase()) || f.concept.toLowerCase()===c.toLowerCase()));
+            outputs[key]={metadata:meta[key],bytes:Buffer.byteLength(xml),contexts:out.contextCount,factCount:out.factCount,units:out.units,warnings:out.warnings,durationContexts,instantContexts,candidateFacts:facts.map(f=>({...f,context:out.contexts[f.contextRef]??null,unitMeasures:f.unitRef?out.units[f.unitRef]??null:null}))};
+          }
+          const priorPeriodFacts=(key)=>outputs[key].candidateFacts.filter(f=>f.context?.periodEnd==='2025-09-30');
+          const compact=(f)=>({concept:f.concept,periodStart:f.context?.periodStart,periodEnd:f.context?.periodEnd,instant:f.context?.instant,dimensions:f.context?.dimensions??[],unit:f.unitMeasures,rawValue:f.rawValue,numericValue:f.numericValue,isNil:f.isNil});
+          const currentComparatives=priorPeriodFacts('current').map(compact);
+          const priorOriginal=priorPeriodFacts('prior').map(compact);
+          const index=(arr)=>new Map(arr.map(f=>[JSON.stringify([f.concept,f.periodStart,f.periodEnd,f.instant,f.dimensions,f.unit]),f]));
+          const a=index(currentComparatives), b=index(priorOriginal);
+          const keys=[...new Set([...a.keys(),...b.keys()])];
+          const matched=keys.filter(k=>a.has(k)&&b.has(k));
+          const comparison=matched.map(k=>({key:JSON.parse(k),currentFilingComparative:a.get(k),priorOriginal:b.get(k),sameRawValue:a.get(k).rawValue===b.get(k).rawValue,sameNumericValue:a.get(k).numericValue===b.get(k).numericValue}));
+          const report={status:'PARSE_PASS_REVIEW_REQUIRED',company:'ITC Limited',symbol:'ITC',basis:'Consolidated',periodEndCurrent:'2026-09-30',periodEndPrior:'2025-09-30',files:outputs,priorPeriodCandidateFactCounts:{currentFilingComparatives:currentComparatives.length,priorOriginalFiling:priorOriginal.length},matchedFactCount:matched.length,unmatchedKeyCount:keys.length-matched.length,matchedComparisons:comparison,note:'Exact context/concept/dimension/unit matches are surfaced for human/accounting review. This workflow does not automatically certify comparability or calculate growth; acquisition, tax and other filing notes must be assessed.'};
+          fs.writeFileSync('artifacts/ITC_prior_year_comparison.json',JSON.stringify(report,null,2));
+          console.log(JSON.stringify({status:report.status,files:Object.fromEntries(Object.entries(outputs).map(([k,v])=>[k,{seqId:v.metadata.seq_Id,broadcast:v.metadata.broadcast_Date,contexts:v.contexts,facts:v.factCount,warnings:v.warnings.length}])),priorPeriodCandidateFactCounts:report.priorPeriodCandidateFactCounts,matchedFactCount:report.matchedFactCount,unmatchedKeyCount:report.unmatchedKeyCount,matchedComparisons:comparison},null,2));
+          JS
+      - name: Upload original and prior-year comparison artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nse-itc-prior-year-xbrl-comparison
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 7
