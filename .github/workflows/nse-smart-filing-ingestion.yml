@@ -45,6 +45,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Install isolated XBRL parser dependency
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/nse-smart-parser-deps" --no-save --no-package-lock fast-xml-parser@5.12.1
+          mkdir -p node_modules
+          ln -s "$RUNNER_TEMP/nse-smart-parser-deps/node_modules/fast-xml-parser" node_modules/fast-xml-parser
       - name: Fetch every page from official NSE Integrated Filing API
         shell: bash
         env:
@@ -130,6 +137,132 @@ jobs:
           } else {
             fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,'\n## NSE filing metadata selection\n\n- Symbol: '+input.symbol+'\n- Period: '+input.period+'\n- Basis: '+input.basis+'\n- Status: '+status+'\n- Revisions: '+selected.revisions.length+'\n- Production approved: **false**\n');
           }
+          JS
+      - name: Download Original and every Revision XBRL payload from official NSE archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/xbrl
+          selection="artifacts/filing-history-selection.json"
+          status="$(jq -r '.selectionStatus' "$selection")"
+          if [[ "$status" != "ORIGINAL_ONLY" && "$status" != "REVISION_HISTORY" ]]; then
+            echo "No unambiguous Original/revision history; XBRL download is blocked: $status" | tee artifacts/xbrl-download-status.txt
+            printf '{"status":"BLOCKED","reason":"%s","downloaded":[]}' "$status" > artifacts/xbrl-download-manifest.json
+            exit 0
+          fi
+          python - <<'PY' > artifacts/xbrl-download-list.tsv
+          import json
+          from pathlib import Path
+          data=json.loads(Path("artifacts/filing-history-selection.json").read_text())
+          rows=[("ORIGINAL",data["original"])] + [("REVISION",r) for r in data["revisions"]]
+          for kind,row in rows:
+              print(kind,str(row["seq_Id"]),row["xbrl"],sep="\t")
+          PY
+          ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36"
+          cookie_jar="artifacts/xbrl/nse-cookies.txt"
+          curl --silent --show-error --location --max-time 60 --user-agent "$ua" --cookie-jar "$cookie_jar" --output /dev/null "https://www.nseindia.in/companies-listing/corporate-integrated-filing" || true
+          failed=0
+          : > artifacts/xbrl/downloaded.tsv
+          while IFS=
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nse-smart-filing-metadata
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 14
+\t' read -r kind seq url; do
+            [ -n "$url" ] || continue
+            out="artifacts/xbrl/${kind}_${seq}.xml"
+            response="artifacts/xbrl/${kind}_${seq}.response"
+            curl --silent --show-error --location --max-time 120 --user-agent "$ua" --cookie "$cookie_jar" \
+              --referer "https://www.nseindia.in/companies-listing/corporate-integrated-filing" \
+              --header "Accept: application/xml,text/xml,application/octet-stream,*/*" \
+              --get "https://www.nseindia.in/api/download_xbrl" --data-urlencode "fileUrl=$url" \
+              --output "$response" || true
+            if grep -Eqi '<([[:alnum:]_]+:)?xbrl([ >])' "$response"; then
+              mv "$response" "$out"
+            else
+              direct="https://nsearchives.nseindia.in/corporate/xbrl/${url##*/}"
+              curl --silent --show-error --location --max-time 120 --user-agent "$ua" --cookie "$cookie_jar" \
+                --referer "https://www.nseindia.in/companies-listing/corporate-integrated-filing" \
+                --header "Accept: application/xml,text/xml,application/octet-stream,*/*" \
+                --output "$out" "$direct" || true
+            fi
+            if grep -Eqi '<([[:alnum:]_]+:)?xbrl([ >])' "$out" 2>/dev/null; then
+              printf '%s\t%s\t%s\n' "$kind" "$seq" "$out" >> artifacts/xbrl/downloaded.tsv
+              echo "DOWNLOADED $kind seq=$seq bytes=$(wc -c < "$out")"
+            else
+              echo "FAILED $kind seq=$seq official XBRL download did not return XML"
+              failed=1
+              rm -f "$out"
+            fi
+          done < artifacts/xbrl-download-list.tsv
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          rows=[]
+          p=Path("artifacts/xbrl/downloaded.tsv")
+          if p.exists():
+              for line in p.read_text().splitlines():
+                  kind,seq,path=line.split("\t")
+                  rows.append({"kind":kind,"sequenceId":seq,"path":path,"bytes":Path(path).stat().st_size})
+          expected=sum(1 for _ in Path("artifacts/xbrl-download-list.tsv").read_text().splitlines())
+          status="DOWNLOADED_ALL" if len(rows)==expected else "DOWNLOAD_INCOMPLETE"
+          Path("artifacts/xbrl-download-manifest.json").write_text(json.dumps({
+              "status":status,"expectedFiles":expected,"downloadedCount":len(rows),"downloaded":rows,
+              "productionApproved":False
+          },indent=2))
+          print(json.dumps({"status":status,"expectedFiles":expected,"downloadedCount":len(rows)},indent=2))
+          PY
+          if [ "$failed" -ne 0 ]; then exit 1; fi
+      - name: Parse official XBRL and preserve raw-fact evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -s artifacts/xbrl-download-manifest.json ]; then
+            echo "No XBRL download manifest; parser step skipped."
+            exit 0
+          fi
+          node --experimental-strip-types --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import crypto from 'node:crypto';
+          import { extractXbrl } from './research/fundamental_pilot/xbrl_extract.ts';
+          const manifest=JSON.parse(fs.readFileSync('artifacts/xbrl-download-manifest.json','utf8'));
+          const reports=[];
+          for(const item of manifest.downloaded??[]) {
+            const xml=fs.readFileSync(item.path,'utf8');
+            const parsed=extractXbrl(xml);
+            if(parsed.contextCount<1 || parsed.factCount<1 || Object.keys(parsed.units).length<1) {
+              throw new Error('Empty XBRL extraction for sequence '+item.sequenceId);
+            }
+            const candidates=parsed.facts.filter(f=>[
+              'RevenueFromOperations','ProfitLossForPeriod','Equity',
+              'BorrowingsCurrent','BorrowingsNoncurrent','FinanceCosts',
+              'ProfitBeforeTax','TaxExpense','CashFlowsFromUsedInOperatingActivities',
+            ].some(name=>f.concept.toLowerCase().endsWith(':'+name.toLowerCase()) || f.concept.toLowerCase()===name.toLowerCase()));
+            reports.push({
+              kind:item.kind,sequenceId:item.sequenceId,path:item.path,
+              bytes:Buffer.byteLength(xml),
+              sha256:crypto.createHash('sha256').update(xml).digest('hex'),
+              contexts:parsed.contextCount,facts:parsed.factCount,
+              unitIds:Object.keys(parsed.units),
+              warnings:parsed.warnings,
+              targetConceptFactCount:candidates.length,
+              targetConceptFacts:candidates,
+              rawFactsOnly:true,productionApproved:false,
+            });
+          }
+          const output={
+            status:manifest.status==='DOWNLOADED_ALL' && reports.length===manifest.expectedFiles
+              ? (reports.every(r=>r.warnings.length===0)?'RAW_XBRL_PARSED_CLEAN':'RAW_XBRL_PARSED_WITH_WARNINGS_REVIEW_REQUIRED')
+              :'XBRL_DOWNLOAD_INCOMPLETE_REVIEW_REQUIRED',
+            reports,productionApproved:false,
+            note:'Raw XBRL extraction only. Concept selection, period/basis mapping and all seven metric formulas remain unapproved.',
+          };
+          fs.writeFileSync('artifacts/xbrl-parser-audit.json',JSON.stringify(output,null,2));
+          console.log(JSON.stringify(output,null,2));
           JS
       - name: Upload official NSE filing metadata and selection
         if: always()
