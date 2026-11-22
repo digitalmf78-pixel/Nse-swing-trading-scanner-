@@ -195,8 +195,7 @@ function mergeFundamentalRecords(
   const mergedSources = Array.from(new Set([...(prev.sources || []), ...(next.sources || [])]));
   const nextPeriodIsNewer =
     Boolean(next.financialPeriodEnd) &&
-    Boolean(prev.financialPeriodEnd) &&
-    next.financialPeriodEnd > prev.financialPeriodEnd;
+    (!prev.financialPeriodEnd || next.financialPeriodEnd > prev.financialPeriodEnd);
   const nextPeriodIsOlder =
     Boolean(next.financialPeriodEnd) &&
     Boolean(prev.financialPeriodEnd) &&
