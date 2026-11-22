@@ -14,6 +14,8 @@ export interface NseXbrlEvidenceDocument {
   filingUrl: string;
   fetchedAtUtc: string;
   sha256: string;
+  /** Relative path to immutable original XML retained beside this evidence record. */
+  rawArchivePath: string;
   extraction: XbrlExtraction;
 }
 
@@ -46,12 +48,12 @@ export function mergeXbrlEvidenceDocuments(previous: NseXbrlEvidenceDocument[], 
   return [...map.values()].sort((a,b) => a.periodEnd.localeCompare(b.periodEnd) || a.seqId.localeCompare(b.seqId, undefined, {numeric:true}));
 }
 
-function evidenceCachePath(): string {
-  return path.join(process.cwd(), 'data', 'research', 'nse_official_xbrl_evidence.json');
+function evidenceCachePath(cacheFile?: string): string {
+  return cacheFile ?? path.join(process.cwd(), 'data', 'research', 'nse_official_xbrl_evidence.json');
 }
 
-export function loadNseXbrlEvidenceCache(): NseXbrlEvidenceCache {
-  const file = evidenceCachePath();
+export function loadNseXbrlEvidenceCache(cacheFile?: string): NseXbrlEvidenceCache {
+  const file = evidenceCachePath(cacheFile);
   if (!fs.existsSync(file)) return { schemaVersion: 1, updatedAtUtc: '', symbols: {} };
   const parsed = JSON.parse(fs.readFileSync(file, 'utf8')) as Partial<NseXbrlEvidenceCache>;
   if (parsed.schemaVersion !== 1 || !parsed.symbols || typeof parsed.symbols !== 'object') {
@@ -60,8 +62,8 @@ export function loadNseXbrlEvidenceCache(): NseXbrlEvidenceCache {
   return { schemaVersion: 1, updatedAtUtc: parsed.updatedAtUtc ?? '', symbols: parsed.symbols };
 }
 
-function saveCache(cache: NseXbrlEvidenceCache): void {
-  const file = evidenceCachePath();
+function saveCache(cache: NseXbrlEvidenceCache, cacheFile?: string): void {
+  const file = evidenceCachePath(cacheFile);
   fs.mkdirSync(path.dirname(file), {recursive:true});
   const tmp = file + '.tmp';
   fs.writeFileSync(tmp, JSON.stringify(cache, null, 2) + '\n', 'utf8');
@@ -72,13 +74,14 @@ function saveCache(cache: NseXbrlEvidenceCache): void {
 export async function collectXbrlEvidenceForFilingRows(
   symbol: string,
   rows: NseRevisionRow[],
-  options: {fetchImpl?: typeof fetch; timeoutMs?: number} = {},
+  options: {fetchImpl?: typeof fetch; timeoutMs?: number; cacheFile?: string; archiveDir?: string} = {},
 ): Promise<{saved: number; skipped: number; failed: Array<{seqId:string;error:string}>}> {
   const fetchImpl = options.fetchImpl ?? fetch;
-  const cache = loadNseXbrlEvidenceCache();
+  const cache = loadNseXbrlEvidenceCache(options.cacheFile);
   const existing = cache.symbols[symbol]?.documents ?? [];
   const seenIds = new Set(existing.map(doc => doc.seqId));
   const newDocs: NseXbrlEvidenceDocument[] = [];
+  const rawBytesBySeq = new Map<string, Uint8Array>();
   const failed: Array<{seqId:string;error:string}> = [];
   let skipped = 0;
   for (const row of rows) {
@@ -99,16 +102,30 @@ export async function collectXbrlEvidenceForFilingRows(
         symbol: symbol.toUpperCase(), seqId, periodEnd: row.qe_Date ?? '', filingType: row.type ?? '',
         filingSubType: row.type_Sub ?? '', basis: row.consolidated ?? '',
         filingUrl: url.toString(), fetchedAtUtc: new Date().toISOString(),
-        sha256: createHash('sha256').update(bytes).digest('hex'), extraction,
+        sha256: createHash('sha256').update(bytes).digest('hex'), rawArchivePath: '', extraction,
       };
-      newDocs.push(doc); seenIds.add(seqId);
+      newDocs.push(doc); rawBytesBySeq.set(seqId, bytes); seenIds.add(seqId);
     } catch (error) { failed.push({seqId, error:(error as Error).message}); }
+  }
+  // Archive exact response bytes under immutable SHA-256 filenames; never overwrite different evidence.
+  const archiveRoot = options.archiveDir ?? path.join(process.cwd(), 'data', 'research', 'nse_official_xbrl_raw');
+  for (const doc of newDocs) {
+    const safeSymbol = doc.symbol.replace(/[^A-Z0-9._-]/g, '_');
+    const safeSeq = doc.seqId.replace(/[^A-Za-z0-9._-]/g, '_');
+    const archiveFile = path.join(archiveRoot, safeSymbol, safeSeq + '_' + doc.sha256 + '.xml');
+    fs.mkdirSync(path.dirname(archiveFile), {recursive:true});
+    if (!fs.existsSync(archiveFile)) {
+      const tmp = archiveFile + '.' + process.pid + '.tmp';
+      fs.writeFileSync(tmp, rawBytesBySeq.get(doc.seqId)!);
+      fs.renameSync(tmp, archiveFile);
+    }
+    doc.rawArchivePath = path.relative(process.cwd(), archiveFile);
   }
   const merged = mergeXbrlEvidenceDocuments(existing, newDocs);
   if (newDocs.length) {
     cache.symbols[symbol.toUpperCase()] = {symbol:symbol.toUpperCase(),documents:merged};
     cache.updatedAtUtc = new Date().toISOString();
-    saveCache(cache);
+    saveCache(cache, options.cacheFile);
   }
   return {saved:newDocs.length,skipped,failed};
 }
