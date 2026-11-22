@@ -63,3 +63,13 @@ test('mixed basis is blocked by the candidate comparison guard',()=>{
   assert.equal(report.candidates.revenueGrowth?.status,'BLOCKED_BASIS_MISMATCH');
   assert.equal(report.auditMatrix.metrics.REVENUE_GROWTH.decision,'DATA_BLOCKED');
 });
+
+test('filing envelope mismatch blocks facts even when current/prior facts agree with each other',()=>{
+  const wrongEnvelope={...current,periodStart:'2026-04-02'};
+  const report=buildSevenMetricCandidateReport('NON_FINANCIAL',wrongEnvelope,prior);
+  assert.equal(report.candidates.revenueGrowth?.status,'BLOCKED_PERIOD_ALIGNMENT');
+  assert.equal(report.candidates.profitGrowth?.status,'BLOCKED_PERIOD_ALIGNMENT');
+  assert.equal(report.candidates.operatingCashFlow?.status,'BLOCKED_PERIOD_ALIGNMENT');
+  assert.equal(report.auditMatrix.metrics.REVENUE_GROWTH.decision,'DATA_BLOCKED');
+  assert.equal(report.productionApproved,false);
+});
