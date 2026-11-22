@@ -52,3 +52,23 @@ The web link resolver identified the official ZIP URL but could not fetch the ZI
 
 ### Next implementation gate
 Obtain the archive bytes in a supported environment, inspect the taxonomy entry points and concept labels, then add taxonomy-specific mapping tests. In parallel, obtain one issuer filing's raw XBRL/iXBRL payload through the NSE filing row's XBRL link. Until those artifacts are locally readable, keep the extractor research-only and do not wire it into scanner runtime.
+
+
+## Follow-up: current NSE filing-index page rechecked on 2026-11-23
+
+The official NSE Integrated Filing page currently resolves to the beta NSE host:
+- https://betanseapi.nseindia.com/companies-listing/corporate-integrated-filing
+
+The page exposes the Integrated Filing-Financial table headings, including Symbol, Company Name, Quarter End Date, Type of Submission, Audited/Unaudited, Consolidated/Standalone, Details, XBRL, Broadcast Date/Time, Revised Date/Time and Revision Remarks. It also exposes a CSV download control and an XBRL-to-Excel utility link. However, the readable page response contains the UI shell and table headings, not the underlying row payload or the CSV/XBRL target URL. The actual request used by the table/CSV control remains unobserved. Do not infer an API route from the beta hostname or control labels.
+
+Official page checked: https://betanseapi.nseindia.com/companies-listing/corporate-integrated-filing
+
+## Parser safety hardening (research branch, 2026-11-23)
+
+The TypeScript extractor now preserves Inline XBRL `format` and `continuedAt` metadata and fails closed for these unsupported cases: it retains the raw fact, sets its numeric value to null, and emits a warning rather than guessing a transformation or truncating a continued fact into a potentially wrong number.
+
+Two synthetic regression tests were added:
+- Inline XBRL format transformation: numeric value withheld and warning emitted.
+- Inline XBRL continuedAt chain: numeric value withheld and warning emitted.
+
+This is a safety improvement, not proof of successful real-filing parsing. The tests have not yet been confirmed by CI; combined commit status returned no status entries. The actual NSE XBRL attachment and taxonomy ZIP remain unavailable to the current inspection, so no production-readiness claim is made.
