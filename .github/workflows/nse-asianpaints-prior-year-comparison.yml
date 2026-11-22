@@ -61,7 +61,7 @@ jobs:
           }
           const metadata={};
           for (const [key,row] of Object.entries(selected)) {
-            metadata[key]=Object.fromEntries(['symbol','smName','seq_Id','qe_Date','type','type_Sub','audited','consolidated','broadcast_Date','creation_Date','revised_Date','revision_Remark','ixbrl','xbrl'].map(field=>[field,row[field] ?? null]));
+            metadata[key]=Object.fromEntries(['symbol','smName','seq_Id','qe_Date','type','type_Sub','audited','consolidated','broadcast_Date','creation_Date','revised_Date','revision_Remark','pdf_attach','ixbrl','xbrl'].map(field=>[field,row[field] ?? null]));
             fs.writeFileSync(`artifacts/ASIANPAINT_${key}_xbrl_url.txt`,row.xbrl);
           }
           const historyMetadata={current:{status:currentHistory.status,originalSequenceId:currentHistory.original.seq_Id,revisionSequenceIds:currentHistory.revisions.map(r=>r.seq_Id)},prior:{status:priorHistory.status,originalSequenceId:priorHistory.original.seq_Id,revisionSequenceIds:priorHistory.revisions.map(r=>r.seq_Id)},paginationComplete:fetched.complete};
