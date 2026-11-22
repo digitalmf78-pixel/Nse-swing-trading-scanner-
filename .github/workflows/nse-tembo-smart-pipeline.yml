@@ -1,4 +1,4 @@
-name: NSE TEMBO standalone smart fundamental pilot
+name: NSE TEMBO standalone fundamental revision audit
 
 on:
   push:
@@ -8,14 +8,15 @@ on:
       - ".github/workflows/nse-tembo-smart-pipeline.yml"
       - "research/fundamental_pilot/nse_integrated_filing_client.ts"
       - "research/fundamental_pilot/xbrl_extract.ts"
-      - "research/fundamental_pilot/seven_metric_xbrl_pipeline.ts"
+      - "research/fundamental_pilot/xbrl_metric_fact_selector.ts"
+      - "research/fundamental_pilot/metric_revision_guard.ts"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  tembo-issuer-pilot:
+  tembo-issuer-revision-audit:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -37,7 +38,7 @@ jobs:
           mkdir -p node_modules
           ln -s "$RUNNER_TEMP/tembo-xbrl-deps/node_modules/fast-xml-parser" node_modules/fast-xml-parser
 
-      - name: Resolve complete official NSE standalone filing history
+      - name: Resolve complete official NSE filing and revision history
         shell: bash
         run: |
           set -euo pipefail
@@ -48,8 +49,9 @@ jobs:
           const fetched=await fetchNseIntegratedFilingRows({symbol:'TEMBO',pageSize:100,maxPages:20,maxRetries:3,timeoutMs:45000});
           const current=selectNseIssuerPeriodHistory(fetched.rows,{symbol:'TEMBO',period:'30-SEP-2026',basis:'Standalone'});
           const prior=selectNseIssuerPeriodHistory(fetched.rows,{symbol:'TEMBO',period:'30-SEP-2025',basis:'Standalone'});
-          const historyUsable=['ORIGINAL_ONLY'].includes(current.status)&&['ORIGINAL_ONLY'].includes(prior.status);
-          const allowed=fetched.complete&&historyUsable;
+          const currentOk=current.status==='ORIGINAL_ONLY';
+          const priorOk=['ORIGINAL_ONLY','REVISION_HISTORY'].includes(prior.status);
+          const allowed=fetched.complete&&currentOk&&priorOk;
           const out={
             symbol:'TEMBO',issuer:'Tembo Global Industries Limited',sector:'NON_FINANCIAL',basis:'Standalone',
             currentPeriod:'30-SEP-2026',priorPeriod:'30-SEP-2025',
@@ -57,29 +59,40 @@ jobs:
             paginationComplete:fetched.complete,exactDuplicateRows:fetched.exactDuplicateRows,warnings:fetched.warnings,
             current:{status:current.status,original:current.original,revisions:current.revisions},
             prior:{status:prior.status,original:prior.original,revisions:prior.revisions},
-            pipelineAllowed:allowed,productionApproved:false
+            auditAllowed:allowed,productionApproved:false
           };
           fs.writeFileSync('artifacts/tembo-filing-history.json',JSON.stringify(out,null,2));
-          console.log(JSON.stringify({...out,current:{status:current.status,sequenceId:current.original?.seq_Id,revisions:current.revisions?.length},prior:{status:prior.status,sequenceId:prior.original?.seq_Id,revisions:prior.revisions?.length}},null,2));
+          console.log(JSON.stringify({
+            symbol:out.symbol,pagesFetched:out.pagesFetched,rowCount:out.rowCount,paginationComplete:out.paginationComplete,
+            current:{status:current.status,sequenceId:current.original?.seq_Id,revisionCount:current.revisions?.length??0},
+            prior:{status:prior.status,sequenceId:prior.original?.seq_Id,revisionCount:prior.revisions?.length??0,
+              revisions:prior.revisions?.map(r=>({sequenceId:r.seq_Id,revisedDate:r.revised_Date,remark:r.revision_Remark}))},
+            auditAllowed:allowed,productionApproved:false
+          },null,2));
           JS
 
-      - name: Download exact-period original XBRL files
+      - name: Download current Original and prior Original plus every Revision
         shell: bash
         run: |
           set -euo pipefail
-          if [ "$(jq -r '.pipelineAllowed' artifacts/tembo-filing-history.json)" != "true" ]; then
-            echo "Blocked: complete pagination and Original-only histories for both periods are required." | tee artifacts/download-status.txt
+          if [ "$(jq -r '.auditAllowed' artifacts/tembo-filing-history.json)" != "true" ]; then
+            echo "Blocked: complete NSE pagination and exact filing history are required." | tee artifacts/download-status.txt
             exit 0
           fi
           mkdir -p artifacts/xbrl
+          node --input-type=module <<'JS' > artifacts/download-list.tsv
+          import fs from 'node:fs';
+          const d=JSON.parse(fs.readFileSync('artifacts/tembo-filing-history.json','utf8'));
+          const rows=[{kind:'current_original',row:d.current.original},{kind:'prior_original',row:d.prior.original},
+            ...d.prior.revisions.map((row,i)=>({kind:'prior_revision_'+(i+1),row}))];
+          for(const x of rows) console.log([x.kind,x.row.seq_Id,x.row.xbrl].join('\t'));
+          JS
           ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36"
           cookie_jar="artifacts/xbrl/nse-cookies.txt"
           curl --silent --show-error --location --max-time 60 --user-agent "$ua" --cookie-jar "$cookie_jar" --output /dev/null "https://www.nseindia.in/companies-listing/corporate-integrated-filing" || true
-          for key in current prior; do
-            url="$(jq -r ".$key.original.xbrl" artifacts/tembo-filing-history.json)"
-            seq="$(jq -r ".$key.original.seq_Id" artifacts/tembo-filing-history.json)"
-            response="artifacts/xbrl/$key-$seq.response"
-            out="artifacts/xbrl/$key-$seq.xml"
+          while IFS=$'\t' read -r kind seq url; do
+            response="artifacts/xbrl/$kind-$seq.response"
+            out="artifacts/xbrl/$kind-$seq.xml"
             curl --silent --show-error --location --max-time 120 --user-agent "$ua" --cookie "$cookie_jar" \
               --referer "https://www.nseindia.in/companies-listing/corporate-integrated-filing" \
               --header "Accept: application/xml,text/xml,application/octet-stream,*/*" \
@@ -93,13 +106,13 @@ jobs:
                 --header "Accept: application/xml,text/xml,application/octet-stream,*/*" --output "$out" "$direct" || true
             fi
             if ! grep -Eqi '<([[:alnum:]_]+:)?xbrl([ >])' "$out" 2>/dev/null; then
-              echo "Official NSE XBRL download failed for $key sequence $seq" >&2
+              echo "Official NSE XBRL download failed: $kind sequence $seq" >&2
               exit 1
             fi
-            sha256sum "$out" | tee "artifacts/xbrl/$key-$seq.sha256"
-          done
+            sha256sum "$out" | tee "artifacts/xbrl/$kind-$seq.sha256"
+          done < artifacts/download-list.tsv
 
-      - name: Parse exact periods and calculate candidate-only metrics
+      - name: Parse exact YTD facts and evaluate each metric across revisions
         if: success()
         shell: bash
         run: |
@@ -108,52 +121,94 @@ jobs:
           import fs from 'node:fs';
           import crypto from 'node:crypto';
           import { extractXbrl } from './research/fundamental_pilot/xbrl_extract.ts';
-          import { buildSevenMetricXbrlPipeline } from './research/fundamental_pilot/seven_metric_xbrl_pipeline.ts';
+          import { selectXbrlMetricFact } from './research/fundamental_pilot/xbrl_metric_fact_selector.ts';
+          import { evaluateRevisionMetric } from './research/fundamental_pilot/metric_revision_guard.ts';
           const meta=JSON.parse(fs.readFileSync('artifacts/tembo-filing-history.json','utf8'));
-          if(!meta.pipelineAllowed){
-            const blocked={status:'FILING_HISTORY_BLOCKED',meta,productionApproved:false,note:'No metrics calculated; original-only filing pair or complete pagination not confirmed.'};
-            fs.writeFileSync('artifacts/tembo-fundamental-report.json',JSON.stringify(blocked,null,2));
+          if(!meta.auditAllowed){
+            const blocked={status:'FILING_HISTORY_BLOCKED',meta,productionApproved:false};
+            fs.writeFileSync('artifacts/tembo-revision-audit.json',JSON.stringify(blocked,null,2));
             console.log(JSON.stringify(blocked,null,2));
             process.exit(0);
           }
+          const versions=[{key:'current_original',row:meta.current.original,role:'current'},
+            {key:'prior_original',row:meta.prior.original,role:'original'},
+            ...meta.prior.revisions.map((row,i)=>({key:'prior_revision_'+(i+1),row,role:'revision'}))];
           const parsed={};
-          const fileMeta={};
-          for(const key of ['current','prior']){
-            const row=meta[key].original;
-            const path='artifacts/xbrl/'+key+'-'+row.seq_Id+'.xml';
+          const fileReports={};
+          for(const v of versions){
+            const path='artifacts/xbrl/'+v.key+'-'+v.row.seq_Id+'.xml';
             const xml=fs.readFileSync(path,'utf8');
             const out=extractXbrl(xml);
-            if(!out.contextCount||!out.factCount||!Object.keys(out.units).length) throw new Error('Empty XBRL parse for '+key);
-            if(out.warnings.length) throw new Error('Parser warnings block issuer validation for '+key+': '+JSON.stringify(out.warnings));
-            parsed[key]=out;
-            fileMeta[key]={sequenceId:String(row.seq_Id),bytes:Buffer.byteLength(xml),sha256:crypto.createHash('sha256').update(xml).digest('hex'),contexts:out.contextCount,facts:out.factCount,units:out.units,warnings:out.warnings};
+            if(!out.contextCount||!out.factCount||!Object.keys(out.units).length) throw new Error('Empty XBRL parse: '+v.key);
+            if(out.warnings.length) throw new Error('Parser warnings block validation '+v.key+': '+JSON.stringify(out.warnings));
+            parsed[v.key]=out;
+            fileReports[v.key]={role:v.role,sequenceId:String(v.row.seq_Id),type:v.row.type_Sub,
+              broadcastDate:v.row.broadcast_Date??null,revisedDate:v.row.revised_Date??null,
+              revisionRemark:v.row.revision_Remark??null,bytes:Buffer.byteLength(xml),
+              sha256:crypto.createHash('sha256').update(xml).digest('hex'),
+              contexts:out.contextCount,facts:out.factCount,warnings:out.warnings};
           }
-          const pipeline=buildSevenMetricXbrlPipeline('NON_FINANCIAL',
-            {extraction:parsed.current,periodType:'YTD',periodStart:'2026-04-01',periodEnd:'2026-09-30',basis:'STANDALONE',filingBasis:'STANDALONE'},
-            {extraction:parsed.prior,periodType:'YTD',periodStart:'2025-04-01',periodEnd:'2025-09-30',basis:'STANDALONE',filingBasis:'STANDALONE'},
-            {revenue:'in-capmkt:RevenueFromOperations',profit:'in-capmkt:ProfitLossForPeriod',profitAttribution:'STANDALONE_ENTITY',operatingCashFlow:'in-capmkt:CashFlowsFromUsedInOperatingActivities'});
-          const report={
-            status:'TEMBO_REAL_NSE_XBRL_CANDIDATE_PILOT',
-            issuer:meta.issuer,symbol:meta.symbol,sector:meta.sector,basis:meta.basis,
+          const metrics=[
+            {key:'REVENUE_GROWTH',concept:'in-capmkt:RevenueFromOperations'},
+            {key:'PROFIT_GROWTH',concept:'in-capmkt:ProfitLossForPeriod'},
+            {key:'OPERATING_CASH_FLOW',concept:'in-capmkt:CashFlowsFromUsedInOperatingActivities'}
+          ];
+          const periodStart='2025-04-01',periodEnd='2025-09-30';
+          const request=concept=>({concept,periodStart,periodEnd,periodType:'YTD',basis:'STANDALONE',filingBasis:'STANDALONE'});
+          const revisionMetricAudit={};
+          for(const metric of metrics){
+            const original=selectXbrlMetricFact(parsed.prior_original,request(metric.concept));
+            const revisionSelections=meta.prior.revisions.map((row,i)=>({
+              row,selection:selectXbrlMetricFact(parsed['prior_revision_'+(i+1)],request(metric.concept))
+            }));
+            const snapshots=[
+              {sequenceId:String(meta.prior.original.seq_Id),kind:'Original',revisionAt:null,value:original.fact?.numericValue??null}
+            ];
+            for(const item of revisionSelections){
+              const raw=item.row.revised_Date??item.row.creation_Date??null;
+              const match=raw&&/^(\d{2})-([A-Z]{3})-(\d{4}) (\d{2}):(\d{2}):(\d{2})$/i.exec(raw);
+              const months={JAN:'01',FEB:'02',MAR:'03',APR:'04',MAY:'05',JUN:'06',JUL:'07',AUG:'08',SEP:'09',OCT:'10',NOV:'11',DEC:'12'};
+              const revisionAt=match?match[3]+'-'+months[match[2].toUpperCase()]+'-'+match[1]+'T'+match[4]+':'+match[5]+':'+match[6]+'Z':null;
+              snapshots.push({sequenceId:String(item.row.seq_Id),kind:'Revision',revisionAt,value:item.selection.fact?.numericValue??null});
+            }
+            const units=[original.fact?.unitMeasures??null,...revisionSelections.map(x=>x.selection.fact?.unitMeasures??null)];
+            const unitConsistent=units.every(u=>JSON.stringify(u)===JSON.stringify(units[0]));
+            const decision=evaluateRevisionMetric('30-SEP-2025','Standalone',metric.concept,snapshots[0],snapshots.slice(1));
+            const finalStatus=!unitConsistent?'REVISION_UNIT_CONFLICT_REVIEW_REQUIRED':decision.status;
+            revisionMetricAudit[metric.key]={
+              concept:metric.concept,periodStart,periodEnd,
+              originalSelection:{status:original.status,explanation:original.explanation,fact:original.fact},
+              revisionSelections:revisionSelections.map(x=>({sequenceId:String(x.row.seq_Id),revisedDate:x.row.revised_Date??null,
+                revisionRemark:x.row.revision_Remark??null,status:x.selection.status,explanation:x.selection.explanation,fact:x.selection.fact})),
+              unitConsistent,unitMeasures:units[0]??null,
+              decision:{...decision,status:finalStatus,selectedValue:finalStatus==='REVISIONS_IDENTICAL_CANDIDATE'?decision.selectedValue:null}
+            };
+          }
+          const currentPeriodFacts={};
+          for(const metric of metrics){
+            const concept=metric.concept;
+            const selected=selectXbrlMetricFact(parsed.current_original,{concept,periodStart:'2026-04-01',periodEnd:'2026-09-30',periodType:'YTD',basis:'STANDALONE',filingBasis:'STANDALONE'});
+            currentPeriodFacts[metric.key]={concept,status:selected.status,explanation:selected.explanation,fact:selected.fact};
+          }
+          const output={
+            status:'TEMBO_OFFICIAL_NSE_REVISION_AUDIT_COMPLETED',
+            issuer:meta.issuer,symbol:meta.symbol,basis:meta.basis,
             currentPeriod:meta.currentPeriod,priorPeriod:meta.priorPeriod,
-            filingHistory:{current:{status:meta.current.status,sequenceId:meta.current.original.seq_Id},prior:{status:meta.prior.status,sequenceId:meta.prior.original.seq_Id},paginationComplete:meta.paginationComplete},
-            files:fileMeta,
-            currentSelections:Object.fromEntries(Object.entries(pipeline.currentSelections).map(([k,v])=>[k,{status:v.status,eligibleCount:v.eligibleCount,rejectedContextCount:v.rejectedContextCount,explanation:v.explanation}])),
-            priorSelections:Object.fromEntries(Object.entries(pipeline.priorSelections).map(([k,v])=>[k,{status:v.status,eligibleCount:v.eligibleCount,rejectedContextCount:v.rejectedContextCount,explanation:v.explanation}])),
-            candidates:pipeline.candidateReport.candidates,
-            auditMatrix:pipeline.candidateReport.auditMatrix,
+            metadata:{pagesFetched:meta.pagesFetched,rowCount:meta.rowCount,paginationComplete:meta.paginationComplete,
+              exactDuplicateRows:meta.exactDuplicateRows,currentHistory:meta.current.status,priorHistory:meta.prior.status},
+            files:fileReports,currentPeriodFacts,priorYearRevisionMetricAudit:revisionMetricAudit,
             productionApproved:false,
-            note:'All results are raw-source-backed mechanical candidates only. Official results PDF tie-out, issuer notes/comparability review and revision checks remain mandatory before accepting any metric.'
+            note:'Metric-level revision comparison only. Identical prior Original/Revision facts remain candidate-only; changed/missing facts are withheld pending exact official PDF cross-check. No growth rates are released in this audit.'
           };
-          fs.writeFileSync('artifacts/tembo-fundamental-report.json',JSON.stringify(report,null,2));
-          console.log(JSON.stringify(report,null,2));
+          fs.writeFileSync('artifacts/tembo-revision-audit.json',JSON.stringify(output,null,2));
+          console.log(JSON.stringify(output,null,2));
           JS
 
-      - name: Upload official NSE metadata, XBRL and audit evidence
+      - name: Upload NSE filing history, raw XBRL and revision audit
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: nse-tembo-standalone-fundamental-pilot
+          name: nse-tembo-standalone-revision-audit
           path: artifacts/
           if-no-files-found: error
           retention-days: 14
