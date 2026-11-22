@@ -298,7 +298,7 @@ export const IpoSentimentView: React.FC<IpoSentimentViewProps> = ({
             <span className="text-xs font-mono text-slate-500">EOD {data.asOfDate}</span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Applies identical V8 Delivery A/B institutional flow, 20D RVOL, U-Turn entry zones, Turnaround Top exits, and Fundamental Audit freshness to stocks listed within 365 days.
+            Applies identical V8 Delivery A/B participation criteria, 20D RVOL, U-Turn entry zones, Turnaround Top exits, and Fundamental Audit freshness to stocks listed within 365 days.
           </p>
         </div>
 
