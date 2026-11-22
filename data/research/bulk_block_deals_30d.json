@@ -1,0 +1,4145 @@
+{
+  "lastSyncedUtc": "2026-11-21T11:15:16.962Z",
+  "deals": [
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "ALPHAGREP SECURITIES PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 414422,
+      "tradePrice": 273.3,
+      "valueCr": 11.33
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "BUY",
+      "quantity": 1071662,
+      "tradePrice": 272.55,
+      "valueCr": 29.21
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "JUMP TRADING FINANCIAL INDIA PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 612007,
+      "tradePrice": 272.23,
+      "valueCr": 16.66
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "PLUTUS WEALTH MANAGEMENT LLP",
+      "buySell": "BUY",
+      "quantity": 1053743,
+      "tradePrice": 273.58,
+      "valueCr": 28.83
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "HRTI PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 620351,
+      "tradePrice": 270.82,
+      "valueCr": 16.8
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "ELIXIR WEALTH MANAGEMENT PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 313269,
+      "tradePrice": 274.84,
+      "valueCr": 8.61
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "CUDML",
+      "clientName": "CAPACIOUS WEALTH MANAGEMENT LLP",
+      "buySell": "BUY",
+      "quantity": 127000,
+      "tradePrice": 99.72,
+      "valueCr": 1.27
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "ENCOMPAS",
+      "clientName": "GENZ INVESTMENT ADVISORS PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 1600,
+      "tradePrice": 230.98,
+      "valueCr": 0.04
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "GERMAN",
+      "clientName": "ALPHAGREP SECURITIES PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 614681,
+      "tradePrice": 117.69,
+      "valueCr": 7.23
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "GERMAN",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "BUY",
+      "quantity": 557810,
+      "tradePrice": 117.77,
+      "valueCr": 6.57
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "GERMAN",
+      "clientName": "HRTI PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 512516,
+      "tradePrice": 116.63,
+      "valueCr": 5.98
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "GERMAN",
+      "clientName": "JUNOMONETA FINSOL PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 401980,
+      "tradePrice": 117.35,
+      "valueCr": 4.72
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "GERMAN",
+      "clientName": "MICROCURVES TRADING PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 430444,
+      "tradePrice": 117.66,
+      "valueCr": 5.06
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "GSMFOILS",
+      "clientName": "HI GROWTH CORPORATE SERVICES PVT LTD",
+      "buySell": "BUY",
+      "quantity": 74500,
+      "tradePrice": 42.81,
+      "valueCr": 0.32
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "HMAAGRO",
+      "clientName": "JUNOMONETA FINSOL PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 4880262,
+      "tradePrice": 33.16,
+      "valueCr": 16.18
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "HMAAGRO",
+      "clientName": "MARWADI SHARES AND FINANCE LTD.",
+      "buySell": "BUY",
+      "quantity": 889339,
+      "tradePrice": 33.07,
+      "valueCr": 2.94
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "HMAAGRO",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "BUY",
+      "quantity": 2988190,
+      "tradePrice": 33,
+      "valueCr": 9.86
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "HMAAGRO",
+      "clientName": "MICROCURVES TRADING PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 5135411,
+      "tradePrice": 33.29,
+      "valueCr": 17.1
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "HMAAGRO",
+      "clientName": "ALPHAGREP SECURITIES PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 6349411,
+      "tradePrice": 32.93,
+      "valueCr": 20.91
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "HMAAGRO",
+      "clientName": "NK SECURITIES RESEARCH PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 3211389,
+      "tradePrice": 33.19,
+      "valueCr": 10.66
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "IEML-RE1",
+      "clientName": "SHABBIR NAZMUDDIN PARATHA",
+      "buySell": "BUY",
+      "quantity": 150000,
+      "tradePrice": 3.15,
+      "valueCr": 0.05
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "ITALIANE",
+      "clientName": "SACHIN GOVINDLAL MODI",
+      "buySell": "BUY",
+      "quantity": 200000,
+      "tradePrice": 25.7,
+      "valueCr": 0.51
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "MANAKCOAT",
+      "clientName": "ARIHANT CAPITAL MARKETS LIMITED",
+      "buySell": "BUY",
+      "quantity": 598236,
+      "tradePrice": 160.14,
+      "valueCr": 9.58
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "MANAKCOAT",
+      "clientName": "RSL SECURITIES PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 800000,
+      "tradePrice": 160,
+      "valueCr": 12.8
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "MARKOLINES",
+      "clientName": "VISTAAR TRADING SERVICE PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 121967,
+      "tradePrice": 163.66,
+      "valueCr": 2
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "MARSONS",
+      "clientName": "ARIHANT CAPITAL MARKETS LIMITED",
+      "buySell": "BUY",
+      "quantity": 1082497,
+      "tradePrice": 156.09,
+      "valueCr": 16.9
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "NEWJAISA",
+      "clientName": "SAHIL GANDHI",
+      "buySell": "BUY",
+      "quantity": 262500,
+      "tradePrice": 15.7,
+      "valueCr": 0.41
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "OAL",
+      "clientName": "ALPHAGREP SECURITIES PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 186720,
+      "tradePrice": 492.56,
+      "valueCr": 9.2
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "OAL",
+      "clientName": "MICROCURVES TRADING PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 213961,
+      "tradePrice": 499.13,
+      "valueCr": 10.68
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "OAL",
+      "clientName": "NK SECURITIES RESEARCH PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 194696,
+      "tradePrice": 495.79,
+      "valueCr": 9.65
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "RAMBHAJO",
+      "clientName": "NAVRATRI SHARE TRADING PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 250000,
+      "tradePrice": 328.25,
+      "valueCr": 8.21
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "SMCGLOBAL",
+      "clientName": "ARIHANT CAPITAL MARKETS LIMITED",
+      "buySell": "BUY",
+      "quantity": 2282076,
+      "tradePrice": 86.69,
+      "valueCr": 19.78
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "SMCGLOBAL",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "BUY",
+      "quantity": 1011193,
+      "tradePrice": 86,
+      "valueCr": 8.7
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "SULA",
+      "clientName": "AEGIS INVESTMENT FUND",
+      "buySell": "BUY",
+      "quantity": 435000,
+      "tradePrice": 138.91,
+      "valueCr": 6.04
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "UGROCAP",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "BUY",
+      "quantity": 3376316,
+      "tradePrice": 82.01,
+      "valueCr": 27.69
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "UGROCAP",
+      "clientName": "IRAGE BROKING SERVICES LLP",
+      "buySell": "BUY",
+      "quantity": 812664,
+      "tradePrice": 81.89,
+      "valueCr": 6.65
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "UGROCAP",
+      "clientName": "IMC INDIA SECURITIES PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 1919079,
+      "tradePrice": 82.48,
+      "valueCr": 15.83
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "UGROCAP",
+      "clientName": "NK SECURITIES RESEARCH PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 2750014,
+      "tradePrice": 81.96,
+      "valueCr": 22.54
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "UGROCAP",
+      "clientName": "CLT RESEARCH TECH PRIVATE LTD",
+      "buySell": "BUY",
+      "quantity": 2061743,
+      "tradePrice": 81.36,
+      "valueCr": 16.77
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "UGROCAP",
+      "clientName": "J4S FINANCIAL SOLUTIONS LLP",
+      "buySell": "BUY",
+      "quantity": 883095,
+      "tradePrice": 81.85,
+      "valueCr": 7.23
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "UGROCAP",
+      "clientName": "ALPHAGREP SECURITIES PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 3461968,
+      "tradePrice": 82,
+      "valueCr": 28.39
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "UGROCAP",
+      "clientName": "QICAP MARKETS LLP",
+      "buySell": "BUY",
+      "quantity": 1088656,
+      "tradePrice": 81.63,
+      "valueCr": 8.89
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "UGROCAP",
+      "clientName": "MICROCURVES TRADING PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 3242148,
+      "tradePrice": 81.91,
+      "valueCr": 26.56
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "UGROCAP",
+      "clientName": "JUNOMONETA FINSOL PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 1892825,
+      "tradePrice": 81.86,
+      "valueCr": 15.49
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "URBAN",
+      "clientName": "NIPA MANTHAN SANGHAVI",
+      "buySell": "BUY",
+      "quantity": 1600,
+      "tradePrice": 84.95,
+      "valueCr": 0.01
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "V2RETAIL",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "BUY",
+      "quantity": 5944515,
+      "tradePrice": 162.41,
+      "valueCr": 96.54
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "V2RETAIL",
+      "clientName": "ALPHAGREP SECURITIES PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 3928111,
+      "tradePrice": 162.07,
+      "valueCr": 63.66
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "V2RETAIL",
+      "clientName": "PLUTUS WEALTH MANAGEMENT LLP",
+      "buySell": "BUY",
+      "quantity": 2042330,
+      "tradePrice": 161.83,
+      "valueCr": 33.05
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "V2RETAIL",
+      "clientName": "JUNOMONETA FINSOL PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 2581834,
+      "tradePrice": 162.3,
+      "valueCr": 41.9
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "V2RETAIL",
+      "clientName": "MICROCURVES TRADING PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 4019516,
+      "tradePrice": 162.24,
+      "valueCr": 65.21
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "V2RETAIL",
+      "clientName": "HRTI PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 4627201,
+      "tradePrice": 161.82,
+      "valueCr": 74.88
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "VALUE360",
+      "clientName": "PRAFULL  RAI",
+      "buySell": "BUY",
+      "quantity": 100800,
+      "tradePrice": 89.63,
+      "valueCr": 0.9
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "VALUE360",
+      "clientName": "3 SIGMA GLOBAL FUND",
+      "buySell": "BUY",
+      "quantity": 99600,
+      "tradePrice": 86.2,
+      "valueCr": 0.86
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "WEWIN",
+      "clientName": "IRAGE BROKING SERVICES LLP",
+      "buySell": "BUY",
+      "quantity": 73390,
+      "tradePrice": 45.22,
+      "valueCr": 0.33
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "WEWIN",
+      "clientName": "ORION STOCKS LTD",
+      "buySell": "BUY",
+      "quantity": 16935,
+      "tradePrice": 45.97,
+      "valueCr": 0.08
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "PLUTUS WEALTH MANAGEMENT LLP",
+      "buySell": "SELL",
+      "quantity": 1053743,
+      "tradePrice": 273.68,
+      "valueCr": 28.84
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "SELL",
+      "quantity": 1036778,
+      "tradePrice": 273.76,
+      "valueCr": 28.38
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "JUMP TRADING FINANCIAL INDIA PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 612007,
+      "tradePrice": 276.12,
+      "valueCr": 16.9
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "ALPHAGREP SECURITIES PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 414422,
+      "tradePrice": 273.55,
+      "valueCr": 11.34
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "ELIXIR WEALTH MANAGEMENT PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 334250,
+      "tradePrice": 275.35,
+      "valueCr": 9.2
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "HRTI PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 760754,
+      "tradePrice": 273.25,
+      "valueCr": 20.79
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "CUDML",
+      "clientName": "INDIAEMERGING INFRASTRUCTURE PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 106000,
+      "tradePrice": 99.22,
+      "valueCr": 1.05
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "ENCOMPAS",
+      "clientName": "GENZ INVESTMENT ADVISORS PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 133200,
+      "tradePrice": 224.5,
+      "valueCr": 2.99
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "GALLANTT",
+      "clientName": "DINESH R AGARWAL",
+      "buySell": "SELL",
+      "quantity": 1610292,
+      "tradePrice": 523.93,
+      "valueCr": 84.37
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "GERMAN",
+      "clientName": "HRTI PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 495772,
+      "tradePrice": 117.2,
+      "valueCr": 5.81
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "GERMAN",
+      "clientName": "ALPHAGREP SECURITIES PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 614681,
+      "tradePrice": 117.71,
+      "valueCr": 7.24
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "GERMAN",
+      "clientName": "JUNOMONETA FINSOL PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 402388,
+      "tradePrice": 117.39,
+      "valueCr": 4.72
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "GERMAN",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "SELL",
+      "quantity": 571688,
+      "tradePrice": 117.14,
+      "valueCr": 6.7
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "GERMAN",
+      "clientName": "MICROCURVES TRADING PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 430444,
+      "tradePrice": 117.74,
+      "valueCr": 5.07
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "GSMFOILS",
+      "clientName": "HI GROWTH CORPORATE SERVICES PVT LTD",
+      "buySell": "SELL",
+      "quantity": 40500,
+      "tradePrice": 42.91,
+      "valueCr": 0.17
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "HMAAGRO",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "SELL",
+      "quantity": 3076350,
+      "tradePrice": 32.68,
+      "valueCr": 10.05
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "HMAAGRO",
+      "clientName": "NK SECURITIES RESEARCH PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 3211389,
+      "tradePrice": 33.21,
+      "valueCr": 10.67
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "HMAAGRO",
+      "clientName": "MARWADI SHARES AND FINANCE LTD.",
+      "buySell": "SELL",
+      "quantity": 2599511,
+      "tradePrice": 31.14,
+      "valueCr": 8.09
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "HMAAGRO",
+      "clientName": "ALPHAGREP SECURITIES PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 6349411,
+      "tradePrice": 32.92,
+      "valueCr": 20.9
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "HMAAGRO",
+      "clientName": "JUNOMONETA FINSOL PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 4887084,
+      "tradePrice": 33.19,
+      "valueCr": 16.22
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "HMAAGRO",
+      "clientName": "MICROCURVES TRADING PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 5135411,
+      "tradePrice": 33.31,
+      "valueCr": 17.11
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "ITALIANE",
+      "clientName": "AKSHAY MAKHIJA",
+      "buySell": "SELL",
+      "quantity": 234000,
+      "tradePrice": 25.7,
+      "valueCr": 0.6
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "JAYBARMARU",
+      "clientName": "SHUKLAMBER EXPORTS LTD",
+      "buySell": "SELL",
+      "quantity": 600000,
+      "tradePrice": 127.03,
+      "valueCr": 7.62
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "MANAKCOAT",
+      "clientName": "ARIHANT CAPITAL MARKETS LIMITED",
+      "buySell": "SELL",
+      "quantity": 564365,
+      "tradePrice": 160.03,
+      "valueCr": 9.03
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "MANAKCOAT",
+      "clientName": "ELYSIAN WEALTH FUND",
+      "buySell": "SELL",
+      "quantity": 1000000,
+      "tradePrice": 160,
+      "valueCr": 16
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "MARKOLINES",
+      "clientName": "VISTAAR TRADING SERVICE PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 108039,
+      "tradePrice": 162.68,
+      "valueCr": 1.76
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "MARSONS",
+      "clientName": "ARIHANT CAPITAL MARKETS LIMITED",
+      "buySell": "SELL",
+      "quantity": 951154,
+      "tradePrice": 155.13,
+      "valueCr": 14.76
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "NEWJAISA",
+      "clientName": "PEGASUS GROWTH FUND 1",
+      "buySell": "SELL",
+      "quantity": 204000,
+      "tradePrice": 15.7,
+      "valueCr": 0.32
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "OAL",
+      "clientName": "NK SECURITIES RESEARCH PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 195720,
+      "tradePrice": 496.27,
+      "valueCr": 9.71
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "OAL",
+      "clientName": "MICROCURVES TRADING PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 213961,
+      "tradePrice": 499.42,
+      "valueCr": 10.69
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "OAL",
+      "clientName": "ALPHAGREP SECURITIES PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 186720,
+      "tradePrice": 493.05,
+      "valueCr": 9.21
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "SMCGLOBAL",
+      "clientName": "ARIHANT CAPITAL MARKETS LIMITED",
+      "buySell": "SELL",
+      "quantity": 2282076,
+      "tradePrice": 86.3,
+      "valueCr": 19.69
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "SMCGLOBAL",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "SELL",
+      "quantity": 1062616,
+      "tradePrice": 86.38,
+      "valueCr": 9.18
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "TIPSFILMS",
+      "clientName": "ARHAM SHARE PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 25000,
+      "tradePrice": 427.68,
+      "valueCr": 1.07
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "UGROCAP",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "SELL",
+      "quantity": 3399158,
+      "tradePrice": 82.1,
+      "valueCr": 27.91
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "UGROCAP",
+      "clientName": "IRAGE BROKING SERVICES LLP",
+      "buySell": "SELL",
+      "quantity": 806735,
+      "tradePrice": 82.05,
+      "valueCr": 6.62
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "UGROCAP",
+      "clientName": "ALPHAGREP SECURITIES PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 3461968,
+      "tradePrice": 82.07,
+      "valueCr": 28.41
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "UGROCAP",
+      "clientName": "NK SECURITIES RESEARCH PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 2750014,
+      "tradePrice": 82,
+      "valueCr": 22.55
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "UGROCAP",
+      "clientName": "CLT RESEARCH TECH PRIVATE LTD",
+      "buySell": "SELL",
+      "quantity": 2061743,
+      "tradePrice": 81.39,
+      "valueCr": 16.78
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "UGROCAP",
+      "clientName": "J4S FINANCIAL SOLUTIONS LLP",
+      "buySell": "SELL",
+      "quantity": 883095,
+      "tradePrice": 81.98,
+      "valueCr": 7.24
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "UGROCAP",
+      "clientName": "QICAP MARKETS LLP",
+      "buySell": "SELL",
+      "quantity": 1088656,
+      "tradePrice": 81.76,
+      "valueCr": 8.9
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "UGROCAP",
+      "clientName": "IMC INDIA SECURITIES PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 1579964,
+      "tradePrice": 82.48,
+      "valueCr": 13.03
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "UGROCAP",
+      "clientName": "MICROCURVES TRADING PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 3242148,
+      "tradePrice": 82.02,
+      "valueCr": 26.59
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "UGROCAP",
+      "clientName": "JUNOMONETA FINSOL PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 1900140,
+      "tradePrice": 81.92,
+      "valueCr": 15.57
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "URBAN",
+      "clientName": "NIPA MANTHAN SANGHAVI",
+      "buySell": "SELL",
+      "quantity": 69600,
+      "tradePrice": 85,
+      "valueCr": 0.59
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "V2RETAIL",
+      "clientName": "PLUTUS WEALTH MANAGEMENT LLP",
+      "buySell": "SELL",
+      "quantity": 2042330,
+      "tradePrice": 161.91,
+      "valueCr": 33.07
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "V2RETAIL",
+      "clientName": "ALPHAGREP SECURITIES PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 3912441,
+      "tradePrice": 162.17,
+      "valueCr": 63.45
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "V2RETAIL",
+      "clientName": "HRTI PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 4840649,
+      "tradePrice": 161.74,
+      "valueCr": 78.29
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "V2RETAIL",
+      "clientName": "MICROCURVES TRADING PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 4019516,
+      "tradePrice": 162.32,
+      "valueCr": 65.24
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "V2RETAIL",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "SELL",
+      "quantity": 6092959,
+      "tradePrice": 161.82,
+      "valueCr": 98.6
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "V2RETAIL",
+      "clientName": "JUNOMONETA FINSOL PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 2598108,
+      "tradePrice": 162.33,
+      "valueCr": 42.18
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "WEWIN",
+      "clientName": "ORION STOCKS LTD",
+      "buySell": "SELL",
+      "quantity": 101553,
+      "tradePrice": 45.29,
+      "valueCr": 0.46
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BULK",
+      "symbol": "WEWIN",
+      "clientName": "IRAGE BROKING SERVICES LLP",
+      "buySell": "SELL",
+      "quantity": 33,
+      "tradePrice": 46.35,
+      "valueCr": 0
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BLOCK",
+      "symbol": "GALLANTT",
+      "clientName": "SHREE SURABHI FLOUR MILLS PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 550000,
+      "tradePrice": 523,
+      "valueCr": 28.77
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BLOCK",
+      "symbol": "GALLANTT",
+      "clientName": "SURYALAXMI INFRACON PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 1060292,
+      "tradePrice": 524.41,
+      "valueCr": 55.6
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BLOCK",
+      "symbol": "INDGN",
+      "clientName": "RAJESH BHASKARAN NAIR",
+      "buySell": "BUY",
+      "quantity": 380750,
+      "tradePrice": 657,
+      "valueCr": 25.02
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BLOCK",
+      "symbol": "GALLANTT",
+      "clientName": "DINESH R AGARWAL",
+      "buySell": "SELL",
+      "quantity": 1610292,
+      "tradePrice": 523.93,
+      "valueCr": 84.37
+    },
+    {
+      "date": "2026-11-20",
+      "dealType": "BLOCK",
+      "symbol": "INDGN",
+      "clientName": "AARABHI PARTNERS CONSULTANTS LLP",
+      "buySell": "SELL",
+      "quantity": 380750,
+      "tradePrice": 657,
+      "valueCr": 25.02
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "ASHOKA",
+      "clientName": "HRTI PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 1668478,
+      "tradePrice": 114.03,
+      "valueCr": 19.03
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "ASHOKA",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "BUY",
+      "quantity": 1590733,
+      "tradePrice": 113.69,
+      "valueCr": 18.09
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "ASHOKA",
+      "clientName": "MARWADI SHARES AND FINANCE LTD.",
+      "buySell": "BUY",
+      "quantity": 1523997,
+      "tradePrice": 114.69,
+      "valueCr": 17.48
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "AZAD",
+      "clientName": "VALUEQUEST INDIA INFLEXION FUND",
+      "buySell": "BUY",
+      "quantity": 350000,
+      "tradePrice": 2286,
+      "valueCr": 80.01
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "AZAD",
+      "clientName": "NORGES BANK ON ACCOUNT OF THE GOVERNMENT PENSION FUND GLOBAL",
+      "buySell": "BUY",
+      "quantity": 473088,
+      "tradePrice": 2286,
+      "valueCr": 108.15
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "AZAD",
+      "clientName": "MANSI SHARE AND STOCK BROKING PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 451930,
+      "tradePrice": 2286.46,
+      "valueCr": 103.33
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "AZAD",
+      "clientName": "VALUEQUEST FOUNDERS CONVICTION LVF",
+      "buySell": "BUY",
+      "quantity": 450000,
+      "tradePrice": 2286,
+      "valueCr": 102.87
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "AZAD",
+      "clientName": "VQ FASTERCAP FUND",
+      "buySell": "BUY",
+      "quantity": 347000,
+      "tradePrice": 2286,
+      "valueCr": 79.32
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "BALAXI",
+      "clientName": "SANMATI CONSULTANTS PVT LTD",
+      "buySell": "BUY",
+      "quantity": 325000,
+      "tradePrice": 31.7,
+      "valueCr": 1.03
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "MICROCURVES TRADING PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 608887,
+      "tradePrice": 279.89,
+      "valueCr": 17.04
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "CLT RESEARCH TECH PRIVATE LTD",
+      "buySell": "BUY",
+      "quantity": 473008,
+      "tradePrice": 279.66,
+      "valueCr": 13.23
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "ELIXIR WEALTH MANAGEMENT PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 867700,
+      "tradePrice": 279.37,
+      "valueCr": 24.24
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "HRTI PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 781926,
+      "tradePrice": 279.91,
+      "valueCr": 21.89
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "MARWADI SHARES AND FINANCE LTD.",
+      "buySell": "BUY",
+      "quantity": 749363,
+      "tradePrice": 280.64,
+      "valueCr": 21.03
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "JUMP TRADING FINANCIAL INDIA PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 502488,
+      "tradePrice": 279.27,
+      "valueCr": 14.03
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "JUNOMONETA FINSOL PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 761214,
+      "tradePrice": 279.92,
+      "valueCr": 21.31
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "PLUTUS WEALTH MANAGEMENT LLP",
+      "buySell": "BUY",
+      "quantity": 1557102,
+      "tradePrice": 280.13,
+      "valueCr": 43.62
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "NK SECURITIES RESEARCH PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 491808,
+      "tradePrice": 280.41,
+      "valueCr": 13.79
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "ALPHAGREP SECURITIES PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 1218802,
+      "tradePrice": 279.89,
+      "valueCr": 34.11
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "IRAGE BROKING SERVICES LLP",
+      "buySell": "BUY",
+      "quantity": 335643,
+      "tradePrice": 282.17,
+      "valueCr": 9.47
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "BUY",
+      "quantity": 794710,
+      "tradePrice": 279.96,
+      "valueCr": 22.25
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "FAZE3Q",
+      "clientName": "ALPHAGREP SECURITIES PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 139229,
+      "tradePrice": 638.68,
+      "valueCr": 8.89
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "FAZE3Q",
+      "clientName": "NK SECURITIES RESEARCH PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 133117,
+      "tradePrice": 653.95,
+      "valueCr": 8.71
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "GREAVESCOT",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "BUY",
+      "quantity": 1540816,
+      "tradePrice": 261.79,
+      "valueCr": 40.34
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "GSMFOILS",
+      "clientName": "HI GROWTH CORPORATE SERVICES PVT LTD",
+      "buySell": "BUY",
+      "quantity": 81000,
+      "tradePrice": 47.45,
+      "valueCr": 0.38
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "HINDOILEXP",
+      "clientName": "HRTI PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 642055,
+      "tradePrice": 228.9,
+      "valueCr": 14.7
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "IEML",
+      "clientName": "NIRAJ UMESH JOSHI",
+      "buySell": "BUY",
+      "quantity": 212000,
+      "tradePrice": 37.98,
+      "valueCr": 0.81
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "IEML-RE1",
+      "clientName": "NIRAJ UMESH JOSHI",
+      "buySell": "BUY",
+      "quantity": 121500,
+      "tradePrice": 9.1,
+      "valueCr": 0.11
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "IEML-RE1",
+      "clientName": "RITESH NILKANTH NEMADE",
+      "buySell": "BUY",
+      "quantity": 500500,
+      "tradePrice": 9,
+      "valueCr": 0.45
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "INDOCO",
+      "clientName": "CLT RESEARCH TECH PRIVATE LTD",
+      "buySell": "BUY",
+      "quantity": 688466,
+      "tradePrice": 247.3,
+      "valueCr": 17.03
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "INDOCO",
+      "clientName": "NK SECURITIES RESEARCH PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 1098153,
+      "tradePrice": 248.9,
+      "valueCr": 27.33
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "INDOCO",
+      "clientName": "QICAP MARKETS LLP",
+      "buySell": "BUY",
+      "quantity": 480424,
+      "tradePrice": 247.86,
+      "valueCr": 11.91
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "INDOCO",
+      "clientName": "JUNOMONETA FINSOL PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 743473,
+      "tradePrice": 247.69,
+      "valueCr": 18.42
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "INDOCO",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "BUY",
+      "quantity": 787498,
+      "tradePrice": 248.24,
+      "valueCr": 19.55
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "INDOCO",
+      "clientName": "IRAGE BROKING SERVICES LLP",
+      "buySell": "BUY",
+      "quantity": 470904,
+      "tradePrice": 248.56,
+      "valueCr": 11.7
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "JKSHAH",
+      "clientName": "AUTHUM INVESTMENT & INFRASTRUCTURE LIMITED",
+      "buySell": "BUY",
+      "quantity": 517440,
+      "tradePrice": 208.98,
+      "valueCr": 10.81
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "MARKOLINES",
+      "clientName": "VISTAAR TRADING SERVICE PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 111984,
+      "tradePrice": 166.24,
+      "valueCr": 1.86
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "MVELECTRO",
+      "clientName": "HRTI PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 170458,
+      "tradePrice": 807.44,
+      "valueCr": 13.76
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "MVELECTRO",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "BUY",
+      "quantity": 207406,
+      "tradePrice": 814.59,
+      "valueCr": 16.9
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "NEOGEN",
+      "clientName": "INVESCO MUTUAL FUND",
+      "buySell": "BUY",
+      "quantity": 500000,
+      "tradePrice": 2780,
+      "valueCr": 139
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "OMPOWER",
+      "clientName": "NEO APEX SHARE BROKING SERVICES LLP",
+      "buySell": "BUY",
+      "quantity": 211642,
+      "tradePrice": 152.56,
+      "valueCr": 3.23
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "OMPOWER",
+      "clientName": "SETU SECURITIES PVT LTD",
+      "buySell": "BUY",
+      "quantity": 245317,
+      "tradePrice": 152.7,
+      "valueCr": 3.75
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "RAMBHAJO",
+      "clientName": "NAVRATRI SHARE TRADING PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 250000,
+      "tradePrice": 308.68,
+      "valueCr": 7.72
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "RATNAVEER",
+      "clientName": "ARIHANT CAPITAL MARKETS LIMITED",
+      "buySell": "BUY",
+      "quantity": 544330,
+      "tradePrice": 370.24,
+      "valueCr": 20.15
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "RKFAL",
+      "clientName": "N SHANKAR RAO",
+      "buySell": "BUY",
+      "quantity": 121600,
+      "tradePrice": 46.35,
+      "valueCr": 0.56
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "SHANTI",
+      "clientName": "AUM SECURITIES PVT. LTD.",
+      "buySell": "BUY",
+      "quantity": 10,
+      "tradePrice": 5.92,
+      "valueCr": 0
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "SUNSHINE",
+      "clientName": "ARIHANT CAPITAL MARKETS LIMITED",
+      "buySell": "BUY",
+      "quantity": 289526,
+      "tradePrice": 494.34,
+      "valueCr": 14.31
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "SYNCOMF",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "BUY",
+      "quantity": 4901252,
+      "tradePrice": 22.26,
+      "valueCr": 10.91
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "V2RETAIL",
+      "clientName": "HRTI PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 5374700,
+      "tradePrice": 135.75,
+      "valueCr": 72.96
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "V2RETAIL",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "BUY",
+      "quantity": 5529149,
+      "tradePrice": 135.18,
+      "valueCr": 74.74
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "V2RETAIL",
+      "clientName": "JUNOMONETA FINSOL PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 2576383,
+      "tradePrice": 135.65,
+      "valueCr": 34.95
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "V2RETAIL",
+      "clientName": "ALPHAGREP SECURITIES PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 4146913,
+      "tradePrice": 135.62,
+      "valueCr": 56.24
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "V2RETAIL",
+      "clientName": "MICROCURVES TRADING PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 2695461,
+      "tradePrice": 136.07,
+      "valueCr": 36.68
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "V2RETAIL",
+      "clientName": "CLT RESEARCH TECH PRIVATE LTD",
+      "buySell": "BUY",
+      "quantity": 2496253,
+      "tradePrice": 135.72,
+      "valueCr": 33.88
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "VINEETLAB",
+      "clientName": "K L B SECURITIES PVT LTD",
+      "buySell": "BUY",
+      "quantity": 100000,
+      "tradePrice": 38.3,
+      "valueCr": 0.38
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "VINEETLAB",
+      "clientName": "SURINDER KAUR",
+      "buySell": "BUY",
+      "quantity": 100000,
+      "tradePrice": 38.09,
+      "valueCr": 0.38
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "WOL3D",
+      "clientName": "KAUSHAL KOTHARI",
+      "buySell": "BUY",
+      "quantity": 38000,
+      "tradePrice": 173.61,
+      "valueCr": 0.66
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "WOL3D",
+      "clientName": "ANKIT AGARWAL",
+      "buySell": "BUY",
+      "quantity": 37000,
+      "tradePrice": 176.69,
+      "valueCr": 0.65
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "YATRA",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "BUY",
+      "quantity": 1518516,
+      "tradePrice": 93.6,
+      "valueCr": 14.21
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "YATRA",
+      "clientName": "HRTI PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 783713,
+      "tradePrice": 93.58,
+      "valueCr": 7.33
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "AQYLON",
+      "clientName": "ABHISHEK ASHVINBHAI KAMDAR HUF",
+      "buySell": "SELL",
+      "quantity": 1442398,
+      "tradePrice": 11.51,
+      "valueCr": 1.66
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "ASHOKA",
+      "clientName": "MARWADI SHARES AND FINANCE LTD.",
+      "buySell": "SELL",
+      "quantity": 1523997,
+      "tradePrice": 114.08,
+      "valueCr": 17.39
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "ASHOKA",
+      "clientName": "HRTI PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 1627885,
+      "tradePrice": 113.92,
+      "valueCr": 18.54
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "ASHOKA",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "SELL",
+      "quantity": 1537871,
+      "tradePrice": 114.02,
+      "valueCr": 17.53
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "AZAD",
+      "clientName": "MANSI SHARE AND STOCK BROKING PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 426930,
+      "tradePrice": 2309.34,
+      "valueCr": 98.59
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "AZAD",
+      "clientName": "RAKESH CHOPDAR",
+      "buySell": "SELL",
+      "quantity": 3500000,
+      "tradePrice": 2286.15,
+      "valueCr": 800.15
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "CLT RESEARCH TECH PRIVATE LTD",
+      "buySell": "SELL",
+      "quantity": 473008,
+      "tradePrice": 279.85,
+      "valueCr": 13.24
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "ELIXIR WEALTH MANAGEMENT PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 860000,
+      "tradePrice": 279.92,
+      "valueCr": 24.07
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "MARWADI SHARES AND FINANCE LTD.",
+      "buySell": "SELL",
+      "quantity": 749363,
+      "tradePrice": 279.84,
+      "valueCr": 20.97
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "ALPHAGREP SECURITIES PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 1219156,
+      "tradePrice": 280.21,
+      "valueCr": 34.16
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "MICROCURVES TRADING PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 608887,
+      "tradePrice": 280.07,
+      "valueCr": 17.05
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "PLUTUS WEALTH MANAGEMENT LLP",
+      "buySell": "SELL",
+      "quantity": 1557102,
+      "tradePrice": 280.26,
+      "valueCr": 43.64
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "JUNOMONETA FINSOL PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 766812,
+      "tradePrice": 280.16,
+      "valueCr": 21.48
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "JUMP TRADING FINANCIAL INDIA PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 502488,
+      "tradePrice": 280.29,
+      "valueCr": 14.08
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "HRTI PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 916128,
+      "tradePrice": 279.98,
+      "valueCr": 25.65
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "SELL",
+      "quantity": 789997,
+      "tradePrice": 280,
+      "valueCr": 22.12
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "IRAGE BROKING SERVICES LLP",
+      "buySell": "SELL",
+      "quantity": 234898,
+      "tradePrice": 280.83,
+      "valueCr": 6.6
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "NK SECURITIES RESEARCH PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 491808,
+      "tradePrice": 280.54,
+      "valueCr": 13.8
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "FAZE3Q",
+      "clientName": "ALPHAGREP SECURITIES PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 139229,
+      "tradePrice": 637.41,
+      "valueCr": 8.87
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "FAZE3Q",
+      "clientName": "NK SECURITIES RESEARCH PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 133117,
+      "tradePrice": 654.55,
+      "valueCr": 8.71
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "GREAVESCOT",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "SELL",
+      "quantity": 1528098,
+      "tradePrice": 261.36,
+      "valueCr": 39.94
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "GREENLAM",
+      "clientName": "HDFC MUTUAL FUND",
+      "buySell": "SELL",
+      "quantity": 2000000,
+      "tradePrice": 215.06,
+      "valueCr": 43.01
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "GSMFOILS",
+      "clientName": "HI GROWTH CORPORATE SERVICES PVT LTD",
+      "buySell": "SELL",
+      "quantity": 55000,
+      "tradePrice": 47.59,
+      "valueCr": 0.26
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "HINDOILEXP",
+      "clientName": "HRTI PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 711400,
+      "tradePrice": 229.6,
+      "valueCr": 16.33
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "IEML",
+      "clientName": "LC VENTURE DEBT FUND",
+      "buySell": "SELL",
+      "quantity": 150000,
+      "tradePrice": 37.45,
+      "valueCr": 0.56
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "IEML-RE1",
+      "clientName": "PERSISTENT GROWTH FUND VARSU INDIA GROWTH STORY SCHEME 1",
+      "buySell": "SELL",
+      "quantity": 95000,
+      "tradePrice": 9,
+      "valueCr": 0.09
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "INDOCO",
+      "clientName": "JUNOMONETA FINSOL PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 735777,
+      "tradePrice": 247.86,
+      "valueCr": 18.24
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "INDOCO",
+      "clientName": "QICAP MARKETS LLP",
+      "buySell": "SELL",
+      "quantity": 480424,
+      "tradePrice": 248.03,
+      "valueCr": 11.92
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "INDOCO",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "SELL",
+      "quantity": 792319,
+      "tradePrice": 249.16,
+      "valueCr": 19.74
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "INDOCO",
+      "clientName": "CLT RESEARCH TECH PRIVATE LTD",
+      "buySell": "SELL",
+      "quantity": 688466,
+      "tradePrice": 247.41,
+      "valueCr": 17.03
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "INDOCO",
+      "clientName": "NK SECURITIES RESEARCH PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 1098153,
+      "tradePrice": 249.02,
+      "valueCr": 27.35
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "INDOCO",
+      "clientName": "IRAGE BROKING SERVICES LLP",
+      "buySell": "SELL",
+      "quantity": 475197,
+      "tradePrice": 248.51,
+      "valueCr": 11.81
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "MARKOLINES",
+      "clientName": "VISTAAR TRADING SERVICE PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 112156,
+      "tradePrice": 166.56,
+      "valueCr": 1.87
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "MVELECTRO",
+      "clientName": "HRTI PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 177293,
+      "tradePrice": 822.53,
+      "valueCr": 14.58
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "MVELECTRO",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "SELL",
+      "quantity": 208720,
+      "tradePrice": 816.07,
+      "valueCr": 17.03
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "NEOGEN",
+      "clientName": "SBI MUTUAL FUND",
+      "buySell": "SELL",
+      "quantity": 648272,
+      "tradePrice": 2780.01,
+      "valueCr": 180.22
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "OMPOWER",
+      "clientName": "SETU SECURITIES PVT LTD",
+      "buySell": "SELL",
+      "quantity": 209115,
+      "tradePrice": 152.72,
+      "valueCr": 3.19
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "OMPOWER",
+      "clientName": "NEO APEX SHARE BROKING SERVICES LLP",
+      "buySell": "SELL",
+      "quantity": 211642,
+      "tradePrice": 152.74,
+      "valueCr": 3.23
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "RAMBHAJO",
+      "clientName": "WIINANCE FINANCIAL SERVICES PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 309765,
+      "tradePrice": 305,
+      "valueCr": 9.45
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "RATNAVEER",
+      "clientName": "ARIHANT CAPITAL MARKETS LIMITED",
+      "buySell": "SELL",
+      "quantity": 546806,
+      "tradePrice": 372.11,
+      "valueCr": 20.35
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "SHANTI",
+      "clientName": "AUM SECURITIES PVT. LTD.",
+      "buySell": "SELL",
+      "quantity": 79654,
+      "tradePrice": 5.34,
+      "valueCr": 0.04
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "STANLEY",
+      "clientName": "VISION AHEAD SERVICES PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 334845,
+      "tradePrice": 125.5,
+      "valueCr": 4.2
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "SUNSHINE",
+      "clientName": "ARIHANT CAPITAL MARKETS LIMITED",
+      "buySell": "SELL",
+      "quantity": 273696,
+      "tradePrice": 497.26,
+      "valueCr": 13.61
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "SYNCOMF",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "SELL",
+      "quantity": 4994680,
+      "tradePrice": 22.21,
+      "valueCr": 11.09
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "TECHERA",
+      "clientName": "NIDHI PANDEY",
+      "buySell": "SELL",
+      "quantity": 91200,
+      "tradePrice": 96.84,
+      "valueCr": 0.88
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "V2RETAIL",
+      "clientName": "HRTI PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 5792756,
+      "tradePrice": 135.59,
+      "valueCr": 78.54
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "V2RETAIL",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "SELL",
+      "quantity": 5590167,
+      "tradePrice": 135.74,
+      "valueCr": 75.88
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "V2RETAIL",
+      "clientName": "MICROCURVES TRADING PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 2695461,
+      "tradePrice": 136.09,
+      "valueCr": 36.68
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "V2RETAIL",
+      "clientName": "ALPHAGREP SECURITIES PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 4146913,
+      "tradePrice": 135.82,
+      "valueCr": 56.32
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "V2RETAIL",
+      "clientName": "JUNOMONETA FINSOL PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 2604486,
+      "tradePrice": 135.59,
+      "valueCr": 35.31
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "V2RETAIL",
+      "clientName": "CLT RESEARCH TECH PRIVATE LTD",
+      "buySell": "SELL",
+      "quantity": 2496253,
+      "tradePrice": 135.77,
+      "valueCr": 33.89
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "VALUE360",
+      "clientName": "CRAFT EMERGING MARKET FUND PCC-CITADEL CAPITAL FUND",
+      "buySell": "SELL",
+      "quantity": 199200,
+      "tradePrice": 85.17,
+      "valueCr": 1.7
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "VALUE360",
+      "clientName": "CRAFT EMERGING MARKET FUND PCC- ELITE CAPITAL FUND",
+      "buySell": "SELL",
+      "quantity": 200400,
+      "tradePrice": 85.14,
+      "valueCr": 1.71
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "VINEETLAB",
+      "clientName": "JAYANT VIJAY",
+      "buySell": "SELL",
+      "quantity": 100000,
+      "tradePrice": 38.3,
+      "valueCr": 0.38
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "WOL3D",
+      "clientName": "SAJJAN KUMAR PATWARI",
+      "buySell": "SELL",
+      "quantity": 90000,
+      "tradePrice": 174.6,
+      "valueCr": 1.57
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "WOL3D",
+      "clientName": "KAUSHAL KOTHARI",
+      "buySell": "SELL",
+      "quantity": 38000,
+      "tradePrice": 177.8,
+      "valueCr": 0.68
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "YATRA",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "SELL",
+      "quantity": 1496533,
+      "tradePrice": 93.82,
+      "valueCr": 14.04
+    },
+    {
+      "date": "2026-11-18",
+      "dealType": "BULK",
+      "symbol": "YATRA",
+      "clientName": "HRTI PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 802047,
+      "tradePrice": 93.76,
+      "valueCr": 7.52
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "AAREYDRUGS",
+      "clientName": "L7 HITECH PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 20500,
+      "tradePrice": 106.65,
+      "valueCr": 0.22
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "AAREYDRUGS",
+      "clientName": "SHREE SALASAR PROPERTIES & FIN.(P)LTD.",
+      "buySell": "BUY",
+      "quantity": 200000,
+      "tradePrice": 105.57,
+      "valueCr": 2.11
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "AGIIL",
+      "clientName": "ARIHANT CAPITAL MARKETS LIMITED",
+      "buySell": "BUY",
+      "quantity": 1117528,
+      "tradePrice": 320.29,
+      "valueCr": 35.79
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "AGL",
+      "clientName": "ALPHAGREP SECURITIES PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 6515528,
+      "tradePrice": 14.54,
+      "valueCr": 9.47
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "AGL",
+      "clientName": "JUNOMONETA FINSOL PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 5774436,
+      "tradePrice": 14.7,
+      "valueCr": 8.49
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "ANGELONE",
+      "clientName": "GRAVITON RESEARCH CAPITAL LLP",
+      "buySell": "BUY",
+      "quantity": 7852965,
+      "tradePrice": 363.07,
+      "valueCr": 285.12
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "ARIS",
+      "clientName": "WEALTH 4 U HOSPITALITY CONSULTANCY PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 419000,
+      "tradePrice": 151.26,
+      "valueCr": 6.34
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "ARIS",
+      "clientName": "SIDDHARTH BHASKAR SHAH",
+      "buySell": "BUY",
+      "quantity": 500000,
+      "tradePrice": 151.33,
+      "valueCr": 7.57
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "ARIS",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "BUY",
+      "quantity": 453689,
+      "tradePrice": 151.41,
+      "valueCr": 6.87
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "CLT RESEARCH TECH PRIVATE LTD",
+      "buySell": "BUY",
+      "quantity": 355386,
+      "tradePrice": 279.44,
+      "valueCr": 9.93
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "ELIXIR WEALTH MANAGEMENT PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 486914,
+      "tradePrice": 280.24,
+      "valueCr": 13.65
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "DIPAN MEHTA COMMODITIES PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 367375,
+      "tradePrice": 280,
+      "valueCr": 10.29
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "PLUTUS WEALTH MANAGEMENT LLP",
+      "buySell": "BUY",
+      "quantity": 1767194,
+      "tradePrice": 280.21,
+      "valueCr": 49.52
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "JUNOMONETA FINSOL PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 682938,
+      "tradePrice": 280.03,
+      "valueCr": 19.12
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "MICROCURVES TRADING PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 627844,
+      "tradePrice": 281.07,
+      "valueCr": 17.65
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "JUMP TRADING FINANCIAL INDIA PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 578036,
+      "tradePrice": 278.74,
+      "valueCr": 16.11
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "HRTI PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 647174,
+      "tradePrice": 278.66,
+      "valueCr": 18.03
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "MATHISYS QUANTCAP LLP",
+      "buySell": "BUY",
+      "quantity": 561234,
+      "tradePrice": 279.77,
+      "valueCr": 15.7
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "BUY",
+      "quantity": 791882,
+      "tradePrice": 278.58,
+      "valueCr": 22.06
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "ALPHAGREP SECURITIES PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 1076846,
+      "tradePrice": 280.35,
+      "valueCr": 30.19
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "DHANBANK",
+      "clientName": "HRTI PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 2004339,
+      "tradePrice": 42.97,
+      "valueCr": 8.61
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "DHANBANK",
+      "clientName": "ALPHAGREP SECURITIES PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 2124072,
+      "tradePrice": 43.13,
+      "valueCr": 9.16
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "DHANBANK",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "BUY",
+      "quantity": 3864178,
+      "tradePrice": 43.17,
+      "valueCr": 16.68
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "DIGIKORE",
+      "clientName": "ANKUSH",
+      "buySell": "BUY",
+      "quantity": 63600,
+      "tradePrice": 29.3,
+      "valueCr": 0.19
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "FIRSTCRY",
+      "clientName": "ALPHAGREP SECURITIES PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 4034609,
+      "tradePrice": 176.53,
+      "valueCr": 71.22
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "FIRSTCRY",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "BUY",
+      "quantity": 6102897,
+      "tradePrice": 176.02,
+      "valueCr": 107.42
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "FIRSTCRY",
+      "clientName": "MICROCURVES TRADING PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 5647189,
+      "tradePrice": 177.2,
+      "valueCr": 100.07
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "FIRSTCRY",
+      "clientName": "NK SECURITIES RESEARCH PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 3294214,
+      "tradePrice": 177.28,
+      "valueCr": 58.4
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "GREENASIA",
+      "clientName": "GENZ INVESTMENT ADVISORS PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 320000,
+      "tradePrice": 77.92,
+      "valueCr": 2.49
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "GREENASIA",
+      "clientName": "AIKYATA ADVISORY LLP",
+      "buySell": "BUY",
+      "quantity": 305600,
+      "tradePrice": 79.76,
+      "valueCr": 2.44
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "HAPPYFORGE",
+      "clientName": "FIDELITY FUNDS - INDIA FOCUS FUND",
+      "buySell": "BUY",
+      "quantity": 866928,
+      "tradePrice": 1845,
+      "valueCr": 159.95
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "IEML-RE1",
+      "clientName": "SANJYOT RITESH NEMADE",
+      "buySell": "BUY",
+      "quantity": 479500,
+      "tradePrice": 9.23,
+      "valueCr": 0.44
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "KAYNES",
+      "clientName": "GRAVITON RESEARCH CAPITAL LLP",
+      "buySell": "BUY",
+      "quantity": 549950,
+      "tradePrice": 2914.08,
+      "valueCr": 160.26
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "KPIGREEN",
+      "clientName": "SW CAPITAL PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 1413559,
+      "tradePrice": 315.67,
+      "valueCr": 44.62
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "MARSONS",
+      "clientName": "ARIHANT CAPITAL MARKETS LIMITED",
+      "buySell": "BUY",
+      "quantity": 1423914,
+      "tradePrice": 165.78,
+      "valueCr": 23.61
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "MERCURYEV",
+      "clientName": "SHARBHANG COMMERCIAL COMPANY PRIVATE LIMITED .",
+      "buySell": "BUY",
+      "quantity": 3399000,
+      "tradePrice": 33.27,
+      "valueCr": 11.31
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "MVELECTRO",
+      "clientName": "ALPHAGREP SECURITIES PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 188416,
+      "tradePrice": 842.84,
+      "valueCr": 15.88
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "MVELECTRO",
+      "clientName": "HRTI PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 211298,
+      "tradePrice": 838.8,
+      "valueCr": 17.72
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "MVELECTRO",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "BUY",
+      "quantity": 296998,
+      "tradePrice": 840.44,
+      "valueCr": 24.96
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "MVKAGRO",
+      "clientName": "LEADING LEASING FINANCE & INVESTMENT COMPANY LTD",
+      "buySell": "BUY",
+      "quantity": 924000,
+      "tradePrice": 180.91,
+      "valueCr": 16.72
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "RATNAVEER",
+      "clientName": "ARIHANT CAPITAL MARKETS LIMITED",
+      "buySell": "BUY",
+      "quantity": 521421,
+      "tradePrice": 362.45,
+      "valueCr": 18.9
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "SKYWAYS",
+      "clientName": "ALPHAGREP SECURITIES PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 1053469,
+      "tradePrice": 134.75,
+      "valueCr": 14.2
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "SKYWAYS",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "BUY",
+      "quantity": 1323017,
+      "tradePrice": 134.91,
+      "valueCr": 17.85
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "URBAN",
+      "clientName": "NIPA MANTHAN SANGHAVI",
+      "buySell": "BUY",
+      "quantity": 77600,
+      "tradePrice": 93.11,
+      "valueCr": 0.72
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "V2RETAIL",
+      "clientName": "HRTI PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 2123282,
+      "tradePrice": 144.49,
+      "valueCr": 30.68
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "YATRA",
+      "clientName": "PLUTUS WEALTH MANAGEMENT LLP",
+      "buySell": "BUY",
+      "quantity": 1629851,
+      "tradePrice": 98.08,
+      "valueCr": 15.99
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "YATRA",
+      "clientName": "MICROCURVES TRADING PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 5800696,
+      "tradePrice": 97.63,
+      "valueCr": 56.63
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "YATRA",
+      "clientName": "JUNOMONETA FINSOL PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 2976268,
+      "tradePrice": 97.92,
+      "valueCr": 29.14
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "YATRA",
+      "clientName": "MARWADI CHANDARANA INTERMEDIARIES BROKERS PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 1813272,
+      "tradePrice": 96.45,
+      "valueCr": 17.49
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "YATRA",
+      "clientName": "HRTI PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 1847503,
+      "tradePrice": 97.29,
+      "valueCr": 17.97
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "YATRA",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "BUY",
+      "quantity": 5811328,
+      "tradePrice": 97.35,
+      "valueCr": 56.57
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "YATRA",
+      "clientName": "IRAGE BROKING SERVICES LLP",
+      "buySell": "BUY",
+      "quantity": 1300948,
+      "tradePrice": 97.46,
+      "valueCr": 12.68
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "YATRA",
+      "clientName": "QICAP MARKETS LLP",
+      "buySell": "BUY",
+      "quantity": 1184960,
+      "tradePrice": 97.84,
+      "valueCr": 11.59
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "YATRA",
+      "clientName": "NK SECURITIES RESEARCH PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 2034111,
+      "tradePrice": 99.02,
+      "valueCr": 20.14
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "YATRA",
+      "clientName": "CLT RESEARCH TECH PRIVATE LTD",
+      "buySell": "BUY",
+      "quantity": 1060135,
+      "tradePrice": 96.45,
+      "valueCr": 10.23
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "YATRA",
+      "clientName": "VINSUL MAKARDI LTD",
+      "buySell": "BUY",
+      "quantity": 819511,
+      "tradePrice": 98.02,
+      "valueCr": 8.03
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "YATRA",
+      "clientName": "ELIXIR WEALTH MANAGEMENT PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 2781463,
+      "tradePrice": 98.23,
+      "valueCr": 27.32
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "YATRA",
+      "clientName": "MARWADI SHARES AND FINANCE LTD.",
+      "buySell": "BUY",
+      "quantity": 1466281,
+      "tradePrice": 97.09,
+      "valueCr": 14.24
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "YATRA",
+      "clientName": "ALPHAGREP SECURITIES PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 5219083,
+      "tradePrice": 98.09,
+      "valueCr": 51.19
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "AAATECH",
+      "clientName": "MGO HIGH CONVICTION FUND INCORPORATED VCC SUB-FUND",
+      "buySell": "SELL",
+      "quantity": 100000,
+      "tradePrice": 85.4,
+      "valueCr": 0.85
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "AAREYDRUGS",
+      "clientName": "L7 HITECH PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 255500,
+      "tradePrice": 105.68,
+      "valueCr": 2.7
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "AGIIL",
+      "clientName": "ARIHANT CAPITAL MARKETS LIMITED",
+      "buySell": "SELL",
+      "quantity": 1117528,
+      "tradePrice": 321.02,
+      "valueCr": 35.87
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "AGIIL",
+      "clientName": "ARTHKUMBH VENTURES LLP",
+      "buySell": "SELL",
+      "quantity": 900000,
+      "tradePrice": 320,
+      "valueCr": 28.8
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "AGL",
+      "clientName": "JUNOMONETA FINSOL PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 5774446,
+      "tradePrice": 14.73,
+      "valueCr": 8.51
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "AGL",
+      "clientName": "ALPHAGREP SECURITIES PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 6515528,
+      "tradePrice": 14.55,
+      "valueCr": 9.48
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "ALKEM",
+      "clientName": "SAMPRADA&NANHAMATI SINGH FAMILY TRUST",
+      "buySell": "SELL",
+      "quantity": 597825,
+      "tradePrice": 5050,
+      "valueCr": 301.9
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "ANGELONE",
+      "clientName": "GRAVITON RESEARCH CAPITAL LLP",
+      "buySell": "SELL",
+      "quantity": 7941395,
+      "tradePrice": 363,
+      "valueCr": 288.27
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "ARIS",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "SELL",
+      "quantity": 457707,
+      "tradePrice": 150.8,
+      "valueCr": 6.9
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "ARIS",
+      "clientName": "WEALTH 4 U HOSPITALITY CONSULTANCY PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 419000,
+      "tradePrice": 152.86,
+      "valueCr": 6.4
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "SELL",
+      "quantity": 824408,
+      "tradePrice": 279.61,
+      "valueCr": 23.05
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "ELIXIR WEALTH MANAGEMENT PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 485614,
+      "tradePrice": 281.13,
+      "valueCr": 13.65
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "DIPAN MEHTA COMMODITIES PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 362375,
+      "tradePrice": 279.01,
+      "valueCr": 10.11
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "HRTI PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 865032,
+      "tradePrice": 280.62,
+      "valueCr": 24.27
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "JUMP TRADING FINANCIAL INDIA PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 578036,
+      "tradePrice": 279.92,
+      "valueCr": 16.18
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "JUNOMONETA FINSOL PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 688356,
+      "tradePrice": 280.14,
+      "valueCr": 19.28
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "PLUTUS WEALTH MANAGEMENT LLP",
+      "buySell": "SELL",
+      "quantity": 1767194,
+      "tradePrice": 280.32,
+      "valueCr": 49.54
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "MICROCURVES TRADING PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 627844,
+      "tradePrice": 281.17,
+      "valueCr": 17.65
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "MATHISYS QUANTCAP LLP",
+      "buySell": "SELL",
+      "quantity": 571061,
+      "tradePrice": 279.64,
+      "valueCr": 15.97
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "ALPHAGREP SECURITIES PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 1076846,
+      "tradePrice": 280.42,
+      "valueCr": 30.2
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "BLSPOLY",
+      "clientName": "CLT RESEARCH TECH PRIVATE LTD",
+      "buySell": "SELL",
+      "quantity": 355386,
+      "tradePrice": 279.64,
+      "valueCr": 9.94
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "DHANBANK",
+      "clientName": "HRTI PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 2069932,
+      "tradePrice": 43.13,
+      "valueCr": 8.93
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "DHANBANK",
+      "clientName": "ALPHAGREP SECURITIES PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 2124072,
+      "tradePrice": 43.17,
+      "valueCr": 9.17
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "DHANBANK",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "SELL",
+      "quantity": 3864957,
+      "tradePrice": 43.04,
+      "valueCr": 16.63
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "FIRSTCRY",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "SELL",
+      "quantity": 6169913,
+      "tradePrice": 175.93,
+      "valueCr": 108.55
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "FIRSTCRY",
+      "clientName": "MICROCURVES TRADING PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 5647189,
+      "tradePrice": 177.28,
+      "valueCr": 100.11
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "FIRSTCRY",
+      "clientName": "NK SECURITIES RESEARCH PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 3294214,
+      "tradePrice": 177.35,
+      "valueCr": 58.42
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "FIRSTCRY",
+      "clientName": "ALPHAGREP SECURITIES PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 4034609,
+      "tradePrice": 176.58,
+      "valueCr": 71.24
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "GALLANTT",
+      "clientName": "DINESH R AGARWAL",
+      "buySell": "SELL",
+      "quantity": 3000000,
+      "tradePrice": 527,
+      "valueCr": 158.1
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "GROWW",
+      "clientName": "RIBBIT CAYMAN GW HOLDINGS V LTD.",
+      "buySell": "SELL",
+      "quantity": 38413112,
+      "tradePrice": 219,
+      "valueCr": 841.25
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "GROWW",
+      "clientName": "RIBBIT CAPITAL V L.P.",
+      "buySell": "SELL",
+      "quantity": 48586888,
+      "tradePrice": 219,
+      "valueCr": 1064.05
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "HAPPYFORGE",
+      "clientName": "PARITOSH KUMAR GARG (HUF)",
+      "buySell": "SELL",
+      "quantity": 549753,
+      "tradePrice": 1845,
+      "valueCr": 101.43
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "HAPPYFORGE",
+      "clientName": "PARITOSH KUMAR",
+      "buySell": "SELL",
+      "quantity": 557941,
+      "tradePrice": 1845,
+      "valueCr": 102.94
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "KAYNES",
+      "clientName": "GRAVITON RESEARCH CAPITAL LLP",
+      "buySell": "SELL",
+      "quantity": 558205,
+      "tradePrice": 2916.82,
+      "valueCr": 162.82
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "KPIGREEN",
+      "clientName": "SW CAPITAL PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 1413559,
+      "tradePrice": 315.92,
+      "valueCr": 44.66
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "MARSONS",
+      "clientName": "ARIHANT CAPITAL MARKETS LIMITED",
+      "buySell": "SELL",
+      "quantity": 1413893,
+      "tradePrice": 166.89,
+      "valueCr": 23.6
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "MERCURYEV",
+      "clientName": "SETU SECURITIES PVT LTD",
+      "buySell": "SELL",
+      "quantity": 2000000,
+      "tradePrice": 34.11,
+      "valueCr": 6.82
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "MVELECTRO",
+      "clientName": "ALPHAGREP SECURITIES PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 188416,
+      "tradePrice": 842.84,
+      "valueCr": 15.88
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "MVELECTRO",
+      "clientName": "HRTI PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 229942,
+      "tradePrice": 842.6,
+      "valueCr": 19.37
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "MVELECTRO",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "SELL",
+      "quantity": 288195,
+      "tradePrice": 842.12,
+      "valueCr": 24.27
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "MVKAGRO",
+      "clientName": "ABHISHEK ASHVINBHAI KAMDAR HUF",
+      "buySell": "SELL",
+      "quantity": 984000,
+      "tradePrice": 180.85,
+      "valueCr": 17.8
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "RATNAVEER",
+      "clientName": "ARIHANT CAPITAL MARKETS LIMITED",
+      "buySell": "SELL",
+      "quantity": 518395,
+      "tradePrice": 363.33,
+      "valueCr": 18.83
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "SKYWAYS",
+      "clientName": "ALPHAGREP SECURITIES PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 1053469,
+      "tradePrice": 134.79,
+      "valueCr": 14.2
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "SKYWAYS",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "SELL",
+      "quantity": 1378950,
+      "tradePrice": 133.26,
+      "valueCr": 18.38
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "SMCGLOBAL",
+      "clientName": "NETWORK 18 MEDIA & INVESTMENTS LIMITED",
+      "buySell": "SELL",
+      "quantity": 2271340,
+      "tradePrice": 90.88,
+      "valueCr": 20.64
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "URBAN",
+      "clientName": "SANJAY PANDEY",
+      "buySell": "SELL",
+      "quantity": 99200,
+      "tradePrice": 95.85,
+      "valueCr": 0.95
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "URBAN",
+      "clientName": "NIPA MANTHAN SANGHAVI",
+      "buySell": "SELL",
+      "quantity": 8000,
+      "tradePrice": 95.99,
+      "valueCr": 0.08
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "V2RETAIL",
+      "clientName": "HRTI PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 2394609,
+      "tradePrice": 144.69,
+      "valueCr": 34.65
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "YATRA",
+      "clientName": "QICAP MARKETS LLP",
+      "buySell": "SELL",
+      "quantity": 1184960,
+      "tradePrice": 97.88,
+      "valueCr": 11.6
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "YATRA",
+      "clientName": "MICROCURVES TRADING PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 5800696,
+      "tradePrice": 97.65,
+      "valueCr": 56.64
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "YATRA",
+      "clientName": "PLUTUS WEALTH MANAGEMENT LLP",
+      "buySell": "SELL",
+      "quantity": 1629851,
+      "tradePrice": 98.11,
+      "valueCr": 15.99
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "YATRA",
+      "clientName": "JUNOMONETA FINSOL PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 2929735,
+      "tradePrice": 97.99,
+      "valueCr": 28.71
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "YATRA",
+      "clientName": "MARWADI CHANDARANA INTERMEDIARIES BROKERS PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 1813272,
+      "tradePrice": 97.7,
+      "valueCr": 17.72
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "YATRA",
+      "clientName": "HRTI PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 1756742,
+      "tradePrice": 97.45,
+      "valueCr": 17.12
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "YATRA",
+      "clientName": "MARWADI SHARES AND FINANCE LTD.",
+      "buySell": "SELL",
+      "quantity": 1466281,
+      "tradePrice": 98.44,
+      "valueCr": 14.43
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "YATRA",
+      "clientName": "ELIXIR WEALTH MANAGEMENT PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 2805463,
+      "tradePrice": 98.34,
+      "valueCr": 27.59
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "YATRA",
+      "clientName": "QE SECURITIES LLP",
+      "buySell": "SELL",
+      "quantity": 5785381,
+      "tradePrice": 97.67,
+      "valueCr": 56.51
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "YATRA",
+      "clientName": "VINSUL MAKARDI LTD",
+      "buySell": "SELL",
+      "quantity": 819511,
+      "tradePrice": 98.17,
+      "valueCr": 8.05
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "YATRA",
+      "clientName": "NETWORK 18 MEDIA & INVESTMENTS LIMITED",
+      "buySell": "SELL",
+      "quantity": 1093480,
+      "tradePrice": 98.83,
+      "valueCr": 10.81
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "YATRA",
+      "clientName": "IRAGE BROKING SERVICES LLP",
+      "buySell": "SELL",
+      "quantity": 934796,
+      "tradePrice": 97.91,
+      "valueCr": 9.15
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "YATRA",
+      "clientName": "ALPHAGREP SECURITIES PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 5219083,
+      "tradePrice": 98.08,
+      "valueCr": 51.19
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "YATRA",
+      "clientName": "CLT RESEARCH TECH PRIVATE LTD",
+      "buySell": "SELL",
+      "quantity": 1060135,
+      "tradePrice": 96.47,
+      "valueCr": 10.23
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BULK",
+      "symbol": "YATRA",
+      "clientName": "NK SECURITIES RESEARCH PRIVATE LIMITED",
+      "buySell": "SELL",
+      "quantity": 2034111,
+      "tradePrice": 99.06,
+      "valueCr": 20.15
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "ALKEM",
+      "clientName": "DSP MUTUAL FUND",
+      "buySell": "BUY",
+      "quantity": 160265,
+      "tradePrice": 5050,
+      "valueCr": 80.93
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "ALKEM",
+      "clientName": "NIPPON INDIA MUTUAL FUND",
+      "buySell": "BUY",
+      "quantity": 160265,
+      "tradePrice": 5050,
+      "valueCr": 80.93
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "ALKEM",
+      "clientName": "HDFC MUTUAL FUND",
+      "buySell": "BUY",
+      "quantity": 99010,
+      "tradePrice": 5050,
+      "valueCr": 50
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "ALKEM",
+      "clientName": "ICICI PRUDENTIAL MUTUAL FUND",
+      "buySell": "BUY",
+      "quantity": 178285,
+      "tradePrice": 5050,
+      "valueCr": 90.03
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GALLANTT",
+      "clientName": "SURYALAXMI INFRACON PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 475000,
+      "tradePrice": 527,
+      "valueCr": 25.03
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GALLANTT",
+      "clientName": "SURYALAXMI INFRACON PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 585000,
+      "tradePrice": 527,
+      "valueCr": 30.83
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GALLANTT",
+      "clientName": "SURYALAXMI INFRACON PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 750000,
+      "tradePrice": 527,
+      "valueCr": 39.52
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GALLANTT",
+      "clientName": "SURYALAXMI INFRACON PRIVATE LIMITED",
+      "buySell": "BUY",
+      "quantity": 1190000,
+      "tradePrice": 527,
+      "valueCr": 62.71
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "FIDELITY CONTRAFUND: FIDELITY SERIES OPPORTUNISTIC INSIGHTS FUND",
+      "buySell": "BUY",
+      "quantity": 1935800,
+      "tradePrice": 219,
+      "valueCr": 42.39
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "FIDELITY GLOBAL GROWTH AND VALUE INVESTMENT TRUST",
+      "buySell": "BUY",
+      "quantity": 299600,
+      "tradePrice": 219,
+      "valueCr": 6.56
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "FIDELITY INSIGHTS INVESTMENT TRUST",
+      "buySell": "BUY",
+      "quantity": 2053600,
+      "tradePrice": 219,
+      "valueCr": 44.97
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "GHISALLO MASTER FUND LP",
+      "buySell": "BUY",
+      "quantity": 2900000,
+      "tradePrice": 219,
+      "valueCr": 63.51
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "HDFC STANDARD LIFE INSURANCE CO LTD",
+      "buySell": "BUY",
+      "quantity": 2600000,
+      "tradePrice": 219,
+      "valueCr": 56.94
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "KOTAK MAHINDRA MUTUAL FUND",
+      "buySell": "BUY",
+      "quantity": 1281250,
+      "tradePrice": 219,
+      "valueCr": 28.06
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "KOTAK MAHINDRA MUTUAL FUND",
+      "buySell": "BUY",
+      "quantity": 2745536,
+      "tradePrice": 219,
+      "valueCr": 60.13
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "KOTAK MAHINDRA MUTUAL FUND",
+      "buySell": "BUY",
+      "quantity": 7321429,
+      "tradePrice": 219,
+      "valueCr": 160.34
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "KOTAK MAHINDRA MUTUAL FUND",
+      "buySell": "BUY",
+      "quantity": 9151785,
+      "tradePrice": 219,
+      "valueCr": 200.42
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "MERRILL LYNCH EMERGING MARKETS FUND",
+      "buySell": "BUY",
+      "quantity": 897548,
+      "tradePrice": 219,
+      "valueCr": 19.66
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "MORGAN STANLEY ASIA SINGAPORE PTE",
+      "buySell": "BUY",
+      "quantity": 3000000,
+      "tradePrice": 219,
+      "valueCr": 65.7
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "NORGES BANK ON ACCOUNT OF THE GOVERNMENT PENSION FUND GLOBAL",
+      "buySell": "BUY",
+      "quantity": 1150000,
+      "tradePrice": 219,
+      "valueCr": 25.18
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "PACE INTERNATIONAL EMERGING MARKETS EQUITY INVESTMENTS",
+      "buySell": "BUY",
+      "quantity": 333262,
+      "tradePrice": 219,
+      "valueCr": 7.3
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "RBC ASIA PACIFIC EX-JAPAN EQUITY FUND",
+      "buySell": "BUY",
+      "quantity": 1150000,
+      "tradePrice": 219,
+      "valueCr": 25.18
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "REDWHEEL FUNDS REDWHEEL EMERGING MARKETS EX CHINA FUND",
+      "buySell": "BUY",
+      "quantity": 163097,
+      "tradePrice": 219,
+      "valueCr": 3.57
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "RETAIL EMPLOYEES SUPERANNUATION PTY. LIMITED AS TRUSTEE FOR RETAIL EMPLOYEES SUPERANNUATION TRUST",
+      "buySell": "BUY",
+      "quantity": 2157409,
+      "tradePrice": 219,
+      "valueCr": 47.25
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "RWC EMERGING MARKETS EQUITY MASTER FUND LIMITED",
+      "buySell": "BUY",
+      "quantity": 3054364,
+      "tradePrice": 219,
+      "valueCr": 66.89
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "RWC FUNDS-RWC GLOBAL EMERGING MARKETS FUND",
+      "buySell": "BUY",
+      "quantity": 1719878,
+      "tradePrice": 219,
+      "valueCr": 37.67
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "RWC GLOBAL EMERGING EQUITY FUND",
+      "buySell": "BUY",
+      "quantity": 572531,
+      "tradePrice": 219,
+      "valueCr": 12.54
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "SOCIETE GENERALE",
+      "buySell": "BUY",
+      "quantity": 10850000,
+      "tradePrice": 219,
+      "valueCr": 237.62
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "SUSQUEHANNA PACIFIC PTY LTD",
+      "buySell": "BUY",
+      "quantity": 1150000,
+      "tradePrice": 219,
+      "valueCr": 25.18
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "TATA MUTUAL FUND",
+      "buySell": "BUY",
+      "quantity": 1150000,
+      "tradePrice": 219,
+      "valueCr": 25.18
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "TEACHERS' RETIREMENT SYSTEM OF THE STATE OF ILLINOIS RWC ASSET ADVISORS (US) LLC",
+      "buySell": "BUY",
+      "quantity": 387758,
+      "tradePrice": 219,
+      "valueCr": 8.49
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "TM RWC GLOBAL EMERGING MARKETS FUND",
+      "buySell": "BUY",
+      "quantity": 611701,
+      "tradePrice": 219,
+      "valueCr": 13.4
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "VARIABLE INSURANCE PRODUCTS FUND II CONTRAFUND PORTFOLIO",
+      "buySell": "BUY",
+      "quantity": 3732900,
+      "tradePrice": 219,
+      "valueCr": 81.75
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "VIRIDIAN ASIA OPPORTUNITIES MASTER FUND",
+      "buySell": "BUY",
+      "quantity": 2650000,
+      "tradePrice": 219,
+      "valueCr": 58.03
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "FIDELITY CONTRAFUND FIDELITY ADVISOR NEW INSIGHTS FUND",
+      "buySell": "BUY",
+      "quantity": 3478100,
+      "tradePrice": 219,
+      "valueCr": 76.17
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "BNP PARIBAS ARBITRAGE",
+      "buySell": "BUY",
+      "quantity": 3650000,
+      "tradePrice": 219,
+      "valueCr": 79.94
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "BLACKROCK GLOBAL FUNDS INDIA FUND",
+      "buySell": "BUY",
+      "quantity": 1708145,
+      "tradePrice": 219,
+      "valueCr": 37.41
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "BLACKROCK GLOBAL FUNDS EMERGING MARKETS FUND",
+      "buySell": "BUY",
+      "quantity": 2399973,
+      "tradePrice": 219,
+      "valueCr": 52.56
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "BLACKROCK GLOBAL FUNDS EMERGING MARKETS EQUITY INCOME FUND",
+      "buySell": "BUY",
+      "quantity": 798234,
+      "tradePrice": 219,
+      "valueCr": 17.48
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "BLACKROCK GLOBAL FUNDS - EMERGING MARKETS SUSTAINABLE EQUITY FUND",
+      "buySell": "BUY",
+      "quantity": 1094022,
+      "tradePrice": 219,
+      "valueCr": 23.96
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "BLACKROCK GLOBAL FUNDS - EMERGING MARKETS EX-CHINA FUND",
+      "buySell": "BUY",
+      "quantity": 1136974,
+      "tradePrice": 219,
+      "valueCr": 24.9
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "BLACKROCK EMERGING MARKETS EX-CHINA FUND OF BLACKROCK FUNDS",
+      "buySell": "BUY",
+      "quantity": 58644,
+      "tradePrice": 219,
+      "valueCr": 1.28
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "BLACKROCK EMERGING MARKETS FUND INC",
+      "buySell": "BUY",
+      "quantity": 5356460,
+      "tradePrice": 219,
+      "valueCr": 117.31
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "NATIONAL PENSION SYSTEM (NPS) TRUST",
+      "buySell": "BUY",
+      "quantity": 2300000,
+      "tradePrice": 219,
+      "valueCr": 50.37
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "HAPPYFORGE",
+      "clientName": "FIDELITY FUNDS - INDIA FOCUS FUND",
+      "buySell": "BUY",
+      "quantity": 866928,
+      "tradePrice": 1845,
+      "valueCr": 159.95
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "HAPPYFORGE",
+      "clientName": "DENDANA INVESTMENTS MAURITIUS LIMITED",
+      "buySell": "BUY",
+      "quantity": 31256,
+      "tradePrice": 1845,
+      "valueCr": 5.77
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "HAPPYFORGE",
+      "clientName": "FIDELITY INDIA FUND",
+      "buySell": "BUY",
+      "quantity": 74008,
+      "tradePrice": 1845,
+      "valueCr": 13.65
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "HAPPYFORGE",
+      "clientName": "EDELWEISS MUTUAL FUND",
+      "buySell": "BUY",
+      "quantity": 135502,
+      "tradePrice": 1845,
+      "valueCr": 25
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "HAPPYFORGE",
+      "clientName": "AMPERSAND GROWTH OPPORTUNITIES FUND SCHEME - I",
+      "buySell": "BUY",
+      "quantity": 135502,
+      "tradePrice": 1845,
+      "valueCr": 25
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "HAPPYFORGE",
+      "clientName": "AXIS MUTUAL FUND",
+      "buySell": "BUY",
+      "quantity": 254200,
+      "tradePrice": 1845,
+      "valueCr": 46.9
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "HAPPYFORGE",
+      "clientName": "BNP PARIBAS ARBITRAGE - ODI",
+      "buySell": "BUY",
+      "quantity": 135502,
+      "tradePrice": 1845,
+      "valueCr": 25
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "INDGN",
+      "clientName": "RAJESH BHASKARAN NAIR",
+      "buySell": "BUY",
+      "quantity": 382000,
+      "tradePrice": 655,
+      "valueCr": 25.02
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "ALKEM",
+      "clientName": "SAMPRADA&NANHAMATI SINGH FAMILY TRUST",
+      "buySell": "SELL",
+      "quantity": 597825,
+      "tradePrice": 5050,
+      "valueCr": 301.9
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GALLANTT",
+      "clientName": "DINESH R AGARWAL",
+      "buySell": "SELL",
+      "quantity": 3000000,
+      "tradePrice": 527,
+      "valueCr": 158.1
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "RIBBIT CAPITAL V L.P.",
+      "buySell": "SELL",
+      "quantity": 48586888,
+      "tradePrice": 219,
+      "valueCr": 1064.05
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "GROWW",
+      "clientName": "RIBBIT CAYMAN GW HOLDINGS V LTD.",
+      "buySell": "SELL",
+      "quantity": 38413112,
+      "tradePrice": 219,
+      "valueCr": 841.25
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "HAPPYFORGE",
+      "clientName": "PARITOSH KUMAR",
+      "buySell": "SELL",
+      "quantity": 557941,
+      "tradePrice": 1845,
+      "valueCr": 102.94
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "HAPPYFORGE",
+      "clientName": "ASHISH GARG & SONS (HUF)",
+      "buySell": "SELL",
+      "quantity": 254200,
+      "tradePrice": 1845,
+      "valueCr": 46.9
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "HAPPYFORGE",
+      "clientName": "ASHISH GARG",
+      "buySell": "SELL",
+      "quantity": 271004,
+      "tradePrice": 1845,
+      "valueCr": 50
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "HAPPYFORGE",
+      "clientName": "PARITOSH KUMAR GARG (HUF)",
+      "buySell": "SELL",
+      "quantity": 549753,
+      "tradePrice": 1845,
+      "valueCr": 101.43
+    },
+    {
+      "date": "2026-11-17",
+      "dealType": "BLOCK",
+      "symbol": "INDGN",
+      "clientName": "AARABHI PARTNERS CONSULTANTS LLP",
+      "buySell": "SELL",
+      "quantity": 382000,
+      "tradePrice": 655,
+      "valueCr": 25.02
+    }
+  ]
+}
