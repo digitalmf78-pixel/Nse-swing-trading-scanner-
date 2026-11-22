@@ -47,14 +47,20 @@ jobs:
             --data-urlencode "size=100" --output artifacts/GAIL_integrated_filing_api.json
           node --experimental-strip-types --input-type=module <<'JS'
           import fs from 'node:fs';
-          import { resolveOriginalRevisionPair } from './research/fundamental_pilot/nse_revision_pair.ts';
+          import { resolveOriginalRevisionHistory } from './research/fundamental_pilot/nse_revision_pair.ts';
           const rows=JSON.parse(fs.readFileSync('artifacts/GAIL_integrated_filing_api.json','utf8')).data ?? [];
-          const pair=resolveOriginalRevisionPair(rows,{symbol:'GAIL',period:'30-JUN-2026',basis:'Consolidated'});
-          const metadata={};
-          for (const [kind,row] of Object.entries(pair)) {
-            metadata[kind]=Object.fromEntries(['symbol','smName','seq_Id','qe_Date','type','type_Sub','audited','consolidated','broadcast_Date','creation_Date','revised_Date','revision_Remark','ixbrl','xbrl'].map(field=>[field,row[field] ?? null]));
+          const history=resolveOriginalRevisionHistory(rows,{symbol:'GAIL',period:'30-JUN-2026',basis:'Consolidated'});
+          const fields=['symbol','smName','seq_Id','qe_Date','type','type_Sub','audited','consolidated','broadcast_Date','creation_Date','revised_Date','revision_Remark','ixbrl','xbrl'];
+          const toMetadata=row=>Object.fromEntries(fields.map(field=>[field,row[field] ?? null]));
+          const metadata={original:toMetadata(history.original),revisionKinds:[],revisions:[]};
+          fs.writeFileSync('artifacts/GAIL_original_xbrl_url.txt',history.original.xbrl);
+          history.revisions.forEach((row,index)=>{
+            const kind=`revision_${index+1}`;
+            metadata.revisionKinds.push(kind);
+            metadata.revisions.push({kind,...toMetadata(row)});
             fs.writeFileSync(`artifacts/GAIL_${kind}_xbrl_url.txt`,row.xbrl);
-          }
+          });
+          fs.writeFileSync('artifacts/GAIL_revision_kinds.txt',metadata.revisionKinds.join('\n')+'\n');
           fs.writeFileSync('artifacts/GAIL_pair_metadata.json',JSON.stringify(metadata,null,2));
           console.log(JSON.stringify(metadata,null,2));
           JS
@@ -63,7 +69,8 @@ jobs:
         run: |
           set -euo pipefail
           ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36"
-          for kind in original revision; do
+          mapfile -t revision_kinds < artifacts/GAIL_revision_kinds.txt
+          for kind in original "${revision_kinds[@]}"; do
             xbrl_url="$(cat "artifacts/GAIL_${kind}_xbrl_url.txt")"
             cookie_jar="artifacts/gail-${kind}-cookies.txt"
             downloaded=""
@@ -97,34 +104,46 @@ jobs:
           import fs from 'node:fs';
           import { extractXbrl } from './research/fundamental_pilot/xbrl_extract.ts';
           const metadata=JSON.parse(fs.readFileSync('artifacts/GAIL_pair_metadata.json','utf8'));
+          const kinds=['original',...metadata.revisionKinds];
           const parsed={};
-          for(const kind of ['original','revision']){
+          for(const kind of kinds){
             const xml=fs.readFileSync(`artifacts/GAIL_${kind}.xml`,'utf8');
             const out=extractXbrl(xml);
             if(!out.contextCount||!out.factCount||!Object.keys(out.units).length) throw new Error(`Empty parse for ${kind}`);
             const facts=out.facts.flatMap(f=>{
-              const c=f.contextRef?out.contexts[f.contextRef]:null;
-              if(!c) return [];
-              return [{concept:f.concept,periodStart:c.periodStart,periodEnd:c.periodEnd,instant:c.instant,dimensions:[...c.dimensions].sort(),unit:f.unitRef?out.units[f.unitRef]??null:null,rawValue:f.rawValue,numericValue:f.numericValue,isNil:f.isNil,contextRef:f.contextRef}];
+              const ctx=f.contextRef?out.contexts[f.contextRef]:null;
+              if(!ctx) return [];
+              return [{concept:f.concept,periodStart:ctx.periodStart,periodEnd:ctx.periodEnd,instant:ctx.instant,dimensions:[...ctx.dimensions].sort(),unit:f.unitRef?out.units[f.unitRef]??null:null,rawValue:f.rawValue,numericValue:f.numericValue,isNil:f.isNil}];
             });
-            parsed[kind]={metadata:metadata[kind],bytes:Buffer.byteLength(xml),contexts:out.contextCount,factCount:out.factCount,warnings:out.warnings,facts};
+            parsed[kind]={bytes:Buffer.byteLength(xml),contexts:out.contextCount,factCount:out.factCount,warnings:out.warnings,facts};
           }
           const key=f=>JSON.stringify([f.concept,f.periodStart,f.periodEnd,f.instant,f.dimensions,f.unit]);
-          const index=items=>{const m=new Map();for(const f of items){const k=key(f);if(!m.has(k))m.set(k,[]);m.get(k).push(f);}return m;};
-          const a=index(parsed.original.facts),b=index(parsed.revision.facts);
-          const allKeys=[...new Set([...a.keys(),...b.keys()])];
-          const common=allKeys.filter(k=>a.has(k)&&b.has(k));
-          const ambiguous=common.filter(k=>a.get(k).length!==1||b.get(k).length!==1);
-          const changed=common.filter(k=>a.get(k).length===1&&b.get(k).length===1).flatMap(k=>{
-            const x=a.get(k)[0],y=b.get(k)[0];
-            return x.rawValue!==y.rawValue||x.numericValue!==y.numericValue||x.isNil!==y.isNil?[{key:JSON.parse(k),original:{rawValue:x.rawValue,numericValue:x.numericValue,isNil:x.isNil},revision:{rawValue:y.rawValue,numericValue:y.numericValue,isNil:y.isNil}}]:[];
-          });
-          if(metadata.original.symbol!=='GAIL'||metadata.revision.symbol!=='GAIL'||metadata.original.qe_Date!=='30-JUN-2026'||metadata.revision.qe_Date!=='30-JUN-2026'||metadata.original.consolidated!=='Consolidated'||metadata.revision.consolidated!=='Consolidated'||metadata.original.type_Sub!=='Original'||metadata.revision.type_Sub!=='Revision') throw new Error('Issuer, period, basis or filing-version identity check failed');
-          if(parsed.original.warnings.length||parsed.revision.warnings.length) throw new Error('Parser warnings present; do not accept pair');
-          if(ambiguous.length) throw new Error(`Ambiguous duplicate fact keys found: ${ambiguous.length}`);
-          const report={status:'ORIGINAL_REVISION_PAIR_PARSE_PASS',identity:{symbol:'GAIL',company:metadata.original.smName,period:'30-JUN-2026',basis:'Consolidated',audit:metadata.original.audited},original:{sequenceId:metadata.original.seq_Id,broadcast:metadata.original.broadcast_Date,bytes:parsed.original.bytes,contexts:parsed.original.contexts,facts:parsed.original.factCount,warnings:parsed.original.warnings},revision:{sequenceId:metadata.revision.seq_Id,broadcast:metadata.revision.broadcast_Date,revisedDate:metadata.revision.revised_Date,revisionRemark:metadata.revision.revision_Remark,bytes:parsed.revision.bytes,contexts:parsed.revision.contexts,facts:parsed.revision.factCount,warnings:parsed.revision.warnings},commonFactKeys:common.length,unmatchedOriginalKeys:allKeys.filter(k=>a.has(k)&&!b.has(k)).length,unmatchedRevisionKeys:allKeys.filter(k=>!a.has(k)&&b.has(k)).length,ambiguousKeys:ambiguous.length,changedCommonFacts:changed,note:'Original and revision are preserved independently. Changed facts are surfaced for review; this does not certify that the revised figures are economically or accounting-correct. Revision remarks must be inspected before metric use.'};
+          const index=items=>{const m=new Map();for(const fact of items){const k=key(fact);if(!m.has(k))m.set(k,[]);m.get(k).push(fact);}return m;};
+          const compare=(left,right)=>{
+            const a=index(parsed[left].facts),b=index(parsed[right].facts);
+            const all=[...new Set([...a.keys(),...b.keys()])];
+            const common=all.filter(k=>a.has(k)&&b.has(k));
+            const ambiguous=common.filter(k=>a.get(k).length!==1||b.get(k).length!==1);
+            const changed=common.filter(k=>a.get(k).length===1&&b.get(k).length===1).flatMap(k=>{
+              const x=a.get(k)[0],y=b.get(k)[0];
+              return x.rawValue!==y.rawValue||x.numericValue!==y.numericValue||x.isNil!==y.isNil?[{key:JSON.parse(k),original:{rawValue:x.rawValue,numericValue:x.numericValue,isNil:x.isNil},revision:{rawValue:y.rawValue,numericValue:y.numericValue,isNil:y.isNil}}]:[];
+            });
+            return {commonFactKeys:common.length,unmatchedLeftKeys:all.filter(k=>a.has(k)&&!b.has(k)).length,unmatchedRightKeys:all.filter(k=>!a.has(k)&&b.has(k)).length,ambiguousKeys:ambiguous.length,changedCommonFacts:changed};
+          };
+          const originalMeta=metadata.original;
+          if(originalMeta.symbol!=='GAIL'||originalMeta.qe_Date!=='30-JUN-2026'||originalMeta.consolidated!=='Consolidated'||originalMeta.type_Sub!=='Original') throw new Error('Original filing identity check failed');
+          const revisionReports={};
+          for(const kind of metadata.revisionKinds){
+            const meta=metadata.revisions.find(row=>row.kind===kind);
+            if(!meta||meta.symbol!=='GAIL'||meta.qe_Date!=='30-JUN-2026'||meta.consolidated!=='Consolidated'||meta.type_Sub!=='Revision'||String(meta.seq_Id)===String(originalMeta.seq_Id)) throw new Error(`Revision identity check failed for ${kind}`);
+            revisionReports[kind]={sequenceId:meta.seq_Id,revisedDate:meta.revised_Date,revisionRemark:meta.revision_Remark,bytes:parsed[kind].bytes,contexts:parsed[kind].contexts,facts:parsed[kind].factCount,warnings:parsed[kind].warnings,versusOriginal:compare('original',kind)};
+          }
+          const warnings=kinds.flatMap(kind=>parsed[kind].warnings.map(w=>({kind,warning:w})));
+          const ambiguous=Object.entries(revisionReports).filter(([,r])=>r.versusOriginal.ambiguousKeys>0);
+          if(warnings.length||ambiguous.length) throw new Error('Parser warnings or ambiguous fact keys present; pair cannot be accepted');
+          const report={status:'ORIGINAL_AND_ALL_REVISIONS_PARSE_PASS',identity:{symbol:'GAIL',company:originalMeta.smName,period:'30-JUN-2026',basis:'Consolidated',audit:originalMeta.audited},original:{sequenceId:originalMeta.seq_Id,broadcast:originalMeta.broadcast_Date,bytes:parsed.original.bytes,contexts:parsed.original.contexts,facts:parsed.original.factCount,warnings:parsed.original.warnings},revisions:revisionReports,revisionCount:metadata.revisionKinds.length,note:'All NSE original and revision rows are retained independently and compared to the original by concept, exact period, dimensions and unit. No latest revision is silently selected. Revision remarks and changed facts require accounting review; this parser comparison does not approve revised metric values.'};
           fs.writeFileSync('artifacts/GAIL_original_revision_comparison.json',JSON.stringify(report,null,2));
-          console.log(JSON.stringify({status:report.status,original:report.original,revision:report.revision,commonFactKeys:report.commonFactKeys,unmatchedOriginalKeys:report.unmatchedOriginalKeys,unmatchedRevisionKeys:report.unmatchedRevisionKeys,ambiguousKeys:report.ambiguousKeys,changedCommonFactCount:changed.length,revisionRemark:report.revision.revisionRemark},null,2));
+          console.log(JSON.stringify({status:report.status,original:report.original,revisionCount:report.revisionCount,revisions:Object.fromEntries(Object.entries(revisionReports).map(([k,v])=>[k,{sequenceId:v.sequenceId,revisedDate:v.revisedDate,revisionRemark:v.revisionRemark,commonFactKeys:v.versusOriginal.commonFactKeys,changedCommonFactCount:v.versusOriginal.changedCommonFacts.length,unmatchedLeftKeys:v.versusOriginal.unmatchedLeftKeys,unmatchedRightKeys:v.versusOriginal.unmatchedRightKeys,ambiguousKeys:v.versusOriginal.ambiguousKeys,warnings:v.warnings.length}]))},null,2));
           JS
       - name: Upload original and revision evidence
         if: always()
