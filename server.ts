@@ -3,7 +3,7 @@ import express from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
 import { nsePipeline } from './server/nsePipeline.ts';
-import { collectNseFilingHistoryForSymbols } from './server/nseFilingHistoryCache.ts';
+import { getNseFilingHistoryJobStatus, startNseFilingHistoryCollection } from './server/nseFilingHistoryCache.ts';
 import { evaluateRiskControls } from './server/riskControls.ts';
 import { runEcmsGeminiResearch } from './server/geminiResearch.ts';
 import {
@@ -491,11 +491,11 @@ async function startServer() {
 
         const targets = nsePipeline.getAuditCollectionTargets(scope);
         if (scope === 'BHAVCOPY') {
-          const report = await collectNseFilingHistoryForSymbols(targets);
+          const status = startNseFilingHistoryCollection(targets);
           return res.json({
-            started: false,
+            started: status.running,
             mode: 'NSE_OFFICIAL_FILING_HISTORY_ONLY',
-            ...report,
+            ...status,
             note: 'Official NSE filing metadata is staged separately; no Yahoo fundamental values are written to the main cache.',
           });
         }
@@ -595,11 +595,10 @@ async function startServer() {
 
       const targets = nsePipeline.getAuditCollectionTargets(scope, limit);
       if (scope === 'BHAVCOPY') {
-        const report = await collectNseFilingHistoryForSymbols(targets);
+        const status = startNseFilingHistoryCollection(targets);
         return res.json({
-          running: false,
           mode: 'NSE_OFFICIAL_FILING_HISTORY_ONLY',
-          ...report,
+          ...status,
           note: 'Official NSE filing metadata is staged separately; no Yahoo fundamental values are written to the main cache.',
         });
       }
@@ -624,6 +623,10 @@ async function startServer() {
 
   app.get('/api/fundamentals/collect-status', (_req, res) => {
     res.json(getCollectionJobStatus());
+  });
+
+  app.get('/api/fundamentals/nse-filing-history-status', (_req, res) => {
+    res.json(getNseFilingHistoryJobStatus());
   });
 
   // Live NSE Bhavcopy Sync (catches up all missing sessions automatically unless target date given)
