@@ -47,3 +47,12 @@ test('does not infer quarterly OCF from YTD facts',()=>{
   const r=calculateOcfCandidate(fact({periodType:'YTD'}),fact({periodType:'QUARTER',periodStart:'2025-07-01',periodEnd:'2025-09-30'}));
   assert.equal(r.status,'BLOCKED_PERIOD_TYPE_MISMATCH');
 });
+
+test('accepts the exact OCF taxonomy local name with a different namespace prefix',()=>{
+  const r=calculateOcfCandidate(
+    fact({concept:'ifrs-full:CashFlowsFromUsedInOperatingActivities'}),
+    fact({concept:'ifrs-full:CashFlowsFromUsedInOperatingActivities',periodStart:'2025-04-01',periodEnd:'2025-09-30'}),
+  );
+  assert.equal(r.status,'CANDIDATE_ONLY');
+  assert.equal(r.currentValue,100);
+});
