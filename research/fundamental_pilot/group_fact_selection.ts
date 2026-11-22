@@ -1,4 +1,4 @@
-import { ContextExpectation, ContextShape, isEligibleGroupContext } from './sector_metric_policy.ts';
+import { isEligibleGroupContext, type ContextExpectation, type ContextShape } from './sector_metric_policy.ts';
 
 export interface CandidateRawFact {
   concept: string;
