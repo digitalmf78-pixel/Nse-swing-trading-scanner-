@@ -93,7 +93,15 @@ else {
   if (dupes) warn(`Fundamental CSV has ${dupes} duplicate ticker rows.`);
   const missingDateColumns = fundamentalDateFields.filter((h) => !headers.has(h));
   const dateCoverage = Object.fromEntries(fundamentalDateFields.map((h) => [h, fundamental.filter((r) => Boolean(r[h])).length]));
-  if (missingDateColumns.length) warn(`Fundamental CSV lacks per-metric period-date columns: ${missingDateColumns.join(', ')}.`);
+  const sourceMetricKeys = ['RevenueGrowthPct','ProfitGrowthPct','ROEPercent','ROCEPercent','DebtToEquity','InterestCoverage','OperatingCashFlowINR','FreeCashFlowINR'];
+  const sourcePeriodCoverage = Object.fromEntries(sourceMetricKeys.map((key) => [key, fundamental.filter((row) => {
+    try {
+      const periods = JSON.parse(row.MetricSourcePeriodsJSON || '{}');
+      return typeof periods[key] === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(periods[key]);
+    } catch { return false; }
+  }).length]));
+  if (missingDateColumns.length) warn(`Fundamental CSV lacks dedicated per-metric period-date columns; loader falls back to MetricSourcePeriodsJSON where an ISO date is available.`);
+  add('MetricSourcePeriodsJSON ISO date coverage', JSON.stringify(sourcePeriodCoverage));
   const unknownBasis = fundamental.filter((r) => r.MetricCalculationBasis === 'LEGACY_CACHE_BASIS_UNKNOWN').length;
   if (unknownBasis) warn(`${unknownBasis} rows have LEGACY_CACHE_BASIS_UNKNOWN calculation basis.`);
   const ic999 = fundamental.filter((r) => num(r.InterestCoverage) === 999).length;
