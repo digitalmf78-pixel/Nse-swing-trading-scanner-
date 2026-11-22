@@ -39,6 +39,11 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
+      - name: Read-only NSE data audit
+        id: dataaudit
+        continue-on-error: true
+        run: npm run audit:data
+
       - name: TypeScript validation
         id: typecheck
         run: npm run lint
@@ -60,6 +65,7 @@ jobs:
             echo "- Commit: ${GITHUB_SHA}"
             echo "- Node: $(node --version 2>/dev/null || echo unavailable)"
             echo "- npm: $(npm --version 2>/dev/null || echo unavailable)"
+            echo "- Read-only data audit: ${{ steps.dataaudit.outcome }}"
             echo "- TypeScript check: ${{ steps.typecheck.outcome }}"
             echo "- Production build: ${{ steps.build.outcome }}"
             echo
@@ -74,6 +80,6 @@ jobs:
           name: scanner-validation-${{ github.sha }}
           path: |
             dist/
-            validation-artifact/validation-report.md
+            validation-artifact/*.md
           if-no-files-found: warn
           retention-days: 14
