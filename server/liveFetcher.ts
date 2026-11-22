@@ -801,8 +801,22 @@ async function fetchAndParseNseXbrl(filing: XbrlFiling): Promise<ParsedXbrlMetri
 
   let roePct: number | null = null;
   const patCurr = currQtr ? patMap.get(currQtr.id) : undefined;
-  const eqCap = firstVal(equityCapMap);
-  const othEq = firstVal(otherEqMap);
+  // ROE must use equity values from the same reporting date as the current quarter.
+  // Do not take the first XML values: those may belong to an older or unrelated context.
+  const matchingEquityContext = currQtr?.end
+    ? Array.from(contexts.values()).find(
+        (ctx) =>
+          ctx.instant === currQtr.end &&
+          equityCapMap.has(ctx.id) &&
+          otherEqMap.has(ctx.id)
+      )
+    : undefined;
+  const eqCap = matchingEquityContext
+    ? equityCapMap.get(matchingEquityContext.id) ?? null
+    : null;
+  const othEq = matchingEquityContext
+    ? otherEqMap.get(matchingEquityContext.id) ?? null
+    : null;
   if (patCurr !== undefined && eqCap !== null && othEq !== null && eqCap + othEq > 0) {
     roePct = ((patCurr * 4) / (eqCap + othEq)) * 100;
   }
