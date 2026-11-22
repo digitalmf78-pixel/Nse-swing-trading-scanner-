@@ -123,11 +123,37 @@ jobs:
               import { extractXbrl } from "./research/fundamental_pilot/xbrl_extract.ts";
               const xml=fs.readFileSync("artifacts/KSHINTL_2026-09-30_original_NSE_XBRL.xml","utf8");
               const out=extractXbrl(xml);
-              console.log(JSON.stringify({contextCount:out.contextCount,factCount:out.factCount,unitCount:Object.keys(out.units).length,warnings:out.warnings.slice(0,30),sampleFacts:out.facts.slice(0,20)},null,2));
-              if(!out.contextCount || !out.factCount) process.exit(2);
-            ' | tee artifacts/KSHINTL_parser_real_filing_output.json
+              const fact=(concept,contextRef)=>{
+                const found=out.facts.find(f=>f.concept.endsWith(":"+concept)&&f.contextRef===contextRef);
+                if(!found) throw new Error("Missing fact "+concept+" @ "+contextRef);
+                return found;
+              };
+              const expected=[
+                ["RevenueFromOperations","OneD",13196540000],
+                ["ProfitLossForPeriod","OneD",479530000],
+                ["RevenueFromOperations","FourD",24838890000],
+                ["ProfitLossForPeriod","FourD",901730000],
+                ["Equity","OneI",8988560000],
+                ["BorrowingsNoncurrent","OneI",228430000],
+                ["BorrowingsCurrent","OneI",3184150000],
+                ["CashFlowsFromUsedInOperatingActivities","FourD",425710000],
+                ["FinanceCosts","OneD",222500000],
+                ["FinanceCosts","FourD",395310000]
+              ];
+              const keyFacts=expected.map(([concept,contextRef,value])=>{
+                const f=fact(concept,contextRef);
+                if(f.numericValue!==value) throw new Error(concept+" @ "+contextRef+" expected "+value+" got "+f.numericValue);
+                if(f.unitRef!=="INR") throw new Error(concept+" @ "+contextRef+" expected INR unit got "+f.unitRef);
+                return {concept,contextRef,rawValue:f.rawValue,numericValue:f.numericValue,unitRef:f.unitRef,period:out.contexts[contextRef]};
+              });
+              if(out.contextCount!==43 || out.factCount!==398) throw new Error("Unexpected parser counts: "+out.contextCount+" contexts / "+out.factCount+" facts");
+              if(out.warnings.length) throw new Error("Parser emitted warnings: "+out.warnings.join("; "));
+              const report={status:"PASS",contextCount:out.contextCount,factCount:out.factCount,unitCount:Object.keys(out.units).length,warnings:out.warnings,keyFacts};
+              fs.writeFileSync("artifacts/KSHINTL_parser_real_filing_output.json",JSON.stringify(report,null,2));
+              console.log(JSON.stringify(report,null,2));
+            '
             sha256sum artifacts/KSHINTL_2026-09-30_original_NSE_XBRL.xml | tee artifacts/KSHINTL-raw-xbrl-SHA256.txt
-            echo "REAL_XBRL_DOWNLOADED_AND_PARSER_RAN" | tee artifacts/KSHINTL-real-xbrl-status.txt
+            echo "REAL_XBRL_DOWNLOADED_AND_PARSER_ASSERTIONS_PASSED" | tee artifacts/KSHINTL-real-xbrl-status.txt
           else
             echo "NSE returned HTML/blocked responses for all official XML routes; no parser test was run on a non-XML response." | tee artifacts/KSHINTL-real-xbrl-status.txt
             for f in artifacts/xbrl-attempts/*.response; do
