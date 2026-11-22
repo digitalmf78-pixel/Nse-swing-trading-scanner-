@@ -662,20 +662,12 @@ class NsePipelineEngine {
       const useRecIcPeriod = rec.interestCoveragePeriodEnd
         ? (!existing.interestCoveragePeriodEnd || rec.interestCoveragePeriodEnd > existing.interestCoveragePeriodEnd || (rec.interestCoveragePeriodEnd === existing.interestCoveragePeriodEnd && rec.interestCoverage !== null && rec.interestCoverage !== undefined))
         : (rec.interestCoverage !== null && rec.interestCoverage !== undefined && !existing.interestCoveragePeriodEnd);
-      const useRecOcfPeriod =
-        rec.operatingCashFlowInr !== null &&
-        rec.operatingCashFlowInr !== undefined &&
-        (!rec.operatingCashFlowPeriodEnd
-          ? !existing.operatingCashFlowPeriodEnd
-          : !existing.operatingCashFlowPeriodEnd ||
-            rec.operatingCashFlowPeriodEnd >= existing.operatingCashFlowPeriodEnd);
-      const useRecFcfPeriod =
-        rec.freeCashFlowInr !== null &&
-        rec.freeCashFlowInr !== undefined &&
-        (!rec.freeCashFlowPeriodEnd
-          ? !existing.freeCashFlowPeriodEnd
-          : !existing.freeCashFlowPeriodEnd ||
-            rec.freeCashFlowPeriodEnd >= existing.freeCashFlowPeriodEnd);
+      const useRecOcfPeriod = rec.operatingCashFlowPeriodEnd
+        ? (!existing.operatingCashFlowPeriodEnd || rec.operatingCashFlowPeriodEnd > existing.operatingCashFlowPeriodEnd || (rec.operatingCashFlowPeriodEnd === existing.operatingCashFlowPeriodEnd && rec.operatingCashFlowInr !== null && rec.operatingCashFlowInr !== undefined))
+        : (rec.operatingCashFlowInr !== null && rec.operatingCashFlowInr !== undefined && !existing.operatingCashFlowPeriodEnd);
+      const useRecFcfPeriod = rec.freeCashFlowPeriodEnd
+        ? (!existing.freeCashFlowPeriodEnd || rec.freeCashFlowPeriodEnd > existing.freeCashFlowPeriodEnd || (rec.freeCashFlowPeriodEnd === existing.freeCashFlowPeriodEnd && rec.freeCashFlowInr !== null && rec.freeCashFlowInr !== undefined))
+        : (rec.freeCashFlowInr !== null && rec.freeCashFlowInr !== undefined && !existing.freeCashFlowPeriodEnd);
       const merged: FundamentalProfile = {
         ...existing,
         asOfDate: rec.asOfDate || existing.asOfDate,
@@ -698,9 +690,9 @@ class NsePipelineEngine {
         roePeriodEnd: useRecRoePeriod ? (rec.roePeriodEnd || '') : existing.roePeriodEnd,
         rocePct: useRecRocePeriod ? rec.rocePct! : existing.rocePct,
         rocePeriodEnd: useRecRocePeriod ? (rec.rocePeriodEnd || '') : existing.rocePeriodEnd,
-        debtToEquity: useRecDePeriod ? validRecDe : existing.debtToEquity,
+        debtToEquity: useRecDePeriod ? (rec.debtToEquity !== null && rec.debtToEquity !== undefined && rec.debtToEquity >= 0 ? rec.debtToEquity : null) : existing.debtToEquity,
         debtToEquityPeriodEnd: useRecDePeriod ? (rec.debtToEquityPeriodEnd || '') : existing.debtToEquityPeriodEnd,
-        interestCoverage: useRecIcPeriod ? validRecIc : existing.interestCoverage,
+        interestCoverage: useRecIcPeriod ? (rec.interestCoverage !== null && rec.interestCoverage !== undefined && rec.interestCoverage > 0.1 ? rec.interestCoverage : null) : existing.interestCoverage,
         interestCoveragePeriodEnd: useRecIcPeriod ? (rec.interestCoveragePeriodEnd || '') : existing.interestCoveragePeriodEnd,
         operatingCashFlowInr: useRecOcfPeriod ? rec.operatingCashFlowInr! : existing.operatingCashFlowInr,
         operatingCashFlowPeriodEnd: useRecOcfPeriod ? (rec.operatingCashFlowPeriodEnd || '') : existing.operatingCashFlowPeriodEnd,
