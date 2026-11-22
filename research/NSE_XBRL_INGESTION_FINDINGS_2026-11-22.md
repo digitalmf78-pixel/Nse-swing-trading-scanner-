@@ -37,3 +37,18 @@ NSE's XBRL information page says listed companies submit through NEAPS data entr
 
 ## Current limitation
 The actual NSE filing index and taxonomy archives are publicly discoverable, but the raw data-download endpoint for the index was not confirmed in this inspection. The existing TypeScript extractor therefore remains synthetic-fixture-tested only; it is not yet validated against a downloaded issuer XBRL instance. No production integration is approved.
+
+
+## Follow-up: exact official taxonomy archive links identified
+
+The NSE XBRL information page exposes direct archive links for Regulation 33 Integrated Filing-Financial formats and taxonomies. The Ind AS financial-results XBRL format archive link resolved to:
+
+- https://nsearchives.nseindia.com/web/mediaattachment/2026-06/Financial_Results_-_Ind_AS_Equity_and_Debt_Format_20260605152622.zip
+
+The same official page exposes separate XBRL-format and taxonomy archive links for Other-than-Banks, Banking, NBFC, General Insurance, Life Insurance, and REITs/InvITs. This is useful for building taxonomy-specific concept dictionaries. Source page: https://www.nseindia.in/static/companies-listing/xbrl-information (XBRL File Formats table, rows 6–12).
+
+### Download limitation
+The web link resolver identified the official ZIP URL but could not fetch the ZIP payload (unsupported application/zip content type); a direct download attempt from the current execution environment also failed. Therefore the archive bytes, schema contents, and actual issuer filing bytes have NOT yet been inspected. Do not mark taxonomy mapping or raw filing parsing as validated on the basis of the link alone.
+
+### Next implementation gate
+Obtain the archive bytes in a supported environment, inspect the taxonomy entry points and concept labels, then add taxonomy-specific mapping tests. In parallel, obtain one issuer filing's raw XBRL/iXBRL payload through the NSE filing row's XBRL link. Until those artifacts are locally readable, keep the extractor research-only and do not wire it into scanner runtime.
