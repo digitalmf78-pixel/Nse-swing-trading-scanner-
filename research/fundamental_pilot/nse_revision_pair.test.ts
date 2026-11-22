@@ -59,3 +59,17 @@ test('single-revision resolver rejects a multi-revision history', () => {
   const second = { ...base('Revision','3'), revised_Date:'31-JUL-2026 14:41:13' };
   assert.throws(()=>resolveOriginalRevisionPair([base('Original','1'),first,second],request),/got 2/);
 });
+
+test('deduplicates byte-for-byte identical API rows for one sequence ID',()=>{
+  const original=base('Original','1');
+  const revision=base('Revision','2');
+  const history=resolveOriginalRevisionHistory([original,revision,{...revision}],request);
+  assert.equal(history.revisions.length,1);
+  assert.equal(history.apiDuplicateRows,1);
+});
+
+test('rejects conflicting API rows that reuse a sequence ID',()=>{
+  const revision=base('Revision','2');
+  const conflicting={...revision,revision_Remark:'Different remark'};
+  assert.throws(()=>resolveOriginalRevisionHistory([base('Original','1'),revision,conflicting],request),/Conflicting NSE API rows/);
+});
