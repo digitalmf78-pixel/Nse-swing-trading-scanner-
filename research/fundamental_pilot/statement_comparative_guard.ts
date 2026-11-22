@@ -70,7 +70,7 @@ export function assessStatementComparativeGuard(
       priorOriginalValue:evidence.priorOriginalXbrl,comparablePriorValue:null,
       currentComparativeValue:evidence.currentPdfPriorComparative,
       originalPdfValue:evidence.priorOriginalPdf,
-      reclassificationDifference:evidence.currentPdfPriorComparative-evidence.priorOriginalXbrl,
+      reclassificationDifference:evidence.currentPdfPriorComparative!-evidence.priorOriginalXbrl!,
       productionApproved:false,
       explanation:'Prior Original and current filing comparative differ. Preserve both values and withhold YoY until the reclassification bridge is verified.',
     };
