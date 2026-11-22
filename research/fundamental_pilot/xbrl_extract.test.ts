@@ -93,3 +93,23 @@ test('withholds numeric value when Inline XBRL continuedAt chain is unresolved',
   assert.equal(out.facts[0]?.continuedAt, 'cont1');
   assert.match(out.warnings.join(' '), /continuedAt=cont1/);
 });
+
+test('warns and omits numeric facts that have no contextRef', () => {
+  const xml = '<xbrli:xbrl><in:Revenue unitRef="INR">100</in:Revenue></xbrli:xbrl>';
+  const out = extractXbrl(xml);
+  assert.equal(out.factCount, 0);
+  assert.match(out.warnings.join(' '), /has no contextRef; fact omitted/);
+});
+
+test('warns when duplicate context IDs would overwrite a context', () => {
+  const xml = '<xbrli:xbrl><xbrli:context id="c"><xbrli:period><xbrli:instant>2026-09-30</xbrli:instant></xbrli:period></xbrli:context><xbrli:context id="c"><xbrli:period><xbrli:instant>2025-09-30</xbrli:instant></xbrli:period></xbrli:context></xbrli:xbrl>';
+  const out = extractXbrl(xml);
+  assert.match(out.warnings.join(' '), /Duplicate XBRL context id c/);
+  assert.equal(out.contexts.c.instant, '2025-09-30');
+});
+
+test('warns when duplicate unit IDs would overwrite a unit', () => {
+  const xml = '<xbrli:xbrl><xbrli:unit id="u"><xbrli:measure>iso4217:INR</xbrli:measure></xbrli:unit><xbrli:unit id="u"><xbrli:measure>xbrli:pure</xbrli:measure></xbrli:unit></xbrli:xbrl>';
+  const out = extractXbrl(xml);
+  assert.match(out.warnings.join(' '), /Duplicate XBRL unit id u/);
+});
