@@ -507,7 +507,7 @@ async function fetchYahooSingleExchange(
   }
 
   // 5. Debt / Equity (sanitize negative equity -> null).
-  const debtToEquity =
+  let debtToEquity: number | null =
     annualDebtPoint &&
     annualEquity &&
     annualDebtPoint.asOfDate === annualEquity.asOfDate &&
