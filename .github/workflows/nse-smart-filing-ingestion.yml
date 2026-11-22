@@ -13,7 +13,7 @@ on:
       symbol:
         description: NSE symbol
         required: true
-        default: ITC
+        default: GAIL
         type: string
       period:
         description: Filing period end as NSE API date, e.g. 30-SEP-2026
@@ -48,7 +48,7 @@ jobs:
       - name: Fetch every page from official NSE Integrated Filing API
         shell: bash
         env:
-          SYMBOL: ${{ inputs.symbol || 'ITC' }}
+          SYMBOL: ${{ inputs.symbol || 'GAIL' }}
           PERIOD: ${{ inputs.period || '30-SEP-2026' }}
           BASIS: ${{ inputs.basis || 'Consolidated' }}
         run: |
