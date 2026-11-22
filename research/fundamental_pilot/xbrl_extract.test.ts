@@ -79,7 +79,7 @@ test('preserves accounting-style parenthesized negatives', () => {
 });
 
 test('withholds numeric value for unsupported Inline XBRL format transformations', () => {
-  const xml = '<xbrli:xbrl><ix:nonFraction name="in:Revenue" contextRef="c" unitRef="INR" format="ixt:num-comma-decimal">1.234,56</ix:nonFraction></xbrli:xbrl>';
+  const xml = '<xbrli:xbrl><xbrli:context id="c"><xbrli:period><xbrli:instant>2026-09-30</xbrli:instant></xbrli:period></xbrli:context><xbrli:unit id="u"><xbrli:measure>iso4217:INR</xbrli:measure></xbrli:unit><ix:nonFraction name="in:Revenue" contextRef="c" unitRef="u" format="ixt:num-comma-decimal">1.234,56</ix:nonFraction></xbrli:xbrl>';
   const out = extractXbrl(xml);
   assert.equal(out.facts[0]?.numericValue, null);
   assert.equal(out.facts[0]?.format, 'ixt:num-comma-decimal');
@@ -87,7 +87,7 @@ test('withholds numeric value for unsupported Inline XBRL format transformations
 });
 
 test('withholds numeric value when Inline XBRL continuedAt chain is unresolved', () => {
-  const xml = '<xbrli:xbrl><ix:nonFraction name="in:Revenue" contextRef="c" unitRef="INR" continuedAt="cont1">123</ix:nonFraction><ix:continuation id="cont1">456</ix:continuation></xbrli:xbrl>';
+  const xml = '<xbrli:xbrl><xbrli:context id="c"><xbrli:period><xbrli:instant>2026-09-30</xbrli:instant></xbrli:period></xbrli:context><xbrli:unit id="u"><xbrli:measure>iso4217:INR</xbrli:measure></xbrli:unit><ix:nonFraction name="in:Revenue" contextRef="c" unitRef="u" continuedAt="cont1">123</ix:nonFraction><ix:continuation id="cont1">456</ix:continuation></xbrli:xbrl>';
   const out = extractXbrl(xml);
   assert.equal(out.facts[0]?.numericValue, null);
   assert.equal(out.facts[0]?.continuedAt, 'cont1');
