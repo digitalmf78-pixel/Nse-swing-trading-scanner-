@@ -241,10 +241,10 @@ export const InstitutionalFlowChart: React.FC<InstitutionalFlowChartProps> = ({
             ) : (
               <TrendingDown className="w-4 h-4 text-rose-700" />
             )}
-            30-Day Cumulative Institutional Flow ({symbol})
+            30-Day Cumulative Delivery Flow ({symbol})
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            Signed delivery-quantity accumulation curve across last {model.points.length} NSE Bhavcopy sessions · Shaded bands mark high-delivery accumulation/distribution days
+            Signed delivery-quantity trend across last {model.points.length} NSE Bhavcopy sessions. This is delivery-based market activity, not verified FII/DII or institutional flow.
           </p>
         </div>
 
@@ -438,7 +438,7 @@ export const InstitutionalFlowChart: React.FC<InstitutionalFlowChartProps> = ({
             />
           )}
 
-          {/* Main Cumulative Institutional Flow Line */}
+          {/* Main Cumulative Delivery Flow Line */}
           <polyline
             fill="none"
             stroke={svgGeom.isNetPositive ? '#059669' : '#E11D48'}
@@ -524,11 +524,11 @@ export const InstitutionalFlowChart: React.FC<InstitutionalFlowChartProps> = ({
 
       <div className="flex flex-wrap items-center gap-5 text-[11px] text-slate-500">
         <span className={svgGeom.isNetPositive ? 'text-emerald-700 font-medium' : 'text-rose-700 font-medium'}>
-          Solid Line: 30D Cumulative Institutional Delivery Flow
+          Solid Line: 30D Cumulative Delivery Flow
         </span>
         <span className="text-amber-700">Amber dashed: 5-Session Flow Trend</span>
-        <span className="text-emerald-700">Green Zone / Dots: High-Delivery Accumulation (&gt;=1.2x avg DelivQty on Up Close)</span>
-        <span className="text-rose-700">Red Zone / Dots: High-Delivery Distribution</span>
+        <span className="text-emerald-700">Green Zone / Dots: High delivery on up-close sessions (&gt;=1.2x avg DelivQty)</span>
+        <span className="text-rose-700">Red Zone / Dots: High delivery on down-close sessions</span>
       </div>
     </div>
   );
