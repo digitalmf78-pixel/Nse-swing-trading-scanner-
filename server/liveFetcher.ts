@@ -858,14 +858,29 @@ export async function fetchYahooFundamentalsForSymbol(
   forceBseProbe = false
 ): Promise<LiveFundamentalRecord> {
   const sym = symbol.trim().toUpperCase();
+  // Select the newest reporting period first. Prefer consolidated only among
+  // filings for that same period; an older consolidated filing must not outrank
+  // a newer standalone filing.
+  const selectedXbrlFiling = [...(xbrlFilings || [])].sort((a, b) => {
+    const periodOrder = (b.financialPeriodEnd || '').localeCompare(a.financialPeriodEnd || '');
+    if (periodOrder !== 0) return periodOrder;
+    const aConsolidated = /consolidated/i.test(a.filingDescription);
+    const bConsolidated = /consolidated/i.test(b.filingDescription);
+    if (aConsolidated !== bConsolidated) return aConsolidated ? -1 : 1;
+    return (b.publicationDate || '').localeCompare(a.publicationDate || '');
+  })[0] || null;
+  const xbrlBasisLabel = selectedXbrlFiling
+    ? /consolidated/i.test(selectedXbrlFiling.filingDescription)
+      ? 'Consolidated'
+      : /standalone/i.test(selectedXbrlFiling.filingDescription)
+        ? 'Standalone'
+        : 'Basis not identified'
+    : '';
 
   const [nsRes, xbrlRes] = await Promise.allSettled([
     fetchYahooSingleExchange(sym, 'NS'),
-    xbrlFilings && xbrlFilings.length > 0
-      ? fetchAndParseNseXbrl(
-          xbrlFilings.find((f) => f.filingDescription.toLowerCase().includes('consolidated')) ||
-            xbrlFilings[0]
-        )
+    selectedXbrlFiling
+      ? fetchAndParseNseXbrl(selectedXbrlFiling)
       : Promise.resolve(null),
   ]);
 
@@ -930,11 +945,7 @@ export async function fetchYahooFundamentalsForSymbol(
   }
 
   const xbrl = xbrlRes.status === 'fulfilled' ? xbrlRes.value : null;
-  const latestFiling =
-    xbrlFilings && xbrlFilings.length > 0
-      ? xbrlFilings.find((f) => f.filingDescription.toLowerCase().includes('consolidated')) ||
-        xbrlFilings[0]
-      : null;
+  const latestFiling = selectedXbrlFiling;
 
   if (!primary && xbrl && latestFiling) {
     primary = {
@@ -946,7 +957,7 @@ export async function fetchYahooFundamentalsForSymbol(
       publicationDate: latestFiling.publicationDate,
       officialFilingUrl: latestFiling.officialFilingUrl,
       officialFilingSource: latestFiling.officialSource,
-      sources: ['NSE XBRL'],
+      sources: ['NSE XBRL (' + xbrlBasisLabel + ')'],
       providerSector: '',
       revenueGrowthPct: xbrl.revenueGrowthPct,
       profitGrowthPct: xbrl.profitGrowthPct,
@@ -968,7 +979,7 @@ export async function fetchYahooFundamentalsForSymbol(
       fetchedAtUtc: new Date().toISOString(),
     };
   } else if (primary && xbrl && latestFiling) {
-    const sources = new Set(['NSE XBRL', ...(primary.sources || [])]);
+    const sources = new Set(['NSE XBRL (' + xbrlBasisLabel + ')', ...(primary.sources || [])]);
     const xbrlNewerOrEqual =
       xbrl.periodEnd &&
       (!primary.financialPeriodEnd || xbrl.periodEnd >= primary.financialPeriodEnd);
