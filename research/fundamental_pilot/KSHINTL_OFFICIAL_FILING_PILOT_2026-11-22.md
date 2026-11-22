@@ -57,9 +57,9 @@ Balance-sheet cross-check from the same filing:
 ## Research parser status (isolated; not production)
 
 - TypeScript extractor: `research/fundamental_pilot/xbrl_extract.ts`.
-- Synthetic tests: `research/fundamental_pilot/xbrl_extract.test.ts`; the latest file contains 9 tests, including an Inline XBRL fraction scale/sign regression case.
-- Latest test commit: `072df3dbd37a9c60a3e47fd012e718e495f06f29`.
-- CI result for that commit has not been confirmed. A missing/empty combined status is not proof that tests passed.
+- Synthetic tests: `research/fundamental_pilot/xbrl_extract.test.ts`; latest file contains 11 tests.
+- Latest verified CI test run: `45057318672` on commit `db9af6223ed0f809ffd538708dba9c4bab2dabf7`; result SUCCESS, 11 passed, 0 failed.
+- CI was isolated from unrelated Vite/esbuild dependency conflicts; this verifies the synthetic test suite only, not a real issuer filing.
 - The extractor handles basic contexts, entity identifiers, periods, dimensions, units, standard facts, Inline XBRL nonfraction/fraction/nonnumeric facts, nil, decimals, scale and sign.
 - Known gaps: Inline XBRL `format` transformations are not implemented; `continuedAt` chains are not implemented; ZIP decompression is not implemented; there is no real issuer filing fixture.
 - It does not yet map NSE taxonomy concepts to the seven metrics, calculate ratios, select consolidated/standalone or original/revised filings, align quarter/YTD/FY periods, or produce scanner-ready profiles.
@@ -88,3 +88,16 @@ The issuer's own investor-relations page for the same September 30, 2026 integra
 - Debt/equity, debt service coverage and interest service coverage are blank on the issuer page too.
 
 This cross-check supports the unit conversion and confirms the blank ratio fields across two official publisher pages. It is still a human-readable-page reconciliation, not a raw XBRL parser test. The two pages are not independent underlying accounting sources; both publish the same issuer filing. Preserve the source-specific unit and page URL rather than treating them as independent financial confirmations.
+
+
+## Raw XBRL access diagnosis update (2026-11-23)
+
+The official NSE Integrated Filing API was located and returned the exact original standalone KSHINTL filing row (sequence ID 209920, quarter ended 30-SEP-2026) and its raw XBRL URL:
+https://nsearchives.nseindia.com/corporate/xbrl/INTEGRATED_FILING_INDAS_1753217_04112026090644_WEB.xml
+
+The raw file still could not be downloaded from the GitHub-hosted runner:
+- Direct raw XML GET returned HTTP 400.
+- NSE's own `/api/download_xbrl` route returned a 22,073-byte Akamai HTML page stating the site is not accessible in the runner's region.
+- The human-readable iXBRL rendering downloads, but it is ordinary rendered HTML without Inline XBRL facts/contexts; it is not a valid raw parser fixture.
+
+Therefore raw parser validation remains pending due to regional access restriction, not because the filing row or XBRL URL is missing. See `research/KSHINTL_RAW_XBRL_ACCESS_DIAGNOSIS_2026-11-23.md` for full evidence and next steps.
