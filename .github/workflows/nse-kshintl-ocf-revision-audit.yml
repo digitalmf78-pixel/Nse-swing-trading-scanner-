@@ -1,0 +1,138 @@
+name: KSHINTL prior-year OCF original-revision audit
+
+on:
+  push:
+    branches:
+      - research/free-fundamental-sources
+    paths:
+      - ".github/workflows/nse-kshintl-ocf-revision-audit.yml"
+      - "research/fundamental_pilot/xbrl_extract.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare-all-versions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: research/free-fundamental-sources
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install isolated parser dependency
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/xbrl-deps" --no-save --no-package-lock fast-xml-parser@5.12.1
+          mkdir -p node_modules
+          ln -s "$RUNNER_TEMP/xbrl-deps/node_modules/fast-xml-parser" node_modules/fast-xml-parser
+      - name: Resolve original and every revision for KSHINTL 30-SEP-2025
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          curl --fail --location --show-error --retry 3 --retry-all-errors --retry-delay 2 \
+            --connect-timeout 20 --max-time 120 \
+            --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36" \
+            --referer "https://www.nseindia.in/companies-listing/corporate-integrated-filing" \
+            --header "Accept: application/json, text/plain, */*" \
+            --get "https://www.nseindia.in/api/integrated-filing-results" \
+            --data-urlencode "index=equities" --data-urlencode "symbol=KSHINTL" \
+            --data-urlencode "type=Integrated Filing- Financials" --data-urlencode "page=1" \
+            --data-urlencode "size=100" --output artifacts/KSHINTL_integrated_filing_api.json
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          const rows=JSON.parse(fs.readFileSync('artifacts/KSHINTL_integrated_filing_api.json','utf8')).data??[];
+          const matches=rows.filter(r=>r.symbol==='KSHINTL'&&r.qe_Date==='30-SEP-2025'&&r.consolidated==='Standalone'&&r.type==='Integrated Filing- Financials'&&['Original','Revision'].includes(r.type_Sub));
+          const originals=matches.filter(r=>r.type_Sub==='Original');
+          const revisions=matches.filter(r=>r.type_Sub==='Revision');
+          if(originals.length!==1||revisions.length<1) throw new Error(`Expected 1 original and >=1 revision; got ${originals.length}/${revisions.length}`);
+          const versions=[...originals,...revisions].sort((a,b)=>new Date(a.creation_Date??a.broadcast_Date??0)-new Date(b.creation_Date??b.broadcast_Date??0));
+          const summary=[];
+          for(let i=0;i<versions.length;i++){
+            const row=versions[i],kind=i===0?'original':`revision_${i}`;
+            if(!row.xbrl||!row.ixbrl||!row.seq_Id) throw new Error(`Incomplete filing metadata for ${kind}`);
+            const metadata={...row};
+            fs.writeFileSync(`artifacts/KSHINTL_${kind}_metadata.json`,JSON.stringify(metadata,null,2));
+            fs.writeFileSync(`artifacts/KSHINTL_${kind}_xbrl_url.txt`,row.xbrl);
+            summary.push({kind,seq_Id:row.seq_Id,type_Sub:row.type_Sub,creation_Date:row.creation_Date,broadcast_Date:row.broadcast_Date,revised_Date:row.revised_Date,revision_Remark:row.revision_Remark,xbrl:row.xbrl});
+          }
+          fs.writeFileSync('artifacts/KSHINTL_version_index.json',JSON.stringify(summary,null,2));
+          console.log(JSON.stringify(summary,null,2));
+          JS
+      - name: Download every official original and revision XML
+        shell: bash
+        run: |
+          set -euo pipefail
+          ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36"
+          for url_file in artifacts/KSHINTL_*_xbrl_url.txt; do
+            kind="$(basename "$url_file" _xbrl_url.txt | sed 's/^KSHINTL_//')"
+            xbrl_url="$(cat "$url_file")"
+            cookie_jar="artifacts/kshintl-${kind}-cookies.txt"
+            downloaded=""
+            for site in www.nseindia.in www.nseindia.com; do
+              curl --silent --show-error --location --max-time 60 --user-agent "$ua" --cookie-jar "$cookie_jar" --output /dev/null "https://$site/companies-listing/corporate-integrated-filing" || true
+              out="artifacts/${site}-${kind}.response"
+              curl --silent --show-error --location --max-time 120 --user-agent "$ua" --cookie "$cookie_jar" \
+                --referer "https://$site/companies-listing/corporate-integrated-filing" \
+                --header "Accept: application/xml,text/xml,*/*" --get "https://$site/api/download_xbrl" \
+                --data-urlencode "fileUrl=$xbrl_url" --output "$out" || true
+              if grep -Eqi '<([[:alnum:]_]+:)?xbrl([ >])' "$out"; then cp "$out" "artifacts/KSHINTL_${kind}.xml"; downloaded=yes; break; fi
+            done
+            if [ -z "$downloaded" ]; then
+              for host in nsearchives.nseindia.in nsearchives.nseindia.com; do
+                out="artifacts/${host}-${kind}.response"
+                curl --silent --show-error --location --max-time 120 --user-agent "$ua" --cookie "$cookie_jar" \
+                  --referer "https://www.nseindia.in/companies-listing/corporate-integrated-filing" \
+                  --header "Accept: application/xml,text/xml,application/octet-stream,*/*" \
+                  --output "$out" "https://$host/corporate/xbrl/${xbrl_url##*/}" || true
+                if grep -Eqi '<([[:alnum:]_]+:)?xbrl([ >])' "$out"; then cp "$out" "artifacts/KSHINTL_${kind}.xml"; downloaded=yes; break; fi
+              done
+            fi
+            if [ -z "$downloaded" ]; then echo "Unable to download official NSE XML for $kind" >&2; exit 1; fi
+            sha256sum "artifacts/KSHINTL_${kind}.xml" | tee "artifacts/KSHINTL_${kind}_SHA256.txt"
+          done
+      - name: Compare OCF facts and complete XBRL fact signatures
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import { extractXbrl } from './research/fundamental_pilot/xbrl_extract.ts';
+          const versions=JSON.parse(fs.readFileSync('artifacts/KSHINTL_version_index.json','utf8'));
+          const parsed=[];
+          for(const v of versions){
+            const xml=fs.readFileSync(`artifacts/KSHINTL_${v.kind}.xml`,'utf8');
+            const out=extractXbrl(xml);
+            if(out.warnings.length) throw new Error(`Parser warnings ${v.kind}: ${out.warnings.join('; ')}`);
+            const ocf=out.facts.filter(f=>{
+              if(f.concept!=='in-capmkt:CashFlowsFromUsedInOperatingActivities'||!f.contextRef)return false;
+              const c=out.contexts[f.contextRef];
+              return c?.periodStart==='2025-04-01'&&c?.periodEnd==='2025-09-30'&&!c.instant&&c.dimensions.length===0;
+            }).map(f=>({concept:f.concept,rawValue:f.rawValue,numericValue:f.numericValue,isNil:f.isNil,unit:f.unitRef?out.units[f.unitRef]??[]:[],contextRef:f.contextRef,decimals:f.decimals}));
+            const signatures=out.facts.map(f=>{
+              const c=f.contextRef?out.contexts[f.contextRef]:null;
+              return [f.concept,c?.periodStart??null,c?.periodEnd??null,c?.instant??null,[...(c?.dimensions??[])].sort(),f.unitRef?(out.units[f.unitRef]??[]).join('|'):'',f.rawValue,f.numericValue,f.isNil].join('~');
+            }).sort();
+            parsed.push({kind:v.kind,seq_Id:v.seq_Id,contextCount:out.contextCount,factCount:out.factCount,ocf,signatureCount:signatures.length,signatures});
+          }
+          const base=parsed[0];
+          const comparisons=parsed.slice(1).map(v=>{
+            const a=new Set(base.signatures),b=new Set(v.signatures);
+            return {kind:v.kind,seq_Id:v.seq_Id,ocfOriginal:base.ocf,ocfRevision:v.ocf,signatureCounts:{original:base.signatureCount,revision:v.signatureCount},added:[...b].filter(x=>!a.has(x)).length,removed:[...a].filter(x=>!b.has(x)).length,ocfChanged:JSON.stringify(base.ocf)!==JSON.stringify(v.ocf)};
+          });
+          const report={issuer:'KSH International Limited',symbol:'KSHINTL',period:'30-SEP-2025',basis:'Standalone',versions:parsed.map(({signatures,...x})=>x),comparisons,status:comparisons.some(x=>x.ocfChanged)?'OCF_REVISION_CHANGED_REVIEW_REQUIRED':'OCF_IDENTICAL_ACROSS_VERSIONS',note:'This is a source fact comparison, not blanket approval of all revised filing metrics. Exact original and every revision are preserved separately.'};
+          fs.writeFileSync('artifacts/KSHINTL_original_revision_ocf_comparison.json',JSON.stringify(report,null,2));
+          console.log(JSON.stringify(report,null,2));
+          JS
+      - name: Upload original and all revision evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kshintl-original-revision-ocf-audit
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 7
