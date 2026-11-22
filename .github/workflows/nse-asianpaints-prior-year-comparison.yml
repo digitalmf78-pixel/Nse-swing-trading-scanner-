@@ -9,6 +9,10 @@ on:
     paths:
       - ".github/workflows/nse-asianpaints-prior-year-comparison.yml"
       - "research/fundamental_pilot/xbrl_extract.ts"
+      - "research/fundamental_pilot/seven_metric_xbrl_pipeline.ts"
+      - "research/fundamental_pilot/xbrl_metric_fact_selector.ts"
+      - "research/fundamental_pilot/seven_metric_candidate_engine.ts"
+      - "research/fundamental_pilot/metric_definition_policy.ts"
   workflow_dispatch:
 
 permissions:
