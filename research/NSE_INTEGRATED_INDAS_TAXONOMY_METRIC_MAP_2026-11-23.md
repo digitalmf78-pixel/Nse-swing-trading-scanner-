@@ -98,7 +98,15 @@ The official KSHINTL Q2 FY2026-27 filing row is original, standalone and unaudit
 - H1 OCF in the cash-flow statement;
 - debt/equity, DSCR and interest service coverage fields blank.
 
-The raw XBRL instance is still region-blocked from the GitHub-hosted runner. The exact URL is known from the official NSE API, but the bytes have not yet been obtained. Therefore the concepts above are taxonomy candidates, not yet proven to be present/populated in KSHINTL's instance.
+The original KSHINTL raw XBRL instance has now been downloaded from the exact URL returned by the official NSE API and parsed successfully by the research TypeScript extractor. It contains 43 contexts, 398 facts and 3 units with zero parser warnings. The following instance-level findings supersede the earlier pending-access note:
+
+- Q2 and H1 YTD `RevenueFromOperations` and `ProfitLossForPeriod` are present in distinct duration contexts.
+- H1 YTD `CashFlowsFromUsedInOperatingActivities` is present.
+- Closing `Equity`, `BorrowingsNoncurrent`, `BorrowingsCurrent` and `FinanceCosts` facts are present with explicit INR units and period contexts.
+- The reported `DebtEquityRatio`, `DebtServiceCoverageRatio` and `InterestServiceCoverageRatio` facts are not populated in this issuer instance; the human-readable NSE rendering also shows them blank.
+- No direct ROE or ROCE fact was found; those remain formula-dependent.
+
+The parser has proven raw fact extraction for this one instance, but not semantic mapping of every concept or full seven-metric profile generation. The instance-specific results are documented in `research/fundamental_pilot/KSHINTL_REAL_XBRL_PARSER_VALIDATION_2026-11-23.md`.
 
 ## Readiness decision
 
@@ -106,5 +114,5 @@ The raw XBRL instance is still region-blocked from the GitHub-hosted runner. The
 - Candidate standard concept names: identified for revenue, profit, PBT, finance costs, debt/equity, interest coverage, assets, equity, borrowings and OCF.
 - Direct ROE/ROCE concepts: not found; explicit formula policy required.
 - Ratio data type semantics: requires instance-level unit/value reconciliation.
-- Raw issuer instance/parser validation: pending due NSE regional access restriction.
+- Raw issuer instance/parser validation: one real KSHINTL standalone instance downloaded and parsed; 43 contexts, 398 facts, 3 units, zero parser warnings; key fact assertions passed.
 - Scanner runtime integration: not approved.
