@@ -94,6 +94,7 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
   const [verifyingSymbol, setVerifyingSymbol] = useState<string | null>(null);
   const [savingAllCache, setSavingAllCache] = useState(false);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
+  const [syncingNseFilingHistory, setSyncingNseFilingHistory] = useState(false);
 
   const fetchUniverseAudit = useCallback(async () => {
     setUniverseLoading(true);
@@ -212,6 +213,56 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
       setSavingAllCache(false);
     }
   };
+
+  const handleSyncBhavcopyNseFilingHistory = async () => {
+    setSyncingNseFilingHistory(true);
+    setActionNotice('Starting official NSE filing-history sync for symbols in the latest Bhavcopy...');
+    try {
+      const res = await fetch('/api/fundamentals/save-to-cache', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ saveAll: true, scope: 'BHAVCOPY' }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+      if (!json.running) {
+        setSyncingNseFilingHistory(false);
+        setActionNotice(json.note || 'NSE filing-history sync did not start.');
+        return;
+      }
+      setActionNotice(`NSE official filing-history sync started: ${json.total} Bhavcopy symbols. This stages filing evidence only; it does not yet approve or write metric values to the main fundamental cache.`);
+    } catch (err) {
+      setSyncingNseFilingHistory(false);
+      setActionNotice(`NSE filing-history sync error: ${(err as Error).message}`);
+    }
+  };
+
+  useEffect(() => {
+    if (!syncingNseFilingHistory) return;
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const res = await fetch('/api/fundamentals/nse-filing-history-status');
+        if (!res.ok) return;
+        const status = await res.json();
+        if (cancelled) return;
+        setActionNotice(
+          status.running
+            ? `NSE filing history: ${status.processed}/${status.total} · saved ${status.succeeded} · failed ${status.failed} · current ${status.currentSymbol || 'finishing'}`
+            : `NSE filing-history sync finished: ${status.succeeded} saved, ${status.failed} failed. Evidence is staged separately; scanner metric cache was not changed.`
+        );
+        if (!status.running) setSyncingNseFilingHistory(false);
+      } catch {
+        // A temporary status-poll failure must not interrupt the background sync.
+      }
+    };
+    void poll();
+    const timer = window.setInterval(() => void poll(), 2500);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [syncingNseFilingHistory]);
 
   const handleVerifyBothExchanges = async (sym: string) => {
     setVerifyingSymbol(sym);
@@ -425,6 +476,17 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
           >
             <RefreshCw className={`w-3.5 h-3.5 ${savingAllCache ? 'animate-spin' : ''}`} />
             {savingAllCache ? 'Starting...' : 'Save All NSE to Cache'}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleSyncBhavcopyNseFilingHistory}
+            disabled={syncingNseFilingHistory}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-50 text-xs font-medium text-indigo-800 whitespace-nowrap transition-colors"
+            title="Fetch official NSE filing metadata only for symbols present in the latest Bhavcopy"
+          >
+            <Database className={`w-3.5 h-3.5 ${syncingNseFilingHistory ? 'animate-pulse' : ''}`} />
+            {syncingNseFilingHistory ? 'Syncing NSE Filings...' : 'Sync Bhavcopy NSE Filings'}
           </button>
 
           <button
