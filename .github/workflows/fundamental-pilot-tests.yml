@@ -6,7 +6,6 @@ on:
       - research/free-fundamental-sources
     paths:
       - "research/fundamental_pilot/**"
-      - "package.json"
       - ".github/workflows/fundamental-pilot-tests.yml"
   workflow_dispatch:
 
@@ -23,7 +22,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Install dependencies
-        run: npm install --no-audit --no-fund
+      - name: Install only the isolated parser dependency
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/fundamental-pilot-deps" --no-save --no-package-lock fast-xml-parser@5.12.1
+          mkdir -p node_modules
+          ln -s "$RUNNER_TEMP/fundamental-pilot-deps/node_modules/fast-xml-parser" node_modules/fast-xml-parser
       - name: Run isolated TypeScript parser tests
-        run: npm run test:fundamental-pilot
+        run: node --experimental-strip-types --test research/fundamental_pilot/xbrl_extract.test.ts
