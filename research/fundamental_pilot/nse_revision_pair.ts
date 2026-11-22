@@ -35,13 +35,13 @@ function officialUrl(value: unknown, folder: 'xbrl' | 'ixbrl'): value is string 
   } catch { return false; }
 }
 
-/** Resolves one official Original and one Revision for exactly the same issuer/period/basis. */
-export function resolveOriginalRevisionPair(
+/** Resolve all revisions for one exact original filing; never silently pick the latest. */
+export function resolveOriginalRevisionHistory(
   rows: NseRevisionRow[],
   request: OriginalRevisionRequest,
-): { original: NseRevisionRow; revision: NseRevisionRow } {
+): { original: NseRevisionRow; revisions: NseRevisionRow[] } {
   if (!Array.isArray(rows) || !request.symbol.trim() || !request.period.trim()) {
-    throw new Error('Invalid NSE original/revision pair request');
+    throw new Error('Invalid NSE original/revision history request');
   }
   const eligible = (kind: 'Original' | 'Revision') => rows.filter(row =>
     row.symbol === request.symbol
@@ -51,17 +51,37 @@ export function resolveOriginalRevisionPair(
     && row.consolidated === request.basis
     && row.seq_Id !== null && row.seq_Id !== undefined && String(row.seq_Id).trim() !== ''
     && (typeof row.broadcast_Date === 'string' && row.broadcast_Date.trim() !== ''
-      || typeof row.revised_Date === 'string' && row.revised_Date.trim() !== '')
+      || typeof row.revised_Date === 'string' && row.revised_Date.trim() !== ''
+      || typeof row.creation_Date === 'string' && row.creation_Date.trim() !== '')
     && officialUrl(row.xbrl, 'xbrl')
     && officialUrl(row.ixbrl, 'ixbrl'),
   );
   const originals = eligible('Original');
   const revisions = eligible('Revision');
-  if (originals.length !== 1 || revisions.length !== 1) {
-    throw new Error(`Expected one Original and one Revision for ${request.symbol} ${request.period} ${request.basis}; got original=${originals.length}, revision=${revisions.length}`);
+  if (originals.length !== 1 || revisions.length < 1) {
+    throw new Error(`Expected one Original and at least one Revision for ${request.symbol} ${request.period} ${request.basis}; got original=${originals.length}, revision=${revisions.length}`);
   }
-  if (String(originals[0].seq_Id) === String(revisions[0].seq_Id)) {
-    throw new Error('Original and Revision must have distinct NSE sequence IDs');
+  const ids = [String(originals[0].seq_Id), ...revisions.map(row => String(row.seq_Id))];
+  if (new Set(ids).size !== ids.length) throw new Error('Original and each Revision must have distinct NSE sequence IDs');
+  const monthIndex: Record<string, number> = { JAN:0,FEB:1,MAR:2,APR:3,MAY:4,JUN:5,JUL:6,AUG:7,SEP:8,OCT:9,NOV:10,DEC:11 };
+  const timestamp = (row: NseRevisionRow): number => {
+    const value = row.revised_Date || row.creation_Date || row.broadcast_Date || '';
+    const m = /^(\d{2})-([A-Z]{3})-(\d{4}) (\d{2}):(\d{2}):(\d{2})$/i.exec(value);
+    if (!m || monthIndex[m[2].toUpperCase()] === undefined) throw new Error(`Unrecognized NSE revision timestamp: ${value}`);
+    return Date.UTC(Number(m[3]),monthIndex[m[2].toUpperCase()],Number(m[1]),Number(m[4]),Number(m[5]),Number(m[6]));
+  };
+  revisions.sort((a,b)=>timestamp(a)-timestamp(b));
+  return { original: originals[0], revisions };
+}
+
+/** Strict single-revision convenience API; ambiguous histories are rejected. */
+export function resolveOriginalRevisionPair(
+  rows: NseRevisionRow[],
+  request: OriginalRevisionRequest,
+): { original: NseRevisionRow; revision: NseRevisionRow } {
+  const history = resolveOriginalRevisionHistory(rows, request);
+  if (history.revisions.length !== 1) {
+    throw new Error(`Expected exactly one Revision for ${request.symbol} ${request.period}; got ${history.revisions.length}`);
   }
-  return { original: originals[0], revision: revisions[0] };
+  return { original: history.original, revision: history.revisions[0] };
 }
