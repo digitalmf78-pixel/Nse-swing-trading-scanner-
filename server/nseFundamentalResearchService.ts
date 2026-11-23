@@ -187,7 +187,7 @@ export function inferExactPeriodStart(
   periodEnd: string,
   concepts: IssuerMetricConceptMap,
 ): string | null {
-  const conceptNames = [concepts.revenue, concepts.profit, ...(concepts.operatingCashFlow ? [concepts.operatingCashFlow] : [])];
+  const conceptNames = [concepts.revenue, concepts.profit];
   const startsByConcept = conceptNames.map(concept => {
     const starts = new Set<string>();
     for (const fact of extraction.facts) {
@@ -568,8 +568,6 @@ async function runCollection(
             industryRecord = undefined;
             job.lastError = symbol + ': NSE official industry lookup failed: ' + (error as Error).message;
           }
-        } else if (!industryIsFresh) {
-          industryRecord = undefined;
         }
 
         sector = classifyIssuerSector(industryRecord ? buildNseIndustryText(industryRecord) : '');
