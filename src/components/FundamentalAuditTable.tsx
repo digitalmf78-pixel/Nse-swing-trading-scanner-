@@ -245,7 +245,7 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
       'Series',
       'Sector',
       'NSE Ticker',
-      'NSE YFinance Verified',
+      'NSE XBRL Verified',
       'NSE XBRL Filings',
       'NSE Latest Filing Date',
       'BSE Ticker',
@@ -262,13 +262,13 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
     const lines = [headers.map(escapeCsvCell).join(',')];
     for (const entry of displayedRows) {
       const { ageDays, tier } = getRowAgeAndTier(entry);
-      const hasNseYahoo = entry.sources.includes('YFinance (.NS)');
+      const hasNseXbrl = entry.sources.some(source => /NSE Official XBRL/i.test(source));
       const rowValues = [
         entry.symbol,
         entry.series,
         entry.sector,
         entry.nseTicker,
-        hasNseYahoo ? 'Yes' : 'No',
+        hasNseXbrl ? 'Yes' : 'No',
         entry.nseXbrlCount,
         entry.nseLatestFilingDate,
         entry.bseTicker,
