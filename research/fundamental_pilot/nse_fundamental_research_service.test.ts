@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  auditXbrlIssuerIdentity,
   classifyIssuerSector,
   classifyNsePeriodType,
   inferExactPeriodStart,
@@ -158,4 +159,57 @@ test('growth candidates require both growth revision inputs to be stable', () =>
     ]),
     'BLOCKED',
   );
+});
+
+function entityExtraction(identifier: string | null = 'INE0ABC01010'): XbrlExtraction {
+  return {
+    contexts: {
+      ctx: {
+        id: 'ctx', entityScheme: 'http://www.nseindia.com', entityIdentifier: identifier,
+        periodStart: '2026-04-01', periodEnd: '2026-06-30',
+        instant: null, dimensions: [],
+      },
+    },
+    units: {},
+    facts: [{
+      concept: 'ns:RevenueFromOperations', contextRef: 'ctx', unitRef: null,
+      rawValue: '10', numericValue: 10, decimals: null, scale: null, sign: null,
+      format: null, continuedAt: null, isNil: false, isInline: false,
+    }],
+    contextCount: 1, factCount: 1, warnings: [],
+  };
+}
+
+test('XBRL issuer identity must match official NSE ISIN across Original and Revision documents', () => {
+  const valid = auditXbrlIssuerIdentity(
+    [entityExtraction(), entityExtraction()],
+    'INE0ABC01010',
+  );
+  assert.equal(valid.valid, true);
+  assert.equal(valid.entityIdentifier, 'INE0ABC01010');
+  assert.equal(valid.documentsChecked, 2);
+
+  const mismatch = auditXbrlIssuerIdentity(
+    [entityExtraction(), entityExtraction('INE0XYZ01010')],
+    'INE0ABC01010',
+  );
+  assert.equal(mismatch.valid, false);
+  assert.match(mismatch.issues.join(' '), /differs across Original\/Revision/);
+  assert.match(mismatch.issues.join(' '), /does not match the official NSE ISIN/);
+});
+
+test('XBRL issuer identity blocks missing entity identifiers and absent official ISIN', () => {
+  const missingEntity = auditXbrlIssuerIdentity(
+    [entityExtraction(null), entityExtraction(null)],
+    'INE0ABC01010',
+  );
+  assert.equal(missingEntity.valid, false);
+  assert.match(missingEntity.issues.join(' '), /missing entity scheme\/identifier/);
+
+  const missingIsin = auditXbrlIssuerIdentity(
+    [entityExtraction(), entityExtraction()],
+    null,
+  );
+  assert.equal(missingIsin.valid, false);
+  assert.match(missingIsin.issues.join(' '), /Official NSE ISIN is missing or invalid/);
 });
