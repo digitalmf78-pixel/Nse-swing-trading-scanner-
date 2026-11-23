@@ -76,7 +76,7 @@ export async function collectXbrlEvidenceForFilingRows(
   symbol: string,
   rows: NseRevisionRow[],
   options: {fetchImpl?: typeof fetch; timeoutMs?: number; cacheFile?: string; archiveDir?: string} = {},
-): Promise<{saved: number; skipped: number; failed: Array<{seqId:string;error:string}>}> {
+): Promise<{saved: number; skipped: number; failed: Array<{seqId:string;error:string}>; documents: NseXbrlEvidenceDocument[]}> {
   const fetchImpl = options.fetchImpl ?? fetch;
   const cache = loadNseXbrlEvidenceCache(options.cacheFile);
   const normalizedSymbol = symbol.trim().toUpperCase();
@@ -129,5 +129,7 @@ export async function collectXbrlEvidenceForFilingRows(
     cache.updatedAtUtc = new Date().toISOString();
     saveCache(cache, options.cacheFile);
   }
-  return {saved:newDocs.length,skipped,failed};
+  const requestedSeqIds = new Set(rows.map(row => String(row.seq_Id ?? '').trim()).filter(Boolean));
+  const documents = merged.filter(doc => requestedSeqIds.has(doc.seqId));
+  return {saved:newDocs.length,skipped,failed,documents};
 }
