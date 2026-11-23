@@ -445,7 +445,7 @@ async function startServer() {
     }
   });
 
-  // Explicit refresh action now uses the same NSE-only research service.
+  // Explicit refresh action now supports a bounded missing-only batch and the full Bhavcopy research run.
   app.post('/api/refresh/fundamentals', async (req, res) => {
     try {
       const symbol = typeof req.body?.symbol === 'string' ? req.body.symbol.trim().toUpperCase() : '';
@@ -454,11 +454,73 @@ async function startServer() {
         const row = rows.find(item => item.symbol === symbol);
         if (!row) return res.status(404).json({ code: 'NSE_SYMBOL_NOT_IN_BHAVCOPY_UNIVERSE', symbol });
         const status = startNseFundamentalResearchCollection([symbol]);
-        return res.json({ mode: 'NSE_OFFICIAL_XBRL_CANDIDATE_RESEARCH', ...status, note: 'NSE candidate research only; no production scanner metrics are changed.' });
+        return res.status(status.running && status.total === 1 && status.processed === 0
+          ? 202 : 409).json({
+          mode: 'NSE_OFFICIAL_XBRL_CANDIDATE_RESEARCH',
+          ...status,
+          message: status.total === 1
+            ? 'NSE candidate research started for this Bhavcopy-eligible symbol.'
+            : 'An NSE fundamental research collection is already running.',
+          note: 'Research candidates only; production scanner metrics are unchanged.',
+        });
+      }
+
+      if (req.body?.batchMissing === true) {
+        const rawLimit = Number(req.body?.limit);
+        const limit = Number.isFinite(rawLimit) && rawLimit > 0
+          ? Math.min(25, Math.floor(rawLimit))
+          : 25;
+        const current = getNseFundamentalResearchStatus();
+        if (current.running) {
+          return res.status(409).json({
+            code: 'NSE_FUNDAMENTAL_COLLECTION_ALREADY_RUNNING',
+            mode: 'NSE_OFFICIAL_XBRL_CANDIDATE_RESEARCH',
+            ...current,
+            message: 'An NSE fundamental research collection is already running. Check collection status before starting another batch.',
+          });
+        }
+        const targets = nsePipeline.getMissingFundamentalCandidates(limit);
+        if (targets.length === 0) {
+          return res.json({
+            started: false,
+            mode: 'NSE_OFFICIAL_XBRL_CANDIDATE_RESEARCH',
+            batchMissing: true,
+            requestedLimit: limit,
+            selectedCount: 0,
+            selectedSymbols: [],
+            message: 'No missing or incomplete fundamentals were found among eligible liquid stocks in the latest Bhavcopy.',
+            note: 'No scanner data or production fundamental cache was changed.',
+          });
+        }
+        const status = startNseFundamentalResearchCollection(targets);
+        return res.status(202).json({
+          mode: 'NSE_OFFICIAL_XBRL_CANDIDATE_RESEARCH',
+          batchMissing: true,
+          requestedLimit: limit,
+          selectedCount: targets.length,
+          selectedSymbols: targets,
+          message: `Started NSE-only candidate research for ${targets.length} missing/incomplete Bhavcopy symbols. Track progress in Collection Status.`,
+          ...status,
+          note: 'Candidate reports are saved to the research cache only; production scanner fundamentals remain unchanged.',
+        });
+      }
+
+      const current = getNseFundamentalResearchStatus();
+      if (current.running) {
+        return res.status(409).json({
+          code: 'NSE_FUNDAMENTAL_COLLECTION_ALREADY_RUNNING',
+          mode: 'NSE_OFFICIAL_XBRL_CANDIDATE_RESEARCH',
+          ...current,
+          message: 'An NSE fundamental research collection is already running.',
+        });
       }
       const targets = nsePipeline.getAuditCollectionTargets('BHAVCOPY');
       const status = startNseFundamentalResearchCollection(targets);
-      return res.json({ mode: 'NSE_OFFICIAL_XBRL_CANDIDATE_RESEARCH', ...status });
+      return res.status(202).json({
+        mode: 'NSE_OFFICIAL_XBRL_CANDIDATE_RESEARCH',
+        message: `Started NSE-only candidate research for ${targets.length} latest-Bhavcopy symbols.`,
+        ...status,
+      });
     } catch (err) {
       return res.status(500).json({ error: (err as Error).message });
     }
