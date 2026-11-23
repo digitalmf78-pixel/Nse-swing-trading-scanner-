@@ -318,7 +318,7 @@ test('corrupt candidate cache is preserved and never silently replaced with an e
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nse-candidate-cache-preserve-'));
   const file = path.join(dir, 'cache.json');
   try {
-    const corruptBytes = '{"schemaVersion":99,"symbols":{}}\\n';
+    const corruptBytes = '{"schemaVersion":99,"symbols":{}}';
     fs.writeFileSync(file, corruptBytes, 'utf8');
     assert.throws(() => loadCandidateCache(file), /schema invalid/);
     assert.equal(fs.readFileSync(file, 'utf8'), corruptBytes);
