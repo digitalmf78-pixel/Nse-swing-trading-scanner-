@@ -222,8 +222,8 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
         if (cancelled) return;
         setActionNotice(
           status.running
-            ? `NSE ${status.filingHistoryProcessed < status.total ? 'filings' : 'XBRL validation'}: ${status.filingHistoryProcessed < status.total ? status.filingHistoryProcessed : status.processed}/${status.total} · XBRL saved ${status.xbrlDocumentsSaved} · candidates ${status.candidateReady} · revision review ${status.revisionReviewRequired} · blocked ${status.failed} · current ${status.currentSymbol || 'finishing'}`
-            : `NSE fundamental research finished: ${status.candidateReady} candidate-ready · ${status.revisionReviewRequired} revision-review · ${status.failed} blocked · ${status.xbrlDocumentsSaved} XBRL documents saved. No unapproved values were written to the scanner cache.`
+            ? `NSE ${status.filingHistoryProcessed < status.total ? 'filings' : 'XBRL validation'}: ${status.filingHistoryProcessed < status.total ? status.filingHistoryProcessed : status.processed}/${status.total} · XBRL saved ${status.xbrlDocumentsSaved} · candidates ${status.candidateReady} · partial releases ${status.partialReleased} · revision review ${status.revisionReviewRequired} · blocked ${status.failed} · current ${status.currentSymbol || 'finishing'}`
+            : `NSE fundamental research finished: ${status.candidateReady} candidate-ready · ${status.partialReleased} partial releases · ${status.revisionReviewRequired} revision-review · ${status.failed} blocked · ${status.xbrlDocumentsSaved} XBRL documents saved. No unapproved values were written to the scanner cache.`
         );
         if (!status.running) setSyncingNseFilingHistory(false);
       } catch {
