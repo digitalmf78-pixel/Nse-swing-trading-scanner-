@@ -245,7 +245,7 @@ test('candidate cache survives a fresh read after process-style restart', () => 
     // Read from a genuinely fresh Node process to model a server restart.
     const child = spawnSync(process.execPath, [
       '--experimental-strip-types', '--input-type=module', '-e',
-      "import { loadCandidateCache, getNseFundamentalCandidateReports } from './server/nseFundamentalResearchService.ts'; const c = loadCandidateCache(process.argv[1]); const api = getNseFundamentalCandidateReports(); process.stdout.write(JSON.stringify({ cache: c, api }));",
+      "import { loadCandidateCache, getNseFundamentalCandidateReports } from './server/nseFundamentalResearchService.ts'; const c = loadCandidateCache(process.argv[1]); const api = getNseFundamentalCandidateReports(undefined, 100, process.argv[1]); process.stdout.write(JSON.stringify({ cache: c, api }));",
       file,
     ], { cwd: process.cwd(), encoding: 'utf8' });
     assert.equal(child.status, 0, child.stderr);
