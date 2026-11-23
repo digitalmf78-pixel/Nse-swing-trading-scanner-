@@ -670,6 +670,11 @@ class NsePipelineEngine {
 
   private applyNseValidatedFundamentals(): void {
     const validatedCache = loadNseValidatedFundamentalCache();
+    for (const symbol of Object.keys(validatedCache.symbols)) {
+      if (!this.fundamentalsBySymbol.has(symbol)) {
+        this.fundamentalsBySymbol.set(symbol, this.emptyFundamentalProfile(symbol));
+      }
+    }
     const patches = selectNseScannerFundamentalPatches(validatedCache);
     const adapted = applyNseValidatedFundamentalPatches(this.fundamentalsBySymbol, patches);
     this.fundamentalsBySymbol.clear();
