@@ -12,12 +12,7 @@ import {
 import { evaluateRiskControls } from './server/riskControls.ts';
 import { runEcmsGeminiResearch } from './server/geminiResearch.ts';
 import {
-  ensureLiveFundamentalsForSymbol,
   fetchNseBhavcopyForDate,
-  getCollectionJobStatus,
-  refreshFundamentalsBatch,
-  saveSymbolFundamentalsToCache,
-  startFullFundamentalCollection,
   syncLatestBhavcopiesCatchup,
 } from './server/liveFetcher.ts';
 import {
@@ -371,23 +366,7 @@ async function startServer() {
         });
       }
 
-      const hasManualEps =
-        typeof req.query.epsPrev === 'string' && typeof req.query.epsCurr === 'string';
-      if (
-        !hasManualEps &&
-        (detail.fundamentals?.epsPrev === null ||
-          detail.fundamentals?.epsPrev === undefined ||
-          detail.fundamentals?.epsCurr === null ||
-          detail.fundamentals?.epsCurr === undefined)
-      ) {
-        const fetched = await ensureLiveFundamentalsForSymbol(
-          sym,
-          nsePipeline.getXbrlFilingsForSymbol(sym)
-        );
-        if (fetched && (fetched.epsCurr !== null || fetched.trailingPE !== null)) {
-          nsePipeline.reload();
-        }
-      }
+      // Automatic Yahoo fundamental/EPS fetch is disabled; use validated NSE data or explicit manual overrides.
 
       const peakRaw =
         typeof req.query.peakPrice === 'string' ? Number(req.query.peakPrice) : undefined;
@@ -461,25 +440,7 @@ async function startServer() {
         });
       }
 
-      const hasManualOverride =
-        (typeof req.query.effectiveEps === 'string' && req.query.effectiveEps.trim() !== '') ||
-        (typeof req.query.peakPeRatio === 'string' && req.query.peakPeRatio.trim() !== '');
-
-      if (
-        !hasManualOverride &&
-        (detail.fundamentals?.epsCurr === null ||
-          detail.fundamentals?.epsCurr === undefined ||
-          detail.fundamentals?.epsTtmCurr === null ||
-          detail.fundamentals?.epsTtmCurr === undefined)
-      ) {
-        const fetched = await ensureLiveFundamentalsForSymbol(
-          sym,
-          nsePipeline.getXbrlFilingsForSymbol(sym)
-        );
-        if (fetched && (fetched.epsCurr !== null || fetched.epsTtmCurr !== null)) {
-          nsePipeline.reload();
-        }
-      }
+      // Automatic Yahoo fundamental/EPS fetch is disabled; use validated NSE data or explicit manual overrides.
 
       const effEpsRaw =
         typeof req.query.effectiveEps === 'string' && req.query.effectiveEps.trim() !== ''
@@ -538,103 +499,73 @@ async function startServer() {
     }
   });
 
-  // Automatic & Explicit Fundamental Save-to-Cache (Single Symbol or Full NSE Universe)
-  app.post('/api/fundamentals/save-to-cache', async (req, res) => {
+  // Legacy fundamental actions now route to official NSE XBRL candidate research only.
+  app.post('/api/fundamentals/save-to-cache', (req, res) => {
     try {
-      const symbol =
-        typeof req.body?.symbol === 'string' ? req.body.symbol.trim().toUpperCase() : '';
+      const symbol = typeof req.body?.symbol === 'string' ? req.body.symbol.trim().toUpperCase() : '';
       const saveAll = Boolean(req.body?.saveAll);
+      let targets: string[] = [];
 
       if (symbol) {
-        const forceBse = req.body?.force !== undefined ? Boolean(req.body.force) : true;
-        const result = await saveSymbolFundamentalsToCache(
-          symbol,
-          nsePipeline.getXbrlFilingsForSymbol(symbol),
-          forceBse
-        );
-        if (result.record) {
-          nsePipeline.reload();
+        if (!nsePipeline.getAllSymbols().includes(symbol)) {
+          return res.status(404).json({ code: 'NSE_SYMBOL_NOT_IN_CURRENT_SCANNER_UNIVERSE', symbol });
         }
-        const detail = nsePipeline.getStockDetail(symbol);
-        return res.json({
-          saved: Boolean(result.record),
-          symbol,
-          totalSavedCount: result.totalSavedCount,
-          error: result.error || null,
-          summary: detail?.summary ?? null,
-          auditEntry: detail?.fundamentalAuditRows?.[0] ?? null,
-        });
+        targets = [symbol];
+      } else if (saveAll) {
+        const rawLimit = Number(req.body?.limit);
+        const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(25, Math.floor(rawLimit)) : 25;
+        targets = nsePipeline.getMissingFundamentalCandidates(limit);
+      } else {
+        return res.status(400).json({ error: 'Provide either { symbol } or { saveAll: true }.' });
       }
 
-      if (saveAll) {
-        const rawScope =
-          typeof req.body?.scope === 'string' ? req.body.scope.toUpperCase() : 'MISSING_OR_OLD';
-        const scope: 'MISSING_OR_OLD' | 'NOT_AVAILABLE' | 'LIQUID' | 'ALL' =
-          rawScope === 'NOT_AVAILABLE' || rawScope === 'LIQUID' || rawScope === 'ALL'
-            ? rawScope
-            : 'MISSING_OR_OLD';
+      const current = getNseFundamentalResearchStatus();
+      if (current.running) return res.status(409).json({ code: 'NSE_FUNDAMENTAL_RESEARCH_ALREADY_RUNNING', ...current });
+      if (!targets.length) return res.json({ started: false, selectedSymbols: [], ...current, note: 'No eligible missing fundamentals found.' });
 
-        const targets = nsePipeline.getAuditCollectionTargets(scope);
-        if (targets.length === 0) {
-          return res.json({
-            started: false,
-            ...getCollectionJobStatus(),
-            message: 'All NSE stocks in selected scope are already saved & up to date in cache.',
-          });
-        }
-
-        const status = startFullFundamentalCollection(
-          targets,
-          scope,
-          nsePipeline.getXbrlBySymbolMap(),
-          () => nsePipeline.reload()
-        );
-        return res.json({
-          started: true,
-          ...status,
-        });
-      }
-
-      return res.status(400).json({
-        error: 'Provide either { symbol } or { saveAll: true } in request body.',
+      const status = startNseFundamentalResearchCollection(targets);
+      return res.status(202).json({
+        started: true,
+        mode: 'NSE_OFFICIAL_XBRL_CANDIDATE_RESEARCH',
+        productionApproved: false,
+        selectedSymbols: targets,
+        ...status,
+        note: 'Candidate reports only; production scanner cache is not changed by collection.',
       });
     } catch (err) {
       return res.status(500).json({ error: (err as Error).message });
     }
   });
 
-  // Live Fundamental Fetcher (Single Symbol or Batch Missing Liquidity-Qualified)
-  app.post('/api/refresh/fundamentals', async (req, res) => {
+  app.post('/api/refresh/fundamentals', (req, res) => {
     try {
       const symbol = typeof req.body?.symbol === 'string' ? req.body.symbol.trim().toUpperCase() : '';
-      const batchMissing = Boolean(req.body?.batchMissing);
-      const limit = Math.min(50, Math.max(1, Number(req.body?.limit ?? 25)));
-
       let targets: string[] = [];
       if (symbol) {
+        if (!nsePipeline.getAllSymbols().includes(symbol)) {
+          return res.status(404).json({ code: 'NSE_SYMBOL_NOT_IN_CURRENT_SCANNER_UNIVERSE', symbol });
+        }
         targets = [symbol];
-      } else if (batchMissing) {
+      } else if (req.body?.batchMissing === true) {
+        const rawLimit = Number(req.body?.limit);
+        const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(25, Math.floor(rawLimit)) : 25;
         targets = nsePipeline.getMissingFundamentalCandidates(limit);
       } else {
         return res.status(400).json({ error: 'Provide either symbol or batchMissing: true.' });
       }
 
-      if (targets.length === 0) {
-        return res.json({
-          succeeded: [],
-          failed: [],
-          message: 'All liquidity-qualified candidates already have complete fundamentals.',
-        });
-      }
+      const current = getNseFundamentalResearchStatus();
+      if (current.running) return res.status(409).json({ code: 'NSE_FUNDAMENTAL_RESEARCH_ALREADY_RUNNING', ...current });
+      if (!targets.length) return res.json({ started: false, selectedSymbols: [], ...current, note: 'No eligible missing fundamentals found.' });
 
-      const forceBse = Boolean(req.body?.forceBse);
-      const result = await refreshFundamentalsBatch(targets, nsePipeline.getXbrlBySymbolMap(), forceBse);
-      if (result.succeeded.length > 0) {
-        nsePipeline.reload();
-      }
-      return res.json({
-        ...result,
-        message: `Collected & saved NSE XBRL + YFinance (.NS/.BO) fundamentals for ${result.succeeded.length}/${targets.length} symbol(s).`,
+      const status = startNseFundamentalResearchCollection(targets);
+      return res.status(202).json({
+        started: true,
+        mode: 'NSE_OFFICIAL_XBRL_CANDIDATE_RESEARCH',
+        productionApproved: false,
+        selectedSymbols: targets,
+        ...status,
+        note: 'Candidate reports only; no Yahoo fundamental data is fetched or written.',
       });
     } catch (err) {
       return res.status(500).json({ error: (err as Error).message });
@@ -658,39 +589,31 @@ async function startServer() {
     }
   });
 
-  // Full-Universe Multi-Source Fundamental Collection (NSE XBRL + YFinance .NS + BSE .BO)
+  // Backward-compatible collection endpoints now expose only NSE candidate research.
   app.post('/api/fundamentals/collect-all', (req, res) => {
     try {
-      const rawScope = typeof req.body?.scope === 'string' ? req.body.scope.toUpperCase() : 'MISSING_OR_OLD';
-      const scope: 'MISSING_OR_OLD' | 'NOT_AVAILABLE' | 'LIQUID' | 'ALL' =
-        rawScope === 'NOT_AVAILABLE' || rawScope === 'LIQUID' || rawScope === 'ALL'
-          ? rawScope
-          : 'MISSING_OR_OLD';
-      const limitNum = Number(req.body?.limit);
-      const limit = Number.isFinite(limitNum) && limitNum > 0 ? Math.min(3000, limitNum) : undefined;
-
-      const targets = nsePipeline.getAuditCollectionTargets(scope, limit);
-      if (targets.length === 0) {
-        return res.json({
-          ...getCollectionJobStatus(),
-          message: 'All stocks in selected scope already have latest fundamentals.',
-        });
-      }
-
-      const status = startFullFundamentalCollection(
-        targets,
-        scope,
-        nsePipeline.getXbrlBySymbolMap(),
-        () => nsePipeline.reload()
-      );
-      return res.json(status);
+      const current = getNseFundamentalResearchStatus();
+      if (current.running) return res.status(409).json({ code: 'NSE_FUNDAMENTAL_RESEARCH_ALREADY_RUNNING', ...current });
+      const rawLimit = Number(req.body?.limit);
+      const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(100, Math.floor(rawLimit)) : 25;
+      const targets = nsePipeline.getMissingFundamentalCandidates(limit);
+      if (!targets.length) return res.json({ started: false, selectedSymbols: [], ...current, note: 'No eligible missing fundamentals found.' });
+      const status = startNseFundamentalResearchCollection(targets);
+      return res.status(202).json({
+        started: true,
+        mode: 'NSE_OFFICIAL_XBRL_CANDIDATE_RESEARCH',
+        productionApproved: false,
+        selectedSymbols: targets,
+        ...status,
+        note: 'NSE-only candidate research. Use the candidate audit panel for review; no production values are changed.',
+      });
     } catch (err) {
       return res.status(500).json({ error: (err as Error).message });
     }
   });
 
   app.get('/api/fundamentals/collect-status', (_req, res) => {
-    res.json(getCollectionJobStatus());
+    return res.json(getNseFundamentalResearchStatus());
   });
 
   // Live NSE Bhavcopy Sync (catches up all missing sessions automatically unless target date given)
@@ -1131,17 +1054,7 @@ async function startServer() {
             );
           }
 
-          if (!getCollectionJobStatus().running) {
-            const missingTargets = nsePipeline.getAuditCollectionTargets('MISSING_OR_OLD');
-            if (missingTargets.length > 0) {
-              startFullFundamentalCollection(
-                missingTargets,
-                'AUTO_MISSING_OR_OLD',
-                nsePipeline.getXbrlBySymbolMap(),
-                () => nsePipeline.reload()
-              );
-            }
-          }
+          // Fundamental collection is user-triggered and NSE-only; no automatic Yahoo fundamental fetch.
         } catch (err) {
           console.error('Startup background sync warning:', (err as Error).message);
         }
