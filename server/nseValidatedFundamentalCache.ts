@@ -31,8 +31,8 @@ export function loadNseValidatedFundamentalCache(file = defaultPath()): NseValid
       throw new Error(`NSE validated fundamental cache issuer entry invalid: ${symbol}`);
     }
     for (const item of entry.profiles) {
-      if (!item || !/^[a-f0-9]{64}$/.test(item.profileHash) || hashProfile(item.profile) !== item.profileHash
-          || validateFundamentalProfile(item.profile).length) {
+      if (!item || !item.profile || item.profile.symbol !== symbol || !/^[a-f0-9]{64}$/.test(item.profileHash)
+          || hashProfile(item.profile) !== item.profileHash || validateFundamentalProfile(item.profile).length) {
         throw new Error(`NSE validated fundamental cache profile integrity failed: ${symbol}`);
       }
     }
@@ -69,9 +69,10 @@ export function appendValidatedNseFundamentalProfile(
   if (entry.profiles.some(item => item.profileHash === profileHash)) {
     return { saved: false, profileHash, profilesForSymbol: entry.profiles.length };
   }
-  entry.profiles.push({ profileHash, savedAtUtc: (options.now?.() ?? new Date()).toISOString(), profile });
+  const savedAtUtc = (options.now?.() ?? new Date()).toISOString();
+  entry.profiles.push({ profileHash, savedAtUtc, profile });
   cache.symbols[symbol] = entry;
-  cache.updatedAtUtc = (options.now?.() ?? new Date()).toISOString();
+  cache.updatedAtUtc = savedAtUtc;
   atomicSave(cache, file);
   return { saved: true, profileHash, profilesForSymbol: entry.profiles.length };
 }
