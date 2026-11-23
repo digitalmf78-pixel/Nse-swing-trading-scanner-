@@ -839,7 +839,8 @@ export function buildStockCatalystProfile(params: {
   refIso: string;
 }): StockCatalystProfile {
   const { row, fund, cached, bulkBlockStore, refIso } = params;
-  const rawDate = cached?.nextResultDate || row.nextEarningsDate || fund?.nextEarningsDate || '';
+  const hasOfficialBseDate = Boolean(cached?.resultSource?.startsWith('BSE Board Meeting'));
+  const rawDate = hasOfficialBseDate ? cached?.nextResultDate || '' : '';
   const nextResultDate = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) && rawDate >= refIso ? rawDate : '';
   const { tier, daysToResult } = computeResultPriorityTier(nextResultDate, refIso);
   const { polarity, reason: polarityReason } = evaluate3MonthResultPolarity(fund);
@@ -864,8 +865,8 @@ export function buildStockCatalystProfile(params: {
     nextResultDate,
     daysToResult,
     resultPriority: tier,
-    resultSource: cached?.resultSource || (nextResultDate ? 'Yahoo Finance Calendar' : ''),
-    isResultEstimate: cached?.isResultEstimate ?? true,
+    resultSource: hasOfficialBseDate && nextResultDate ? 'BSE Board Meeting' : '',
+    isResultEstimate: false,
     resultPolarity3M: polarity,
     result3MReason: polarityReason,
     profitGrowthPct: fund?.profitGrowthPct ?? null,
@@ -935,19 +936,18 @@ export async function fetchAndCacheStockCatalysts(params: {
       ? bseRes.value
       : { scripCode: existing?.bseScripCode || '', items: existing?.announcements ?? [], boardResultDate: '' };
 
-  let nextResultDate = row.nextEarningsDate || fund?.nextEarningsDate || existing?.nextResultDate || '';
-  let resultSource = nextResultDate ? 'Yahoo Finance Calendar' : '';
-  if (bseData.boardResultDate) {
-    nextResultDate = bseData.boardResultDate;
-    resultSource = 'BSE Board Meeting + Yahoo Calendar';
-  }
+  const cachedBseDate = existing?.resultSource?.startsWith('BSE Board Meeting')
+    ? existing.nextResultDate
+    : '';
+  const nextResultDate = bseData.boardResultDate || cachedBseDate;
+  const resultSource = nextResultDate ? 'BSE Board Meeting' : '';
 
   const entry: CachedStockCatalyst = {
     symbol: sym,
     companyName: companyName || sym,
     bseScripCode: bseData.scripCode,
     nextResultDate,
-    isResultEstimate: !bseData.boardResultDate,
+    isResultEstimate: false,
     resultSource,
     news7D,
     announcements: bseData.items,
@@ -1100,10 +1100,10 @@ export function buildCatalystScreener(params: {
     },
     calendarStats: {
       scheduledUpcomingCount: within1m + within2m + within3m,
-      lastSyncedUtc: cache.lastUniverseQuoteSyncUtc || universeQuoteScanState.lastSyncedUtc,
-      scanning: universeQuoteScanState.running,
-      processed: universeQuoteScanState.processed,
-      total: universeQuoteScanState.total,
+      lastSyncedUtc: '',
+      scanning: false,
+      processed: 0,
+      total: 0,
     },
     rows: sorted.slice(offset, offset + limit),
     total: sorted.length,
@@ -1129,7 +1129,10 @@ export function getUpcomingResultObservationList(params: {
   for (const row of params.rows) {
     const fund = params.fundamentalsBySymbol.get(row.symbol);
     const cached = cache.bySymbol[row.symbol];
-    const candidateDates = [cached?.nextResultDate, row.nextEarningsDate, fund?.nextEarningsDate]
+    const cachedBseDate = cached?.resultSource?.startsWith('BSE Board Meeting')
+      ? cached.nextResultDate
+      : '';
+    const candidateDates = [cachedBseDate]
       .filter((d): d is string => Boolean(d && /^\d{4}-\d{2}-\d{2}$/.test(d) && d >= refIso))
       .sort((a, b) => a.localeCompare(b));
     const nextResultDate = candidateDates[0] || '';
@@ -1157,8 +1160,8 @@ export function getUpcomingResultObservationList(params: {
       nextResultDate,
       daysToResult,
       resultPriority: tier,
-      resultSource: cached?.resultSource || 'Yahoo Finance Calendar',
-      isResultEstimate: cached?.isResultEstimate ?? true,
+      resultSource: 'BSE Board Meeting',
+      isResultEstimate: false,
       resultPolarity3M: polarity,
       result3MReason: reason,
       rejectionGate: gate.verdict,
