@@ -48,6 +48,19 @@ test('runs concept selection through the candidate engine for all three eligible
   assert.equal(report.productionApproved,false);
 });
 
+test('keeps Revenue and Profit candidates when OCF concept is unavailable',()=>{
+  const report=buildSevenMetricXbrlPipeline('NON_FINANCIAL',current,prior,{
+    ...concepts,operatingCashFlow:null,
+  });
+  assert.equal(report.currentSelections.revenue.status,'SELECTED_UNIQUE_GROUP_FACT');
+  assert.equal(report.currentSelections.profit.status,'SELECTED_UNIQUE_GROUP_FACT');
+  assert.equal(report.currentSelections.operatingCashFlow.status,'MISSING_CONCEPT');
+  assert.equal(report.candidateReport.candidates.revenueGrowth?.growthPercent,20);
+  assert.equal(report.candidateReport.candidates.profitGrowth?.growthPercent,20);
+  assert.equal(report.candidateReport.auditMatrix.metrics.OPERATING_CASH_FLOW.decision,'DATA_MISSING');
+  assert.equal(report.productionApproved,false);
+});
+
 test('preserves missing concept status instead of replacing it with zero',()=>{
   const noRevenue={...current,extraction:extraction('2026-04-01','2026-09-30',{profit:120,ocf:150})};
   const report=buildSevenMetricXbrlPipeline('NON_FINANCIAL',noRevenue,prior,concepts);
