@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { assessStatementComparativeGuard, type StatementComparativeEvidence } from './statement_comparative_guard.ts';
+import { assessStatementComparativeGuard, type StatementComparativeEvidence, type StatementReclassificationBridge } from './statement_comparative_guard.ts';
 
 const matched:StatementComparativeEvidence={
   currentXbrl:1000,priorOriginalXbrl:800,currentPdfCurrent:1000,
@@ -144,16 +144,60 @@ test('GAIL H1 FY27 Revenue and owner-attributable Profit reconcile to current an
   assert.equal(ownerProfit.productionApproved,false);
 });
 
-test('GAIL H1 FY27 OCF preserves ₹121.88 Cr reclassified comparative and withholds YoY base',()=>{
+const gailH1ReclassificationBridge:StatementReclassificationBridge={
+  adjustmentLines:[
+    {label:'Provision for probable obligations',priorOriginalValue:15.35,currentComparativeValue:37.42},
+    {label:'Excess provision written back',priorOriginalValue:0,currentComparativeValue:-90.07},
+    {label:'Unrealised foreign exchange gain/loss',priorOriginalValue:0,currentComparativeValue:169.08},
+  ],
+  priorAdjustmentSubtotal:783.21,currentAdjustmentSubtotal:884.29,
+  workingCapitalLines:[
+    {label:'Trade and other receivables',priorOriginalValue:554.88,currentComparativeValue:575.68},
+  ],
+  priorWorkingCapitalSubtotal:512.80,currentWorkingCapitalSubtotal:533.60,
+  priorOperatingProfitBeforeWorkingCapital:6377.45,
+  currentOperatingProfitBeforeWorkingCapital:6478.53,
+  priorCashGeneratedFromOperations:6890.25,
+  currentCashGeneratedFromOperations:7012.13,
+  priorDirectTaxesPaid:-1142.91,currentDirectTaxesPaid:-1142.91,
+};
+
+test('GAIL H1 FY27 OCF releases the current filing comparative only after every bridge subtotal ties',()=>{
   const result=assessStatementComparativeGuard({
     currentXbrl:10602.50,priorOriginalXbrl:5747.34,
     currentPdfCurrent:10602.50,currentPdfPriorComparative:5869.22,
     priorOriginalPdf:5747.34,
-  });
-  assert.equal(result.status,'RECLASSIFIED_COMPARATIVE_REVIEW_REQUIRED');
+  },gailH1ReclassificationBridge);
+  assert.equal(result.status,'RECLASSIFICATION_BRIDGE_RECONCILED');
   assert.equal(result.priorOriginalValue,5747.34);
   assert.equal(result.currentComparativeValue,5869.22);
   assert.ok(Math.abs((result.reclassificationDifference ?? 0)-121.88)<1e-9);
-  assert.equal(result.comparablePriorValue,null);
+  assert.equal(result.comparablePriorValue,5869.22);
   assert.equal(result.productionApproved,false);
+});
+
+test('GAIL H1 FY27 OCF bridge fails closed if any changed cash-flow line is altered',()=>{
+  const badBridge={
+    ...gailH1ReclassificationBridge,
+    adjustmentLines:gailH1ReclassificationBridge.adjustmentLines.map((line,index)=>
+      index===0?{...line,currentComparativeValue:38.42}:line),
+  };
+  const result=assessStatementComparativeGuard({
+    currentXbrl:10602.50,priorOriginalXbrl:5747.34,
+    currentPdfCurrent:10602.50,currentPdfPriorComparative:5869.22,
+    priorOriginalPdf:5747.34,
+  },badBridge);
+  assert.equal(result.status,'RECLASSIFIED_COMPARATIVE_REVIEW_REQUIRED');
+  assert.equal(result.comparablePriorValue,null);
+});
+
+test('GAIL H1 FY27 OCF bridge fails closed if cash generated subtotal does not tie',()=>{
+  const badBridge={...gailH1ReclassificationBridge,currentCashGeneratedFromOperations:7013.13};
+  const result=assessStatementComparativeGuard({
+    currentXbrl:10602.50,priorOriginalXbrl:5747.34,
+    currentPdfCurrent:10602.50,currentPdfPriorComparative:5869.22,
+    priorOriginalPdf:5747.34,
+  },badBridge);
+  assert.equal(result.status,'RECLASSIFIED_COMPARATIVE_REVIEW_REQUIRED');
+  assert.equal(result.comparablePriorValue,null);
 });
