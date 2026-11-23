@@ -1,6 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseBhavDateToIso, parseCsvRecords, toNum } from './csvParser.ts';
+import { loadNseValidatedFundamentalCache } from './nseValidatedFundamentalCache.ts';
+import { applyNseValidatedFundamentalPatches, selectNseScannerFundamentalPatches } from './nseValidatedFundamentalAdapter.ts';
 import {
   classifyMarketCap,
   loadLiveFundamentalOverrides,
