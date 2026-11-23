@@ -501,14 +501,15 @@ async function runCollection(
   try {
     candidateCache = loadCandidateCache();
     industryCache = loadNseIssuerIndustryCache();
+
     let quoteClient: NseIssuerIndustryClient | null = null;
     try {
       quoteClient = new NseIssuerIndustryClient({ fetchImpl });
       await quoteClient.initialize();
     } catch (error) {
-      quoteClient = null;
       job.lastError = 'NSE official issuer-industry session unavailable: ' + (error as Error).message;
     }
+
     let isinBySymbol: Record<string, string> = {};
     try {
       const equityMaster = await fetchNseEquityMaster(fetchImpl);
@@ -524,9 +525,10 @@ async function runCollection(
           job.lastError = 'NSE equity master refresh failed and cached ISIN data is stale: ' + (error as Error).message;
         }
       } catch {
-        job.lastError = 'NSE equity master unavailable; candidate research may run but no production metric profile can be written: ' + (error as Error).message;
+        job.lastError = 'NSE equity master unavailable; issuer identity will remain unverified: ' + (error as Error).message;
       }
     }
+
     const filingReport = await collectNseFilingHistoryForSymbols(symbols, {
       concurrency: 1,
       fetchImpl,
@@ -539,15 +541,24 @@ async function runCollection(
     });
     const filingCache = loadNseFilingHistoryCache();
     const filingFailures = new Map(filingReport.failed.map(item => [item.symbol, item.error]));
+
     for (const symbol of symbols) {
       job.currentSymbol = symbol;
-      const cached = filingCache.symbols[symbol]?.rows ?? [];
+      const cachedRows = filingCache.symbols[symbol]?.rows ?? [];
       let industryRecord: NseIssuerIndustryRecord | undefined = industryCache.symbols[symbol];
-      let sector = 'UNKNOWN' as IssuerSector;
+      let sector: IssuerSector = 'UNKNOWN';
+      const isin = industryRecord?.isin || isinBySymbol[symbol] || null;
+
       try {
-        const industryAge = industryRecord ? Date.now() - Date.parse(industryRecord.fetchedAtUtc) : Number.POSITIVE_INFINITY;
-        if ((!industryRecord || !Number.isFinite(industryAge) || industryAge < 0 || industryAge > 30 * 24 * 60 * 60 * 1000)
-            && quoteClient) {
+        const industryAge = industryRecord
+          ? Date.now() - Date.parse(industryRecord.fetchedAtUtc)
+          : Number.POSITIVE_INFINITY;
+        const industryIsFresh = Boolean(industryRecord
+          && Number.isFinite(industryAge)
+          && industryAge >= 0
+          && industryAge <= 30 * 24 * 60 * 60 * 1000);
+
+        if (!industryIsFresh && quoteClient) {
           try {
             industryRecord = await quoteClient.fetchIssuerIndustry(symbol);
             industryCache.symbols[symbol] = industryRecord;
@@ -557,60 +568,64 @@ async function runCollection(
             industryRecord = undefined;
             job.lastError = symbol + ': NSE official industry lookup failed: ' + (error as Error).message;
           }
-        } else if (!industryRecord || !Number.isFinite(industryAge) || industryAge < 0 || industryAge > 30 * 24 * 60 * 60 * 1000) {
+        } else if (!industryIsFresh) {
           industryRecord = undefined;
         }
+
         sector = classifyIssuerSector(industryRecord ? buildNseIndustryText(industryRecord) : '');
+        const verifiedIsin = industryRecord?.isin || isinBySymbol[symbol] || undefined;
+
         if (filingFailures.has(symbol)) {
           const report = blocked(symbol, sector,
             'Fresh NSE filing metadata fetch failed; stale cached filing history was not used: ' + filingFailures.get(symbol));
-          appendCandidateReport(report, candidateCache!);
-        candidateCacheDirty = true;
+          report.isin = verifiedIsin;
+          report.isinVerified = Boolean(verifiedIsin);
+          report.industryClassification = industryRecord;
+          appendCandidateReport(report, candidateCache);
+          candidateCacheDirty = true;
           job.processed += 1;
           job.failed += 1;
           job.lastError = report.warnings[0];
-          if (candidateCacheDirty && job.processed % 25 === 0) {
-            saveCandidateCache(candidateCache!);
-            candidateCacheDirty = false;
-          }
-          await new Promise(resolve => setTimeout(resolve, 150));
-          continue;
-        }
-        const sector = classifyIssuerSector(sectorBySymbol[symbol] ?? '');
-        const result = await processIssuer(symbol, sector, cached, fetchImpl, isinBySymbol[symbol] ?? null);
-        job.xbrlDocumentsSaved += result.xbrlSaved;
-        appendCandidateReport(result.report, candidateCache!);
-        candidateCacheDirty = true;
-        job.processed += 1;
-        if (result.report.status === 'BLOCKED') {
-          job.failed += 1;
-          job.lastError = result.report.warnings[0] ?? symbol + ': blocked';
         } else {
-          job.succeeded += 1;
-          if (result.report.status === 'CANDIDATE_READY') job.candidateReady += 1;
-          else job.revisionReviewRequired += 1;
+          const result = await processIssuer(symbol, sector, cachedRows, fetchImpl, verifiedIsin ?? null);
+          result.report.industryClassification = industryRecord;
+          job.xbrlDocumentsSaved += result.xbrlSaved;
+          appendCandidateReport(result.report, candidateCache);
+          candidateCacheDirty = true;
+          job.processed += 1;
+          if (result.report.status === 'BLOCKED') {
+            job.failed += 1;
+            job.lastError = result.report.warnings[0] ?? symbol + ': blocked';
+          } else {
+            job.succeeded += 1;
+            if (result.report.status === 'CANDIDATE_READY') job.candidateReady += 1;
+            else job.revisionReviewRequired += 1;
+          }
         }
       } catch (error) {
         const report = blocked(symbol, sector, (error as Error).message);
-        report.isin = industryRecord?.isin || isinBySymbol[symbol] || undefined;
-        report.isinVerified = Boolean(report.isin);
+        const verifiedIsin = industryRecord?.isin || isinBySymbol[symbol] || undefined;
+        report.isin = verifiedIsin;
+        report.isinVerified = Boolean(verifiedIsin);
         report.industryClassification = industryRecord;
-        appendCandidateReport(report, candidateCache!);
-          candidateCacheDirty = true;
+        appendCandidateReport(report, candidateCache);
+        candidateCacheDirty = true;
         job.processed += 1;
         job.failed += 1;
         job.lastError = report.warnings[0];
       }
+
       if (candidateCacheDirty && job.processed > 0 && job.processed % 25 === 0) {
-        saveCandidateCache(candidateCache!);
+        saveCandidateCache(candidateCache);
         candidateCacheDirty = false;
       }
       if (industryCacheDirty && job.processed > 0 && job.processed % 25 === 0) {
-        saveNseIssuerIndustryCache(industryCache!);
+        saveNseIssuerIndustryCache(industryCache);
         industryCacheDirty = false;
       }
       await new Promise(resolve => setTimeout(resolve, 150));
     }
+
     if (filingReport.failed.length > 0 && !job.lastError) {
       job.lastError = filingReport.failed[0].symbol + ': ' + filingReport.failed[0].error;
     }
