@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { selectXbrlInstantFact } from './xbrl_instant_fact_selector.ts';
+import { selectXbrlInstantFact, selectXbrlInstantFactBundle } from './xbrl_instant_fact_selector.ts';
 import type { XbrlExtraction } from './xbrl_extract.ts';
 
 function filing():XbrlExtraction {
@@ -45,4 +45,27 @@ test('does not convert nil or missing-unit facts to zero',()=>{
   const noUnit=filing();
   noUnit.facts[0]={...noUnit.facts[0],unitRef:null};
   assert.equal(selectXbrlInstantFact(noUnit,request).status,'BLOCKED_MISSING_UNIT');
+});
+
+
+test('selects a complete multi-concept instant bundle only in one currency',()=>{
+  const data=filing();
+  data.facts.push({concept:'in-capmkt:BorrowingsCurrent',contextRef:'closing',unitRef:'INR',rawValue:'200',numericValue:200,decimals:'-3',scale:null,sign:null,format:null,continuedAt:null,isNil:false,isInline:false});
+  const result=selectXbrlInstantFactBundle(data,{
+    concepts:{equity:'in-capmkt:Equity',currentBorrowings:'in-capmkt:BorrowingsCurrent'},
+    instantDate:'2026-09-30',basis:'STANDALONE',filingBasis:'STANDALONE',
+  });
+  assert.equal(result.status,'SELECTED_ALL_FACTS');
+  assert.equal(result.facts?.equity.numericValue,1000);
+  assert.equal(result.facts?.currentBorrowings.numericValue,200);
+  assert.equal(result.currency,'iso4217:INR');
+});
+test('withholds partial bundles when any required concept is missing',()=>{
+  const result=selectXbrlInstantFactBundle(filing(),{
+    concepts:{equity:'in-capmkt:Equity',debt:'in-capmkt:BorrowingsCurrent'},
+    instantDate:'2026-09-30',basis:'STANDALONE',filingBasis:'STANDALONE',
+  });
+  assert.equal(result.status,'BLOCKED_FACT_SELECTION');
+  assert.equal(result.facts,null);
+  assert.deepEqual(result.failedConcepts,['debt (in-capmkt:BorrowingsCurrent): MISSING_CONCEPT']);
 });
