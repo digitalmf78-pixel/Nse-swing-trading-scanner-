@@ -3,6 +3,12 @@ import express from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
 import { nsePipeline } from './server/nsePipeline.ts';
+import { getNseFilingHistoryJobStatus } from './server/nseFilingHistoryCache.ts';
+import {
+  getNseFundamentalCandidateReports,
+  getNseFundamentalResearchStatus,
+  startNseFundamentalResearchCollection,
+} from './server/nseFundamentalResearchService.ts';
 import { evaluateRiskControls } from './server/riskControls.ts';
 import { runEcmsGeminiResearch } from './server/geminiResearch.ts';
 import {
@@ -67,6 +73,86 @@ async function startServer() {
   // Preload NSE datasets & synchronize daily T1/T2 snapshot memory once on startup
   nsePipeline.ensureLoaded();
   syncT1T2DailySnapshots();
+
+  // Official NSE XBRL candidate research (isolated from production scanner metrics).
+  app.get('/api/fundamentals/nse-research-status', (_req, res) => {
+    return res.json({
+      mode: 'NSE_OFFICIAL_XBRL_CANDIDATE_RESEARCH',
+      productionApproved: false,
+      collection: getNseFundamentalResearchStatus(),
+      filingHistory: getNseFilingHistoryJobStatus(),
+    });
+  });
+
+  app.get('/api/fundamentals/nse-candidates', (req, res) => {
+    try {
+      const symbol = typeof req.query.symbol === 'string' ? req.query.symbol : undefined;
+      const rawLimit = typeof req.query.limit === 'string' ? Number(req.query.limit) : 100;
+      const limit = Number.isFinite(rawLimit) ? Math.min(1000, Math.max(1, Math.floor(rawLimit))) : 100;
+      return res.json(getNseFundamentalCandidateReports(symbol, limit));
+    } catch (err) {
+      return res.status(500).json({ error: (err as Error).message });
+    }
+  });
+
+  app.post('/api/fundamentals/nse-research-refresh', (req, res) => {
+    try {
+      const current = getNseFundamentalResearchStatus();
+      if (current.running) {
+        return res.status(409).json({
+          code: 'NSE_FUNDAMENTAL_RESEARCH_ALREADY_RUNNING',
+          mode: 'NSE_OFFICIAL_XBRL_CANDIDATE_RESEARCH',
+          ...current,
+        });
+      }
+
+      const symbol = typeof req.body?.symbol === 'string'
+        ? req.body.symbol.trim().toUpperCase()
+        : '';
+      let targets: string[] = [];
+      if (symbol) {
+        if (!nsePipeline.getAllSymbols().includes(symbol)) {
+          return res.status(404).json({
+            code: 'NSE_SYMBOL_NOT_IN_CURRENT_SCANNER_UNIVERSE',
+            symbol,
+          });
+        }
+        targets = [symbol];
+      } else if (req.body?.batchMissing === true) {
+        const rawLimit = Number(req.body?.limit);
+        const limit = Number.isFinite(rawLimit) && rawLimit > 0
+          ? Math.min(25, Math.floor(rawLimit))
+          : 25;
+        targets = nsePipeline.getMissingFundamentalCandidates(limit);
+      } else {
+        return res.status(400).json({
+          error: 'Provide a scanner symbol or batchMissing: true.',
+        });
+      }
+
+      if (targets.length === 0) {
+        return res.json({
+          started: false,
+          mode: 'NSE_OFFICIAL_XBRL_CANDIDATE_RESEARCH',
+          productionApproved: false,
+          selectedSymbols: [],
+          message: 'No eligible missing-fundamental symbols were found.',
+        });
+      }
+
+      const status = startNseFundamentalResearchCollection(targets);
+      return res.status(202).json({
+        started: true,
+        mode: 'NSE_OFFICIAL_XBRL_CANDIDATE_RESEARCH',
+        productionApproved: false,
+        selectedSymbols: targets,
+        ...status,
+        note: 'Candidate reports only. This action does not write or change production scanner fundamentals or Yahoo live quote/chart data.',
+      });
+    } catch (err) {
+      return res.status(500).json({ error: (err as Error).message });
+    }
+  });
 
   // Health endpoint
   app.get('/api/health', (_req, res) => {
