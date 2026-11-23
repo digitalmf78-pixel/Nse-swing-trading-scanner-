@@ -138,7 +138,6 @@ export const StockDetailView: React.FC<StockDetailViewProps> = ({
     setSearchInput(symbol);
     setGeminiReport(null);
     setGeminiError(null);
-    setFundNotice(null);
     setCatalystData(null);
     setLiveQuote(null);
     setPaperNotice(null);
