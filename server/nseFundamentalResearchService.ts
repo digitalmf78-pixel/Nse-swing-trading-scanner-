@@ -12,6 +12,7 @@ import { buildNseEpsCandidate, type NseEpsCandidate } from '../research/fundamen
 import type { IssuerSector } from '../research/fundamental_pilot/sector_metric_policy.ts';
 import type { IssuerMetricConceptMap } from '../research/fundamental_pilot/seven_metric_xbrl_pipeline.ts';
 import type { NseRevisionRow } from '../research/fundamental_pilot/nse_revision_pair.ts';
+import type { XbrlExtraction } from '../research/fundamental_pilot/xbrl_extract.ts';
 
 export interface NseComparableFilingPair {
   symbol: string;
@@ -180,6 +181,76 @@ export function classifyIssuerSector(rawSector: string | null | undefined): Issu
   if (/\bbanks?\b|banking/.test(value)) return 'BANK';
   if (/financial|finance|investment|capital market|asset management|brokerage/.test(value)) return 'UNKNOWN';
   return 'NON_FINANCIAL';
+}
+
+export interface XbrlIssuerIdentityAudit {
+  valid: boolean;
+  entityScheme: string | null;
+  entityIdentifier: string | null;
+  documentsChecked: number;
+  issues: string[];
+}
+
+/**
+ * A filing URL/symbol is not sufficient proof that its XBRL facts belong to
+ * the intended issuer. Require every fact context across Original and Revision
+ * documents to carry one consistent entity identity, and require that identity
+ * to match the official NSE ISIN before calculating candidates.
+ */
+export function auditXbrlIssuerIdentity(
+  documents: XbrlExtraction[],
+  officialIsin: string | null,
+): XbrlIssuerIdentityAudit {
+  const issues: string[] = [];
+  if (!officialIsin || !/^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(officialIsin)) {
+    issues.push('Official NSE ISIN is missing or invalid.');
+  }
+  if (documents.length < 2) issues.push('Current and prior XBRL documents are both required for issuer identity comparison.');
+  let sharedScheme: string | null = null;
+  let sharedIdentifier: string | null = null;
+
+  for (let index = 0; index < documents.length; index++) {
+    const extraction = documents[index];
+    const contextRefs = [...new Set(extraction.facts.map(fact => fact.contextRef).filter((value): value is string => Boolean(value)))];
+    if (!contextRefs.length || extraction.facts.some(fact => !fact.contextRef)) {
+      issues.push('XBRL document ' + (index + 1) + ' contains facts without complete context references.');
+      continue;
+    }
+    const identities = new Set<string>();
+    for (const contextRef of contextRefs) {
+      const context = extraction.contexts[contextRef];
+      if (!context || !context.entityScheme?.trim() || !context.entityIdentifier?.trim()) {
+        issues.push('XBRL document ' + (index + 1) + ' has a context with missing entity scheme/identifier.');
+        continue;
+      }
+      identities.add(context.entityScheme.trim() + '|' + context.entityIdentifier.trim().toUpperCase());
+    }
+    if (identities.size !== 1) {
+      issues.push('XBRL document ' + (index + 1) + ' does not have exactly one consistent entity identity across fact contexts.');
+      continue;
+    }
+    const identity = [...identities][0];
+    const separator = identity.indexOf('|');
+    const scheme = identity.slice(0, separator);
+    const identifier = identity.slice(separator + 1);
+    if (sharedScheme === null) {
+      sharedScheme = scheme;
+      sharedIdentifier = identifier;
+    } else if (sharedScheme !== scheme || sharedIdentifier !== identifier) {
+      issues.push('XBRL issuer entity identity differs across Original/Revision documents.');
+    }
+  }
+
+  if (sharedIdentifier && officialIsin && sharedIdentifier !== officialIsin) {
+    issues.push('XBRL entity identifier does not match the official NSE ISIN.');
+  }
+  return {
+    valid: issues.length === 0,
+    entityScheme: sharedScheme,
+    entityIdentifier: sharedIdentifier,
+    documentsChecked: documents.length,
+    issues,
+  };
 }
 
 export function inferExactPeriodStart(
@@ -365,6 +436,9 @@ async function processIssuer(
   fetchImpl: typeof fetch,
   isin: string | null,
 ): Promise<{ report: NseFundamentalResearchResult; xbrlSaved: number }> {
+  if (!isin) {
+    return { report: blocked(symbol, sector, 'Official NSE issuer ISIN is unavailable; XBRL identity cannot be verified.'), xbrlSaved: 0 };
+  }
   if (sector !== 'NON_FINANCIAL') {
     const reason = sector === 'UNKNOWN'
       ? 'Official NSE industry classification is missing or unrecognized; issuer is not assumed to be non-financial.'
@@ -392,6 +466,15 @@ async function processIssuer(
   }
   if (currentDoc.extraction.warnings.length || priorDoc.extraction.warnings.length) {
     return { report: blocked(symbol, sector, 'XBRL parser warnings are present; candidate calculation is withheld.'), xbrlSaved: download.saved };
+  }
+  const identityAudit = auditXbrlIssuerIdentity(
+    docs.map(doc => doc.extraction), isin,
+  );
+  if (!identityAudit.valid) {
+    return {
+      report: blocked(symbol, sector, 'XBRL issuer identity validation failed: ' + identityAudit.issues.join('; ')),
+      xbrlSaved: download.saved,
+    };
   }
 
   const basis = pair.basis === 'Standalone' ? 'STANDALONE' : 'CONSOLIDATED';
