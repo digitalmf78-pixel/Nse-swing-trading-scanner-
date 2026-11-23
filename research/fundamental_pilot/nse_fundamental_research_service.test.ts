@@ -282,3 +282,48 @@ test('candidate cache refuses tampered report hashes and invalid schema', () => 
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+
+test('candidate cache retains multiple distinct reports and deduplicates identical reports', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nse-candidate-cache-history-'));
+  const file = path.join(dir, 'cache.json');
+  try {
+    const cache = { schemaVersion: 1 as const, updatedAtUtc: '', symbols: {} as Record<string, { symbol: string; reports: import('../../server/nseFundamentalResearchService.ts').CandidateCacheEntry[] }> };
+    const first = {
+      symbol: 'ABC', status: 'BLOCKED' as const, sector: 'UNKNOWN' as const,
+      scannerEligible: false as const, productionApproved: false as const,
+      warnings: ['First official filing unavailable.'],
+    };
+    const second = {
+      ...first,
+      warnings: ['Second filing reviewed; still research-only.'],
+    };
+    appendCandidateReport(first, cache);
+    appendCandidateReport(first, cache);
+    appendCandidateReport(second, cache);
+    saveCandidateCache(cache, file);
+
+    const restored = loadCandidateCache(file);
+    assert.equal(restored.symbols.ABC.reports.length, 2);
+    assert.deepEqual(
+      restored.symbols.ABC.reports.map(item => item.report.warnings[0]),
+      ['First official filing unavailable.', 'Second filing reviewed; still research-only.'],
+    );
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('corrupt candidate cache is preserved and never silently replaced with an empty cache', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nse-candidate-cache-preserve-'));
+  const file = path.join(dir, 'cache.json');
+  try {
+    const corruptBytes = '{"schemaVersion":99,"symbols":{}}\\n';
+    fs.writeFileSync(file, corruptBytes, 'utf8');
+    assert.throws(() => loadCandidateCache(file), /schema invalid/);
+    assert.equal(fs.readFileSync(file, 'utf8'), corruptBytes);
+    assert.deepEqual(fs.readdirSync(dir), ['cache.json']);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
