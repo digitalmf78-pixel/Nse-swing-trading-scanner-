@@ -547,13 +547,6 @@ export async function syncUniverseQuoteCalendarAndIpo(
             }
 
             const prev = existingOverrides[sym];
-            const peVal = typeof q.trailingPE === 'number' && Number.isFinite(q.trailingPE) ? q.trailingPE : null;
-            const pbVal = typeof q.priceToBook === 'number' && Number.isFinite(q.priceToBook) ? q.priceToBook : null;
-            const mcVal = typeof q.marketCap === 'number' && Number.isFinite(q.marketCap) ? q.marketCap : null;
-            const epsCurrQuote =
-              typeof q.epsTrailingTwelveMonths === 'number' && Number.isFinite(q.epsTrailingTwelveMonths)
-                ? q.epsTrailingTwelveMonths
-                : null;
 
             if (firstTradeDateIso || nextEarningsDate || companyName) {
               updatedCount++;
@@ -576,9 +569,9 @@ export async function syncUniverseQuoteCalendarAndIpo(
                 interestCoverage: prev?.interestCoverage ?? null,
                 operatingCashFlowInr: prev?.operatingCashFlowInr ?? null,
                 freeCashFlowInr: prev?.freeCashFlowInr ?? null,
-                trailingPE: prev?.trailingPE ?? peVal,
-                priceToBook: prev?.priceToBook ?? pbVal,
-                marketCapInr: prev?.marketCapInr ?? mcVal,
+                trailingPE: null,
+                priceToBook: null,
+                marketCapInr: null,
                 enterpriseValueInr: prev?.enterpriseValueInr ?? null,
                 dividendYieldPct: prev?.dividendYieldPct ?? null,
                 promoterHoldingPct: prev?.promoterHoldingPct ?? null,
@@ -587,7 +580,7 @@ export async function syncUniverseQuoteCalendarAndIpo(
                 epsPrevPeriod: prev?.epsPrevPeriod || '',
                 epsCurrPeriod: prev?.epsCurrPeriod || '',
                 epsTtmPrev: prev?.epsTtmPrev ?? null,
-                epsTtmCurr: prev?.epsTtmCurr ?? epsCurrQuote,
+                epsTtmCurr: null,
                 fetchedAtUtc: prev?.fetchedAtUtc || '',
               });
             }

@@ -63,6 +63,61 @@ export interface LiveFundamentalRecord {
   fetchedAtUtc: string;
 }
 
+const legacyOverridePath = () => path.join(process.cwd(), 'data', 'research', 'live_fundamental_overrides.json');
+
+function sanitizeQuoteMetadataRecord(record: LiveFundamentalRecord): LiveFundamentalRecord {
+  return {
+    ...record,
+    revenueGrowthPct: null,
+    profitGrowthPct: null,
+    roePct: null,
+    rocePct: null,
+    debtToEquity: null,
+    interestCoverage: null,
+    operatingCashFlowInr: null,
+    freeCashFlowInr: null,
+    trailingPE: null,
+    priceToBook: null,
+    marketCapInr: null,
+    enterpriseValueInr: null,
+    dividendYieldPct: null,
+    epsPrev: null,
+    epsCurr: null,
+    epsPrevPeriod: '',
+    epsCurrPeriod: '',
+    epsTtmPrev: null,
+    epsTtmCurr: null,
+  };
+}
+
+export function loadLiveFundamentalOverrides(): Record<string, LiveFundamentalRecord> {
+  const file = legacyOverridePath();
+  if (!fs.existsSync(file)) return {};
+  try {
+    const parsed = JSON.parse(fs.readFileSync(file, 'utf8')) as Record<string, LiveFundamentalRecord>;
+    const clean: Record<string, LiveFundamentalRecord> = {};
+    for (const [symbol, record] of Object.entries(parsed || {})) {
+      if (record && typeof record === 'object') clean[symbol.trim().toUpperCase()] = sanitizeQuoteMetadataRecord(record);
+    }
+    return clean;
+  } catch {
+    return {};
+  }
+}
+
+export async function upsertAndSaveFundamentalOverrides(records: LiveFundamentalRecord[]): Promise<void> {
+  const current = loadLiveFundamentalOverrides();
+  for (const record of records) {
+    const symbol = record.symbol.trim().toUpperCase();
+    if (symbol) current[symbol] = sanitizeQuoteMetadataRecord({ ...current[symbol], ...record });
+  }
+  const file = legacyOverridePath();
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const temp = `${file}.tmp.${process.pid}.${Date.now()}`;
+  fs.writeFileSync(temp, JSON.stringify(current, null, 2) + '\n', 'utf8');
+  fs.renameSync(temp, file);
+}
+
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 

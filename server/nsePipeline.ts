@@ -602,6 +602,28 @@ class NsePipelineEngine {
     }
   }
 
+  private mergeNseValidatedFundamentals(root: string): void {
+    const file = path.join(root, 'data', 'research', 'nse_validated_fundamentals.json');
+    let patches = new Map();
+    try {
+      const cache = loadNseValidatedFundamentalCache(file);
+      patches = selectNseScannerFundamentalPatches(cache);
+    } catch (err) {
+      // Fail closed: do not restore legacy provider values if the official cache is corrupt.
+      console.error('NSE validated fundamental cache rejected; seven core metrics withheld:', err);
+    }
+    for (const [symbol] of patches) {
+      if (!this.fundamentalsBySymbol.has(symbol)) {
+        this.fundamentalsBySymbol.set(symbol, this.emptyFundamentalProfile(symbol));
+      }
+    }
+    const merged = applyNseValidatedFundamentalPatches(this.fundamentalsBySymbol, patches);
+    this.fundamentalsBySymbol.clear();
+    for (const [symbol, profile] of merged) {
+      this.fundamentalsBySymbol.set(symbol, this.recomputeChecks(profile));
+    }
+  }
+
   private mergeScreenerShareholding(root: string): void {
     const file = path.join(root, 'data', 'research', 'bot_screener_cache.json');
     if (fs.existsSync(file)) {

@@ -17,7 +17,7 @@ import type {
   ScreenerRow,
 } from '../src/types/trading.ts';
 import { nsePipeline } from './nsePipeline.ts';
-import { classifyMarketCap } from './liveFetcher.ts';
+import { classifyMarketCap, toIstDateIso } from './liveFetcher.ts';
 import { getOpenMacroAndNewsDashboard } from './openMacroNewsEngine.ts';
 import { fetchLiveYahooQuote } from './paperTradeStore.ts';
 import { loadWatchlistSymbols } from './watchlistStore.ts';
@@ -324,7 +324,7 @@ async function fetchYahoo3YChart(tickerWithSuffix: string): Promise<OhlcvBar[]> 
       ) {
         continue;
       }
-      const date = toIstIso(ts[i]);
+      const date = toIstDateIso(new Date(ts[i] * 1000));
       byDate.set(date, {
         date,
         open: o,
