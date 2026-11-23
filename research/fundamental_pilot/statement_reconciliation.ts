@@ -65,6 +65,8 @@ export interface StatementFactEvidence {
   issuerSymbol: string;
   isin: string;
   filingSequenceId: string;
+  filingGroupId: string;
+  sourceDocumentType: 'XBRL' | 'RESULTS_PDF' | 'OTHER_OFFICIAL';
   sourceDocumentSha256: string;
   periodStart: string;
   periodEnd: string;
@@ -92,8 +94,17 @@ function evidenceMetadataIssues(facts: StatementFactEvidence[]): string[] {
       issues.push('Statement fact ' + (index + 1) + ' is missing.');
       continue;
     }
-    if (!fact.issuerSymbol?.trim() || !fact.isin?.trim()
-      || !fact.filingSequenceId?.trim()
+    const validDate = (value: string) => {
+      if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(value ?? '')) return false;
+      const parsed = new Date(value + 'T00:00:00Z');
+      return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+    };
+    if (typeof fact.issuerSymbol !== 'string' || !fact.issuerSymbol.trim()
+      || typeof fact.isin !== 'string' || !fact.isin.trim()
+      || typeof fact.filingSequenceId !== 'string' || !fact.filingSequenceId.trim()
+      || typeof fact.filingGroupId !== 'string' || !fact.filingGroupId.trim()
+      || !['XBRL', 'RESULTS_PDF', 'OTHER_OFFICIAL'].includes(fact.sourceDocumentType)
+      || typeof fact.sourceDocumentSha256 !== 'string'
       || !/^[a-f0-9]{64}$/i.test(fact.sourceDocumentSha256 ?? '')
       || !/^\d{4}-\d{2}-\d{2}$/.test(fact.periodStart ?? '')
       || !/^\d{4}-\d{2}-\d{2}$/.test(fact.periodEnd ?? '')
@@ -111,7 +122,7 @@ function evidenceMetadataIssues(facts: StatementFactEvidence[]): string[] {
   const identity = (fact: StatementFactEvidence) => [
     fact.issuerSymbol.trim().toUpperCase(),
     fact.isin.trim().toUpperCase(),
-    fact.filingSequenceId.trim(),
+    fact.filingGroupId.trim(),
     fact.periodStart,
     fact.periodEnd,
     fact.periodType,
@@ -120,14 +131,14 @@ function evidenceMetadataIssues(facts: StatementFactEvidence[]): string[] {
     fact.unit.trim().toUpperCase(),
   ].join('|');
   if (facts.some(fact => identity(fact) !== identity(facts[0]))) {
-    issues.push('Statement facts do not share the same issuer, official filing, period, basis, currency and unit.');
+    issues.push('Statement facts do not share the same issuer, resolved official filing group, period, basis, currency and unit.');
   }
   return issues;
 }
 
 /**
  * Strict evidence-aware reconciliation. Unlike the numeric helper above,
- * this entry point enforces same-issuer and same-filing provenance before
+ * this entry point enforces same-issuer and same-period official filing-group provenance before
  * comparing statement presentations. An arithmetic match still never
  * approves the economic metric mapping.
  */
