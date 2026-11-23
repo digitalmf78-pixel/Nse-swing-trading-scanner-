@@ -584,9 +584,22 @@ async function runCollection(
         }
 
         sector = classifyIssuerSector(industryRecord ? buildNseIndustryText(industryRecord) : '');
-        const verifiedIsin = industryRecord?.isin || isinBySymbol[symbol] || undefined;
+        const quoteIsin = industryRecord?.isin || '';
+        const masterIsin = isinBySymbol[symbol] || '';
+        const isinConflict = Boolean(quoteIsin && masterIsin && quoteIsin !== masterIsin);
+        const verifiedIsin = isinConflict ? undefined : quoteIsin || masterIsin || undefined;
 
-        if (filingFailures.has(symbol)) {
+        if (isinConflict) {
+          const report = blocked(symbol, sector,
+            'NSE quote-equity ISIN conflicts with NSE official equity master; issuer identity is blocked.');
+          report.isinVerified = false;
+          report.industryClassification = industryRecord;
+          appendCandidateReport(report, candidateCache);
+          candidateCacheDirty = true;
+          job.processed += 1;
+          job.failed += 1;
+          job.lastError = report.warnings[0];
+        } else if (filingFailures.has(symbol)) {
           const report = blocked(symbol, sector,
             'Fresh NSE filing metadata fetch failed; stale cached filing history was not used: ' + filingFailures.get(symbol));
           report.isin = verifiedIsin;
