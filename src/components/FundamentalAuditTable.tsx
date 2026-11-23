@@ -47,6 +47,7 @@ interface NseCandidateRow {
     currentPeriodEnd?: string;
     priorPeriodEnd?: string;
     candidateReport?: {
+      currentPeriod?: { periodType?: string };
       candidateReport?: {
         candidates?: {
           revenueGrowth?: { status: string; growthPercent: number | null } | null;
@@ -55,7 +56,7 @@ interface NseCandidateRow {
         };
       };
     };
-    epsCandidate?: { status: string; currentValue: number | null; unit: string | null } | null;
+    epsCandidate?: { status: string; currentValue: number | null; unit: string | null; periodType?: string } | null;
     warnings?: string[];
   };
 }
@@ -666,7 +667,7 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
                       <tr key={item.reportHash} className="bg-white align-top">
                         <td className="py-2 px-4">
                           <button type="button" onClick={() => onSelectSymbol(report.symbol)} className="font-mono font-semibold text-blue-700 hover:underline">{report.symbol}</button>
-                          <div className="text-slate-500">{report.basis || 'Basis missing'} · {report.currentPeriodEnd || 'Period missing'}</div>
+                          <div className="text-slate-500">{report.basis || 'Basis missing'} · {report.candidateReport?.currentPeriod?.periodType || 'Period type missing'} · {report.currentPeriodEnd || 'Period missing'}</div>
                         </td>
                         <td className="py-2 px-2">
                           <div className="font-medium text-slate-800">{report.status}</div>
@@ -686,7 +687,7 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
                         </td>
                         <td className="py-2 px-2 text-right font-mono tabular-nums">
                           {formatCandidateValue(eps?.currentValue)}
-                          <div className="text-slate-500">{eps?.status || 'MISSING'}</div>
+                          <div className="text-slate-500">{eps?.status || 'MISSING'}{eps?.periodType ? ' · ' + eps.periodType : ''}</div>
                         </td>
                         <td className="py-2 px-4 max-w-[360px] text-slate-600">
                           {(report.warnings || []).slice(0, 3).join(' · ') || 'No additional notes'}
