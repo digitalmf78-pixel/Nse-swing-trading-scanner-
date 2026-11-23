@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 import {
   appendCandidateReport,
+  getNseFundamentalCandidateReports,
   auditXbrlIssuerIdentity,
   loadCandidateCache,
   saveCandidateCache,
@@ -244,17 +245,23 @@ test('candidate cache survives a fresh read after process-style restart', () => 
     // Read from a genuinely fresh Node process to model a server restart.
     const child = spawnSync(process.execPath, [
       '--experimental-strip-types', '--input-type=module', '-e',
-      "import { loadCandidateCache } from './server/nseFundamentalResearchService.ts'; const c = loadCandidateCache(process.argv[1]); process.stdout.write(JSON.stringify(c));",
+      "import { loadCandidateCache, getNseFundamentalCandidateReports } from './server/nseFundamentalResearchService.ts'; const c = loadCandidateCache(process.argv[1]); const api = getNseFundamentalCandidateReports(); process.stdout.write(JSON.stringify({ cache: c, api }));",
       file,
     ], { cwd: process.cwd(), encoding: 'utf8' });
     assert.equal(child.status, 0, child.stderr);
-    const restartedCache = JSON.parse(child.stdout);
+    const restarted = JSON.parse(child.stdout);
+    const restartedCache = restarted.cache;
     assert.equal(Object.keys(restartedCache.symbols).length, 1);
     assert.equal(restartedCache.symbols.ABC.reports.length, 1);
     assert.equal(restartedCache.symbols.ABC.reports[0].report.symbol, 'ABC');
     assert.equal(restartedCache.symbols.ABC.reports[0].report.warnings[0],
       'Official NSE evidence unavailable; no value inferred.');
     assert.equal(restartedCache.symbols.ABC.reports[0].report.productionApproved, false);
+    assert.equal(restarted.api.source, 'NSE_OFFICIAL');
+    assert.equal(restarted.api.productionApproved, false);
+    assert.equal(restarted.api.symbols, 1);
+    assert.equal(restarted.api.reportCount, 1);
+    assert.equal(restarted.api.reports[0].report.symbol, 'ABC');
     assert.deepEqual(fs.readdirSync(dir), ['nse_fundamental_candidate_cache.json']);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
