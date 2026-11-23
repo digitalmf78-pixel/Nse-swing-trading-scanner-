@@ -97,12 +97,12 @@ export interface NseFundamentalResearchStatus {
   candidateCacheFile: string;
 }
 
-interface CandidateCacheEntry {
+export interface CandidateCacheEntry {
   reportHash: string;
   savedAtUtc: string;
   report: NseFundamentalResearchResult;
 }
-interface CandidateCache {
+export interface CandidateCache {
   schemaVersion: 1;
   updatedAtUtc: string;
   symbols: Record<string, { symbol: string; reports: CandidateCacheEntry[] }>;
@@ -326,9 +326,9 @@ export function classifyNsePeriodType(periodStart: string, periodEnd: string): '
   return null;
 }
 
-function loadCandidateCache(): CandidateCache {
-  if (!fs.existsSync(CANDIDATE_CACHE_FILE)) return { schemaVersion: 1, updatedAtUtc: '', symbols: {} };
-  const parsed = JSON.parse(fs.readFileSync(CANDIDATE_CACHE_FILE, 'utf8')) as Partial<CandidateCache>;
+export function loadCandidateCache(filePath = CANDIDATE_CACHE_FILE): CandidateCache {
+  if (!fs.existsSync(filePath)) return { schemaVersion: 1, updatedAtUtc: '', symbols: {} };
+  const parsed = JSON.parse(fs.readFileSync(filePath, 'utf8')) as Partial<CandidateCache>;
   if (parsed.schemaVersion !== 1 || !parsed.symbols || typeof parsed.symbols !== 'object' || Array.isArray(parsed.symbols)) {
     throw new Error('NSE candidate cache schema invalid; refusing to overwrite');
   }
@@ -346,7 +346,7 @@ function loadCandidateCache(): CandidateCache {
   return { schemaVersion: 1, updatedAtUtc: parsed.updatedAtUtc ?? '', symbols: parsed.symbols };
 }
 
-function appendCandidateReport(report: NseFundamentalResearchResult, cache: CandidateCache): void {
+export function appendCandidateReport(report: NseFundamentalResearchResult, cache: CandidateCache): void {
   const symbol = report.symbol.trim().toUpperCase();
   const hash = createHash('sha256').update(JSON.stringify(report)).digest('hex');
   const entry = cache.symbols[symbol] ?? { symbol, reports: [] };
@@ -357,11 +357,11 @@ function appendCandidateReport(report: NseFundamentalResearchResult, cache: Cand
   cache.updatedAtUtc = new Date().toISOString();
 }
 
-function saveCandidateCache(cache: CandidateCache): void {
-  fs.mkdirSync(path.dirname(CANDIDATE_CACHE_FILE), { recursive: true });
-  const temp = CANDIDATE_CACHE_FILE + '.tmp.' + process.pid + '.' + Date.now();
+export function saveCandidateCache(cache: CandidateCache, filePath = CANDIDATE_CACHE_FILE): void {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  const temp = filePath + '.tmp.' + process.pid + '.' + Date.now();
   fs.writeFileSync(temp, JSON.stringify(cache, null, 2) + '\n', 'utf8');
-  fs.renameSync(temp, CANDIDATE_CACHE_FILE);
+  fs.renameSync(temp, filePath);
 }
 
 export function getNseFundamentalCandidateReports(symbol?: string, limit = 100): {
