@@ -7,7 +7,6 @@ import { getNseFilingHistoryJobStatus, startNseFilingHistoryCollection } from '.
 import { evaluateRiskControls } from './server/riskControls.ts';
 import { runEcmsGeminiResearch } from './server/geminiResearch.ts';
 import {
-  ensureLiveFundamentalsForSymbol,
   fetchNseBhavcopyForDate,
   getCollectionJobStatus,
   refreshFundamentalsBatch,
@@ -286,24 +285,6 @@ async function startServer() {
         });
       }
 
-      const hasManualEps =
-        typeof req.query.epsPrev === 'string' && typeof req.query.epsCurr === 'string';
-      if (
-        !hasManualEps &&
-        (detail.fundamentals?.epsPrev === null ||
-          detail.fundamentals?.epsPrev === undefined ||
-          detail.fundamentals?.epsCurr === null ||
-          detail.fundamentals?.epsCurr === undefined)
-      ) {
-        const fetched = await ensureLiveFundamentalsForSymbol(
-          sym,
-          nsePipeline.getXbrlFilingsForSymbol(sym)
-        );
-        if (fetched && (fetched.epsCurr !== null || fetched.trailingPE !== null)) {
-          nsePipeline.reload();
-        }
-      }
-
       const peakRaw =
         typeof req.query.peakPrice === 'string' ? Number(req.query.peakPrice) : undefined;
       const corrPctRaw =
@@ -379,22 +360,6 @@ async function startServer() {
       const hasManualOverride =
         (typeof req.query.effectiveEps === 'string' && req.query.effectiveEps.trim() !== '') ||
         (typeof req.query.peakPeRatio === 'string' && req.query.peakPeRatio.trim() !== '');
-
-      if (
-        !hasManualOverride &&
-        (detail.fundamentals?.epsCurr === null ||
-          detail.fundamentals?.epsCurr === undefined ||
-          detail.fundamentals?.epsTtmCurr === null ||
-          detail.fundamentals?.epsTtmCurr === undefined)
-      ) {
-        const fetched = await ensureLiveFundamentalsForSymbol(
-          sym,
-          nsePipeline.getXbrlFilingsForSymbol(sym)
-        );
-        if (fetched && (fetched.epsCurr !== null || fetched.epsTtmCurr !== null)) {
-          nsePipeline.reload();
-        }
-      }
 
       const effEpsRaw =
         typeof req.query.effectiveEps === 'string' && req.query.effectiveEps.trim() !== ''
@@ -1067,17 +1032,9 @@ async function startServer() {
             );
           }
 
-          if (!getCollectionJobStatus().running) {
-            const missingTargets = nsePipeline.getAuditCollectionTargets('MISSING_OR_OLD');
-            if (missingTargets.length > 0) {
-              startFullFundamentalCollection(
-                missingTargets,
-                'AUTO_MISSING_OR_OLD',
-                nsePipeline.getXbrlBySymbolMap(),
-                () => nsePipeline.reload()
-              );
-            }
-          }
+          // Fundamental collection is user-triggered and will be routed through the NSE-only
+          // service once production validation is complete. Startup/Bhavcopy reload must not
+          // silently start the legacy Yahoo fundamental collector.
         } catch (err) {
           console.error('Startup background sync warning:', (err as Error).message);
         }
