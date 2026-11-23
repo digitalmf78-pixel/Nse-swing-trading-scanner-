@@ -185,7 +185,7 @@ export function inferExactPeriodStart(
   periodEnd: string,
   concepts: IssuerMetricConceptMap,
 ): string | null {
-  const conceptNames = [concepts.revenue, concepts.profit, concepts.operatingCashFlow];
+  const conceptNames = [concepts.revenue, concepts.profit, ...(concepts.operatingCashFlow ? [concepts.operatingCashFlow] : [])];
   const startsByConcept = conceptNames.map(concept => {
     const starts = new Set<string>();
     for (const fact of extraction.facts) {
@@ -300,11 +300,11 @@ function auditRevisions(
   periodType: 'QUARTER' | 'YTD' | 'FY',
   basis: 'STANDALONE' | 'CONSOLIDATED',
 ): NseRevisionMetricAudit {
-  const metrics = [
+  const metrics: Array<[string, string]> = [
     ['REVENUE_GROWTH_INPUT', concepts.revenue],
     ['PROFIT_GROWTH_INPUT', concepts.profit],
-    ['OPERATING_CASH_FLOW_INPUT', concepts.operatingCashFlow],
-  ] as const;
+  ];
+  if (concepts.operatingCashFlow) metrics.push(['OPERATING_CASH_FLOW_INPUT', concepts.operatingCashFlow]);
   const changedMetrics: string[] = [];
   const issues: string[] = [];
   const stableMetrics: string[] = [];
@@ -377,7 +377,7 @@ async function processIssuer(
 
   const basis = pair.basis === 'Standalone' ? 'STANDALONE' : 'CONSOLIDATED';
   const mapping = resolveNseConceptMap(sector, basis, currentDoc.extraction, priorDoc.extraction);
-  if (mapping.status !== 'MAPPED' || !mapping.conceptMap) {
+  if (mapping.status === 'BLOCKED' || !mapping.conceptMap) {
     const reasons = Object.values(mapping.metrics)
       .filter(item => item.status !== 'MAPPED')
       .map(item => item.metric + ': ' + item.status + ' — ' + item.explanation);
