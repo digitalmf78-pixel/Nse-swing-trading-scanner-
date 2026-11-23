@@ -31,6 +31,16 @@ function clean(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function validateOfficialQuoteUrl(value: string, symbol: string): void {
+  const url = new URL(value);
+  if (url.protocol !== 'https:' || !HOSTS.has(url.hostname) || url.port !== ''
+      || url.username !== '' || url.password !== ''
+      || url.pathname !== '/api/quote-equity'
+      || url.searchParams.get('symbol')?.toUpperCase() !== symbol) {
+    throw new Error('NSE issuer industry source URL is outside the official quote-equity endpoint');
+  }
+}
+
 export function buildNseIndustryText(record: Pick<NseIssuerIndustryRecord, 'macro' | 'sector' | 'industry' | 'basicIndustry'>): string {
   return [record.macro, record.sector, record.industry, record.basicIndustry]
     .map(value => value.trim())
@@ -50,6 +60,7 @@ export function loadNseIssuerIndustryCache(file = CACHE_FILE): NseIssuerIndustry
         || (row.isin !== '' && !ISIN_RE.test(row.isin))
         || !buildNseIndustryText(row)) {
       throw new Error('NSE issuer industry cache identity validation failed: ' + symbol);
+      validateOfficialQuoteUrl(row.sourceUrl, symbol);
     }
   }
   return { schemaVersion: 1, updatedAtUtc: parsed.updatedAtUtc ?? '', symbols: parsed.symbols };
@@ -137,8 +148,10 @@ export class NseIssuerIndustryClient {
         if (response.url) {
           const finalUrl = new URL(response.url);
           if (finalUrl.protocol !== 'https:' || !HOSTS.has(finalUrl.hostname)
-              || finalUrl.port !== '' || finalUrl.username !== '' || finalUrl.password !== '') {
-            throw new Error('quote-equity redirected outside official NSE domains');
+              || finalUrl.port !== '' || finalUrl.username !== '' || finalUrl.password !== ''
+              || finalUrl.pathname !== '/api/quote-equity'
+              || finalUrl.searchParams.get('symbol')?.toUpperCase() !== symbol) {
+            throw new Error('quote-equity redirected outside the official NSE endpoint');
           }
         }
         const payload = await response.json() as Record<string, any>;
