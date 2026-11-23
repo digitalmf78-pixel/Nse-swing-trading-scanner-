@@ -550,8 +550,13 @@ async function startServer() {
         const rawLimit = Number(req.body?.limit);
         const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(25, Math.floor(rawLimit)) : 25;
         targets = nsePipeline.getMissingFundamentalCandidates(limit);
+      } else if (req.body?.scope === 'BHAVCOPY') {
+        const bhavcopyTargets = nsePipeline.getAuditCollectionTargets('BHAVCOPY');
+        const rawLimit = Number(req.body?.limit);
+        const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(1000, Math.floor(rawLimit)) : 25;
+        targets = bhavcopyTargets.slice(0, limit);
       } else {
-        return res.status(400).json({ error: 'Provide either symbol or batchMissing: true.' });
+        return res.status(400).json({ error: 'Provide symbol, batchMissing: true, or scope: BHAVCOPY.' });
       }
 
       const current = getNseFundamentalResearchStatus();

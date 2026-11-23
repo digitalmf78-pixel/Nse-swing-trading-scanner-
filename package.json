@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test:fundamental-pilot": "tsx --test research/fundamental_pilot/*.test.ts"
+    "test:fundamental-pilot": "tsx --test research/fundamental_pilot/*.test.ts",
+    "audit:data": "tsx research/fundamental_pilot/audit_runtime_source_policy.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

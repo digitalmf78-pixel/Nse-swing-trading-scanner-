@@ -1,11 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseBhavDateToIso, parseCsvRecords, toNum } from './csvParser.ts';
-import {
-  classifyMarketCap,
-  loadLiveFundamentalOverrides,
-  toIstDateIso,
-} from './liveFetcher.ts';
+import { classifyMarketCap, toIstDateIso } from './liveFetcher.ts';
 import { applyNseValidatedFundamentalPatches, selectNseScannerFundamentalPatches } from './nseValidatedFundamentalAdapter.ts';
 import { loadNseValidatedFundamentalCache } from './nseValidatedFundamentalCache.ts';
 import {
@@ -121,11 +117,9 @@ class NsePipelineEngine {
     const root = process.cwd();
     this.loadThresholds(root);
     const streakMap = this.loadStreakState(root);
-    this.loadFundamentals(root);
-    this.mergeFreeSourceCache(root);
-    this.mergeLiveOverrides();
-    this.applyNseValidatedFundamentals();
-    this.mergeScreenerShareholding(root);
+    // Legacy CSV/free-source/Yahoo caches are intentionally not loaded as fundamentals.
+    // Only explicitly validated official NSE metric patches may populate scanner profiles.
+    this.mergeNseValidatedFundamentals(root);
     this.loadXbrlFilings(root);
     this.loadBhavcopiesAndBuildScreener(root, streakMap);
     this.loadRawSignals(root);
@@ -668,17 +662,24 @@ class NsePipelineEngine {
     }
   }
 
-  private applyNseValidatedFundamentals(): void {
-    const validatedCache = loadNseValidatedFundamentalCache();
-    for (const symbol of Object.keys(validatedCache.symbols)) {
+  private mergeNseValidatedFundamentals(root: string): void {
+    const file = path.join(root, 'data', 'research', 'nse_validated_fundamentals.json');
+    let patches = new Map();
+    try {
+      const cache = loadNseValidatedFundamentalCache(file);
+      patches = selectNseScannerFundamentalPatches(cache);
+    } catch (err) {
+      // Fail closed: do not restore legacy provider values if the official cache is corrupt.
+      console.error('NSE validated fundamental cache rejected; seven core metrics withheld:', err);
+    }
+    for (const [symbol] of patches) {
       if (!this.fundamentalsBySymbol.has(symbol)) {
         this.fundamentalsBySymbol.set(symbol, this.emptyFundamentalProfile(symbol));
       }
     }
-    const patches = selectNseScannerFundamentalPatches(validatedCache);
-    const adapted = applyNseValidatedFundamentalPatches(this.fundamentalsBySymbol, patches);
+    const merged = applyNseValidatedFundamentalPatches(this.fundamentalsBySymbol, patches);
     this.fundamentalsBySymbol.clear();
-    for (const [symbol, profile] of adapted) {
+    for (const [symbol, profile] of merged) {
       this.fundamentalsBySymbol.set(symbol, this.recomputeChecks(profile));
     }
   }
@@ -1894,7 +1895,7 @@ class NsePipelineEngine {
   }
 
   public getAuditCollectionTargets(
-    scope: 'MISSING_OR_OLD' | 'NOT_AVAILABLE' | 'LIQUID' | 'ALL',
+    scope: 'MISSING_OR_OLD' | 'NOT_AVAILABLE' | 'LIQUID' | 'ALL' | 'BHAVCOPY',
     limit?: number
   ): string[] {
     this.ensureLoaded();
