@@ -508,13 +508,7 @@ async function runCollection(
     candidateCache = loadCandidateCache();
     industryCache = loadNseIssuerIndustryCache();
 
-    let quoteClient: NseIssuerIndustryClient | null = null;
-    try {
-      quoteClient = new NseIssuerIndustryClient({ fetchImpl });
-      await quoteClient.initialize();
-    } catch (error) {
-      job.lastError = 'NSE official issuer-industry session unavailable: ' + (error as Error).message;
-    }
+    const quoteClient = new NseIssuerIndustryClient({ fetchImpl });
 
     let isinBySymbol: Record<string, string> = {};
     try {
@@ -563,7 +557,7 @@ async function runCollection(
           && industryAge >= 0
           && industryAge <= 30 * 24 * 60 * 60 * 1000);
 
-        if (!industryIsFresh && quoteClient) {
+        if (!industryIsFresh) {
           try {
             industryRecord = await quoteClient.fetchIssuerIndustry(symbol);
             industryCache.symbols[symbol] = industryRecord;
