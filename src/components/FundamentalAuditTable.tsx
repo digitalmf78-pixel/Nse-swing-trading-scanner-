@@ -54,6 +54,16 @@ interface NseCandidateRow {
           profitGrowth?: { status: string; growthPercent: number | null } | null;
           operatingCashFlow?: { status: string; currentValue: number | null; percentageChange: number | null } | null;
         };
+        auditMatrix?: {
+          metrics?: Record<string, {
+            sourceDataStatus: string;
+            definitionReadiness: string;
+            decision: string;
+            explanation: string;
+          }>;
+          readyForProduction?: boolean;
+          productionApproved?: boolean;
+        };
       };
     };
     epsCandidate?: { status: string; currentValue: number | null; unit: string | null; periodType?: string } | null;
@@ -670,6 +680,7 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
                     const profit = candidates?.profitGrowth;
                     const ocf = candidates?.operatingCashFlow;
                     const eps = report.epsCandidate;
+                    const metricChecks = report.candidateReport?.candidateReport?.auditMatrix?.metrics;
                     return (
                       <tr key={item.reportHash} className="bg-white align-top">
                         <td className="py-2 px-4">
@@ -698,6 +709,22 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
                         </td>
                         <td className="py-2 px-4 max-w-[360px] text-slate-600">
                           {(report.warnings || []).slice(0, 3).join(' · ') || 'No additional notes'}
+                          {metricChecks && (
+                            <details className="mt-1 text-[10px]">
+                              <summary className="cursor-pointer font-medium text-blue-700">View all 7 metric checks</summary>
+                              <div className="mt-1 space-y-1">
+                                {Object.entries(metricChecks).map(([metric, check]) => (
+                                  <div key={metric}>
+                                    <span className="font-medium">{metric.replaceAll('_', ' ')}</span>
+                                    {' · '}Data: {check.sourceDataStatus}
+                                    {' · '}Formula: {check.definitionReadiness}
+                                    <div className="text-slate-500">{check.explanation}</div>
+                                  </div>
+                                ))}
+                                <div className="font-semibold text-rose-700">Production approved: NO · Scanner eligible: NO</div>
+                              </div>
+                            </details>
+                          )}
                           {(report.filingEvidence || report.xbrlEntityIdentity) && (
                             <details className="mt-1 text-[10px]">
                               <summary className="cursor-pointer font-medium text-blue-700">View NSE filing evidence</summary>
