@@ -223,7 +223,7 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
         setActionNotice(
           status.running
             ? `NSE ${status.filingHistoryProcessed < status.total ? 'filings' : 'XBRL validation'}: ${status.filingHistoryProcessed < status.total ? status.filingHistoryProcessed : status.processed}/${status.total} · XBRL saved ${status.xbrlDocumentsSaved} · candidates ${status.candidateReady} · revision review ${status.revisionReviewRequired} · blocked ${status.failed} · current ${status.currentSymbol || 'finishing'}`
-            : `NSE fundamental research finished: ${status.candidateReady} candidate-ready · ${status.revisionReviewRequired} revision-review · ${status.failed} blocked · ${status.xbrlDocumentsSaved} XBRL documents saved. Candidate values are stored separately for review; production scanner cache remains unchanged until formal validation is approved.`
+            : `NSE fundamental research finished: ${status.candidateReady} candidate-ready · ${status.revisionReviewRequired} revision-review · ${status.failed} blocked · ${status.xbrlDocumentsSaved} XBRL documents saved.${status.lastError ? ' Last error: ' + status.lastError : ''} Candidate values are stored separately for review; production scanner cache remains unchanged until formal validation is approved.`
         );
         if (!status.running) setSyncingNseFilingHistory(false);
       } catch {
