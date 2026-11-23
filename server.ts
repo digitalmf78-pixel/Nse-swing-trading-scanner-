@@ -419,7 +419,7 @@ async function startServer() {
           started: status.running,
           mode: 'NSE_OFFICIAL_XBRL_CANDIDATE_RESEARCH',
           ...status,
-          note: 'Official NSE filing metadata and XBRL are fetched, compared and staged as research candidates. No values are written to the production scanner cache.',
+          note: 'Official NSE filing metadata and XBRL are fetched; only revision-stable Revenue/Profit Growth with verified NSE ISIN may enter the validated cache. Other metrics remain blocked.',
         });
       }
 
@@ -439,7 +439,7 @@ async function startServer() {
         started: status.running,
         mode: 'NSE_OFFICIAL_XBRL_CANDIDATE_RESEARCH',
         ...status,
-        note: 'NSE filing history and current/prior Original plus all available revisions are fetched. Candidate metrics remain research-only; production cache is unchanged.',
+        note: 'NSE filing history and current/prior Original plus all available revisions are fetched. Only individually validated Revenue/Profit Growth may be released; OCF and four ratio metrics remain blocked.',
       });
     } catch (err) {
       return res.status(500).json({ error: (err as Error).message });
@@ -456,7 +456,7 @@ async function startServer() {
         const row = rows.find(item => item.symbol === symbol);
         if (!row) return res.status(404).json({ code: 'NSE_SYMBOL_NOT_IN_BHAVCOPY_UNIVERSE', symbol });
         const status = startNseFundamentalResearchCollection([symbol], { [symbol]: row.providerSector || '' });
-        return res.json({ mode: 'NSE_OFFICIAL_XBRL_CANDIDATE_RESEARCH', ...status });
+        return res.json({ mode: 'NSE_OFFICIAL_XBRL_CANDIDATE_RESEARCH', ...status, note: 'Revenue/Profit Growth may be released after all strict checks; other metrics remain blocked.' });
       }
       const targets = nsePipeline.getAuditCollectionTargets('BHAVCOPY');
       const status = startNseFundamentalResearchCollection(targets, sectorBySymbol);
@@ -502,7 +502,7 @@ async function startServer() {
       return res.json({
         mode: 'NSE_OFFICIAL_XBRL_CANDIDATE_RESEARCH',
         ...status,
-        note: 'Official NSE filing metadata, current/prior Original XBRL and all available revisions are fetched and compared. Candidate metrics remain research-only; production scanner cache is unchanged.',
+        note: 'Official NSE filing metadata, current/prior Original XBRL and all available revisions are fetched and compared. Only revision-stable Revenue/Profit Growth with official ISIN may be released; other metrics remain blocked.',
       });
     } catch (err) {
       return res.status(500).json({ error: (err as Error).message });
