@@ -33,6 +33,19 @@ export interface NseRevisionMetricAudit {
   issues: string[];
 }
 
+export interface NseFilingEvidenceProvenance {
+  sequenceId: string;
+  submission: 'Original' | 'Revision';
+  periodEnd: string;
+  basis: 'Standalone' | 'Consolidated';
+  audited: string | null;
+  publishedAt: string | null;
+  revisedAt: string | null;
+  revisionRemark: string | null;
+  xbrlUrl: string;
+  ixbrlUrl: string;
+}
+
 export interface NseFundamentalResearchResult {
   symbol: string;
   status: 'CANDIDATE_READY' | 'REVISION_REVIEW_REQUIRED' | 'BLOCKED';
@@ -43,6 +56,12 @@ export interface NseFundamentalResearchResult {
   candidateReport?: ReturnType<typeof buildSevenMetricXbrlPipeline>;
   epsCandidate?: NseEpsCandidate;
   revisionAudit?: NseRevisionMetricAudit;
+  filingEvidence?: {
+    currentOriginal: NseFilingEvidenceProvenance;
+    currentRevisions: NseFilingEvidenceProvenance[];
+    priorOriginal: NseFilingEvidenceProvenance;
+    priorRevisions: NseFilingEvidenceProvenance[];
+  };
   isin?: string;
   isinVerified?: boolean;
   industryClassification?: NseIssuerIndustryRecord | null;
@@ -428,6 +447,38 @@ function auditRevisions(
   };
 }
 
+function filingEvidenceProvenance(
+  row: NseRevisionRow,
+  basis: 'Standalone' | 'Consolidated',
+  periodEnd: string,
+): NseFilingEvidenceProvenance {
+  return {
+    sequenceId: String(row.seq_Id ?? ''),
+    submission: row.type_Sub === 'Revision' ? 'Revision' : 'Original',
+    periodEnd,
+    basis,
+    audited: row.audited?.trim() || null,
+    publishedAt: row.broadcast_Date || row.creation_Date || null,
+    revisedAt: row.revised_Date || null,
+    revisionRemark: row.revision_Remark || null,
+    xbrlUrl: row.xbrl || '',
+    ixbrlUrl: row.ixbrl || '',
+  };
+}
+
+function buildFilingEvidence(pair: NseComparableFilingPair): NseFundamentalResearchResult['filingEvidence'] {
+  return {
+    currentOriginal: filingEvidenceProvenance(pair.currentOriginal, pair.basis, pair.currentPeriodEnd),
+    currentRevisions: pair.currentRows
+      .filter(row => row.type_Sub === 'Revision')
+      .map(row => filingEvidenceProvenance(row, pair.basis, pair.currentPeriodEnd)),
+    priorOriginal: filingEvidenceProvenance(pair.priorOriginal, pair.basis, pair.priorPeriodEnd),
+    priorRevisions: pair.priorRows
+      .filter(row => row.type_Sub === 'Revision')
+      .map(row => filingEvidenceProvenance(row, pair.basis, pair.priorPeriodEnd)),
+  };
+}
+
 function blocked(symbol: string, sector: IssuerSector, reason: string): NseFundamentalResearchResult {
   return {
     symbol, status: 'BLOCKED', sector, scannerEligible: false, productionApproved: false,
@@ -709,6 +760,8 @@ async function runCollection(
           job.lastError = report.warnings[0];
         } else {
           const result = await processIssuer(symbol, sector, cachedRows, fetchImpl, verifiedIsin ?? null);
+          const evidencePair = selectLatestComparableFilingPair(cachedRows, symbol);
+          if (evidencePair) result.report.filingEvidence = buildFilingEvidence(evidencePair);
           result.report.industryClassification = industryRecord;
           job.xbrlDocumentsSaved += result.xbrlSaved;
           appendCandidateReport(result.report, candidateCache);
