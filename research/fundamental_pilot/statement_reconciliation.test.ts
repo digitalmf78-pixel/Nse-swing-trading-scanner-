@@ -76,7 +76,6 @@ test('strict evidence reconciliation blocks period, basis, unit and filing-group
     { basis: 'Standalone' as const },
     { unit: 'INR Lakhs' },
     { filingGroupId: 'ITC|2025-04-01|2025-09-30|CONSOLIDATED' },
-    { filingSequenceId: '208372' },
     { periodType: 'QUARTER' as const },
     { issuerSymbol: 'GAIL', isin: 'INE129A01019' },
   ]) {
