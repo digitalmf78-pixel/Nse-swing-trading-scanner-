@@ -76,3 +76,12 @@ test('blocks facts with unresolved units',()=>{
   assert.equal(result.status,'BLOCKED_MISSING_UNIT');
   assert.equal(result.fact,null);
 });
+
+test('blocks share-count and pure units for monetary statement metrics',()=>{
+  const extraction=base();
+  extraction.units.shares=['xbrli:shares'];
+  extraction.facts[0]={...extraction.facts[0],unitRef:'shares'};
+  const result=selectXbrlMetricFact(extraction,request);
+  assert.equal(result.status,'BLOCKED_NON_CURRENCY_UNIT');
+  assert.equal(result.fact,null);
+});
