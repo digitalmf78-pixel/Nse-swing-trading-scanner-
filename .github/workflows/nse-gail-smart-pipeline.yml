@@ -227,6 +227,22 @@ jobs:
               priorOriginalXbrl:pipeline.priorSelections.operatingCashFlow.fact?.numericValue??null,
               currentPdfCurrent:106025000000,currentPdfPriorComparative:58692200000,
               priorOriginalPdf:57473400000,
+            },{
+              adjustmentLines:[
+                {label:'Provision for probable obligations',priorOriginalValue:15.35e7,currentComparativeValue:37.42e7},
+                {label:'Excess provision written back',priorOriginalValue:0,currentComparativeValue:-90.07e7},
+                {label:'Unrealised foreign exchange gain/loss',priorOriginalValue:0,currentComparativeValue:169.08e7},
+              ],
+              priorAdjustmentSubtotal:783.21e7,currentAdjustmentSubtotal:884.29e7,
+              workingCapitalLines:[
+                {label:'Trade and other receivables',priorOriginalValue:554.88e7,currentComparativeValue:575.68e7},
+              ],
+              priorWorkingCapitalSubtotal:512.80e7,currentWorkingCapitalSubtotal:533.60e7,
+              priorOperatingProfitBeforeWorkingCapital:6377.45e7,
+              currentOperatingProfitBeforeWorkingCapital:6478.53e7,
+              priorCashGeneratedFromOperations:6890.25e7,
+              currentCashGeneratedFromOperations:7012.13e7,
+              priorDirectTaxesPaid:-1142.91e7,currentDirectTaxesPaid:-1142.91e7,
             }),
           } : null;
           const statementTieOutStatus=meta.basis==='Consolidated'
@@ -234,12 +250,24 @@ jobs:
               ? 'REVENUE_AND_OWNER_PROFIT_MATCH' : 'REVENUE_OR_OWNER_PROFIT_REVIEW_REQUIRED')
             : 'NOT_CHECKED_STANDALONE';
           const ocfComparativeCheck=statementComparativeChecks?.operatingCashFlow??null;
-          if(meta.basis==='Consolidated' && ocfComparativeCheck?.status!=='MATCHED_ALL_PERIODS') {
+          const ocfBridgeReconciled=ocfComparativeCheck?.status==='RECLASSIFICATION_BRIDGE_RECONCILED';
+          if(meta.basis==='Consolidated' && ocfBridgeReconciled) {
+            const ocfCandidate=pipeline.candidateReport.candidates.operatingCashFlow;
+            const comparablePrior=ocfComparativeCheck.comparablePriorValue;
+            if(!ocfCandidate||ocfCandidate.status!=='CANDIDATE_ONLY'||comparablePrior===null) {
+              throw new Error('GAIL OCF comparative bridge passed but the OCF candidate cannot be safely rebased');
+            }
+            ocfCandidate.priorValue=comparablePrior;
+            ocfCandidate.absoluteChange=Number((ocfCandidate.currentValue!-comparablePrior).toFixed(2));
+            ocfCandidate.percentageChange=comparablePrior>0
+              ? Number(((ocfCandidate.currentValue!/comparablePrior-1)*100).toFixed(2)) : null;
+            ocfCandidate.explanation='Same-period OCF candidate rebased to the current filing comparative after the detailed official PDF reclassification bridge reconciled. Prior Original value is preserved separately in the audit evidence. Candidate-only; not production-approved.';
+          } else if(meta.basis==='Consolidated' && ocfComparativeCheck?.status!=='MATCHED_ALL_PERIODS') {
             pipeline.candidateReport.candidates.operatingCashFlow=null;
             const ocfAudit=pipeline.candidateReport.auditMatrix.metrics.OPERATING_CASH_FLOW;
             ocfAudit.sourceDataStatus='CONFLICT';
             ocfAudit.decision='DATA_CONFLICT';
-            ocfAudit.explanation='Prior Original OCF does not match the current filing comparative. Prior-period regrouping/reclassification requires reconciliation; OCF YoY withheld.';
+            ocfAudit.explanation='Prior Original OCF does not match the current filing comparative and no fully reconciled statement-level bridge was accepted. OCF YoY withheld.';
             pipeline.candidateReport.auditMatrix.candidateCount-=1;
             pipeline.candidateReport.auditMatrix.blockedCount+=1;
           }
@@ -252,9 +280,9 @@ jobs:
             priorSelections:Object.fromEntries(Object.entries(pipeline.priorSelections).map(([k,v])=>[k,{status:v.status,eligibleCount:v.eligibleCount,rejectedContextCount:v.rejectedContextCount,explanation:v.explanation}])),
             candidates:pipeline.candidateReport.candidates,
             auditMatrix:pipeline.candidateReport.auditMatrix,
-            statementTieOutStatus,statementComparativeChecks,ocfComparativeCheck,rawOcfCandidateBeforeComparabilityGate:rawOcfCandidate,officialResultsPdf:officialPdfUrl,
+            statementTieOutStatus,statementComparativeChecks,ocfComparativeCheck,ocfBridgeReconciled,rawOcfCandidateBeforeComparabilityGate:rawOcfCandidate,officialResultsPdf:officialPdfUrl,
             productionApproved:false,
-            note:'Revenue and owner-attributable profit are compared with the official results PDF for consolidated H1. OCF is withheld when prior Original differs from the current filing comparative. Remaining formula and comparability gates still apply; no production approval is implied.',
+            note:'Revenue and owner-attributable profit are tied to official NSE PDFs. OCF uses the current filing comparative only when a detailed line-item reclassification bridge ties adjustment rows, working-capital rows, subtotals, cash generated and taxes back to the prior Original. All values remain research candidates; no production approval is implied.',
           };
           fs.writeFileSync('artifacts/seven-metric-pipeline-report.json',JSON.stringify(output,null,2));
           console.log(JSON.stringify(output,null,2));
