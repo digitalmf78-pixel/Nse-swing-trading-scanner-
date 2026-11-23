@@ -86,13 +86,25 @@ test('blocks all candidate facts when filing-level basis is not explicit',()=>{
 });
 
 test('blocks consolidated total-group profit when owner-attributable profit is required',()=>{
-  assert.throws(()=>buildSevenMetricXbrlPipeline('NON_FINANCIAL',current,prior,{...concepts,profit:'in-capmkt:ProfitLossForPeriod'}),/must use the profit attributable to owners of the parent/);
+  assert.throws(()=>buildSevenMetricXbrlPipeline('NON_FINANCIAL',current,prior,{...concepts,profit:'in-capmkt:ProfitLossForPeriod'}),/exact ProfitOrLossAttributableToOwnersOfParent/);
+});
+
+test('blocks arbitrary consolidated profit concepts even when attribution flag claims owners of parent',()=>{
+  assert.throws(()=>buildSevenMetricXbrlPipeline('NON_FINANCIAL',current,prior,{...concepts,profit:'in-capmkt:ProfitBeforeTax'}),/exact ProfitOrLossAttributableToOwnersOfParent/);
 });
 
 test('blocks standalone profit when attribution policy is not explicitly standalone',()=>{
   const standaloneCurrent={...current,basis:'STANDALONE' as const,filingBasis:'STANDALONE' as const};
   const standalonePrior={...prior,basis:'STANDALONE' as const,filingBasis:'STANDALONE' as const};
-  assert.throws(()=>buildSevenMetricXbrlPipeline('NON_FINANCIAL',standaloneCurrent,standalonePrior,concepts),/must use the standalone entity profit result/);
+  assert.throws(()=>buildSevenMetricXbrlPipeline('NON_FINANCIAL',standaloneCurrent,standalonePrior,concepts),/exact ProfitLossForPeriod/);
+});
+
+test('blocks arbitrary standalone profit concepts even when standalone attribution flag is set',()=>{
+  const standaloneCurrent={...current,basis:'STANDALONE' as const,filingBasis:'STANDALONE' as const};
+  const standalonePrior={...prior,basis:'STANDALONE' as const,filingBasis:'STANDALONE' as const};
+  assert.throws(()=>buildSevenMetricXbrlPipeline('NON_FINANCIAL',standaloneCurrent,standalonePrior,{
+    ...concepts,profit:'in-capmkt:ProfitBeforeTax',profitAttribution:'STANDALONE_ENTITY',
+  }),/exact ProfitLossForPeriod/);
 });
 
 test('does not guess a taxonomy concept when issuer mapping is absent',()=>{
