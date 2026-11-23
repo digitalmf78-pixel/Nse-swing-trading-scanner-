@@ -869,41 +869,19 @@ export async function ensureLiveFundamentalsForSymbol(
 
 export async function refreshFundamentalsBatch(
   symbols: string[],
-  xbrlBySymbol?: Map<string, XbrlFiling[]>,
-  forceBseProbe = false
+  _xbrlBySymbol?: Map<string, XbrlFiling[]>,
+  _forceBseProbe = false
 ): Promise<{
   succeeded: string[];
   failed: Array<{ symbol: string; error: string }>;
 }> {
-  const recordsToSave: LiveFundamentalRecord[] = [];
-  const succeeded: string[] = [];
-  const failed: Array<{ symbol: string; error: string }> = [];
-
-  const CHUNK_SIZE = 5;
-  for (let i = 0; i < symbols.length; i += CHUNK_SIZE) {
-    const chunk = symbols.slice(i, i + CHUNK_SIZE);
-    const settled = await Promise.allSettled(
-      chunk.map((sym) => fetchYahooFundamentalsForSymbol(sym, xbrlBySymbol?.get(sym), forceBseProbe))
-    );
-    settled.forEach((res, idx) => {
-      const sym = chunk[idx];
-      if (res.status === 'fulfilled') {
-        recordsToSave.push(res.value);
-        succeeded.push(res.value.symbol);
-      } else {
-        failed.push({ symbol: sym, error: (res.reason as Error).message });
-      }
-    });
-    if (i + CHUNK_SIZE < symbols.length) {
-      await new Promise((r) => setTimeout(r, 120));
-    }
-  }
-
-  if (recordsToSave.length > 0) {
-    await upsertAndSaveFundamentalOverrides(recordsToSave);
-  }
-
-  return { succeeded, failed };
+  return {
+    succeeded: [],
+    failed: symbols.map((symbol) => ({
+      symbol,
+      error: 'NSE_FUNDAMENTAL_SERVICE_REQUIRED: legacy Yahoo/BSE batch collection is disabled.',
+    })),
+  };
 }
 
 let collectionStatus: FundamentalCollectionStatus = {
@@ -928,84 +906,25 @@ export function getCollectionJobStatus(): FundamentalCollectionStatus {
 
 export function startFullFundamentalCollection(
   symbols: string[],
-  scope: string,
-  xbrlBySymbol: Map<string, XbrlFiling[]>,
-  onCheckpointReload: () => void
+  _scope: string,
+  _xbrlBySymbol: Map<string, XbrlFiling[]>,
+  _onCheckpointReload: () => void
 ): FundamentalCollectionStatus {
-  if (collectionStatus.running) {
-    return getCollectionJobStatus();
-  }
-
   collectionStatus = {
-    running: true,
-    scope,
+    running: false,
+    scope: 'BLOCKED_LEGACY_YAHOO',
     total: symbols.length,
     processed: 0,
     succeeded: 0,
-    failed: 0,
+    failed: symbols.length,
     nseXbrlHits: 0,
     yahooNsHits: 0,
     bseBoHits: 0,
-    currentSymbol: symbols[0] || '',
+    currentSymbol: '',
     startedAtUtc: new Date().toISOString(),
-    finishedAtUtc: '',
-    lastError: null,
+    finishedAtUtc: new Date().toISOString(),
+    lastError: 'NSE_FUNDAMENTAL_SERVICE_REQUIRED: legacy Yahoo/BSE collection is disabled.',
   };
-
-  void (async () => {
-    let pendingBuffer: LiveFundamentalRecord[] = [];
-    const CHUNK_SIZE = 5;
-
-    try {
-      for (let i = 0; i < symbols.length; i += CHUNK_SIZE) {
-        const chunk = symbols.slice(i, i + CHUNK_SIZE);
-        collectionStatus.currentSymbol = chunk[0] || '';
-        const settled = await Promise.allSettled(
-          chunk.map((sym) => fetchYahooFundamentalsForSymbol(sym, xbrlBySymbol.get(sym)))
-        );
-
-        settled.forEach((res, idx) => {
-          collectionStatus.processed += 1;
-          if (res.status === 'fulfilled') {
-            const rec = res.value;
-            pendingBuffer.push(rec);
-            collectionStatus.succeeded += 1;
-            const srcs = rec.sources || [];
-            if (srcs.includes('NSE XBRL')) collectionStatus.nseXbrlHits += 1;
-            if (srcs.includes('YFinance (.NS)')) collectionStatus.yahooNsHits += 1;
-            if (srcs.includes('BSE (.BO)')) collectionStatus.bseBoHits += 1;
-          } else {
-            collectionStatus.failed += 1;
-            collectionStatus.lastError = `${chunk[idx]}: ${(res.reason as Error).message}`;
-          }
-        });
-
-        if (pendingBuffer.length >= 15) {
-          const toFlush = pendingBuffer;
-          pendingBuffer = [];
-          await upsertAndSaveFundamentalOverrides(toFlush);
-          onCheckpointReload();
-        }
-
-        if (i + CHUNK_SIZE < symbols.length) {
-          await new Promise((r) => setTimeout(r, 140));
-        }
-      }
-
-      if (pendingBuffer.length > 0) {
-        await upsertAndSaveFundamentalOverrides(pendingBuffer);
-        pendingBuffer = [];
-      }
-      onCheckpointReload();
-    } catch (err) {
-      collectionStatus.lastError = (err as Error).message;
-    } finally {
-      collectionStatus.running = false;
-      collectionStatus.currentSymbol = '';
-      collectionStatus.finishedAtUtc = new Date().toISOString();
-    }
-  })();
-
   return getCollectionJobStatus();
 }
 
