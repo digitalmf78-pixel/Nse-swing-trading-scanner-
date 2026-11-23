@@ -14,10 +14,8 @@ import {
 import {
   buildCatalystScreener,
   fetchAndCacheStockCatalysts,
-  getUniverseQuoteScanStatus,
   getUpcomingResultObservationList,
   syncNseBulkBlockDeals,
-  syncUniverseQuoteCalendarAndIpo,
 } from './server/catalystFetcher.ts';
 import { runStockDeliveryBacktest } from './server/backtester.ts';
 import {
