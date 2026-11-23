@@ -109,6 +109,9 @@ test('pipeline adapter withholds EPS and valuation even when legacy source label
     epsPrev:3, epsCurr:4, epsTtmPrev:10, epsTtmCurr:12,
     epsPrevPeriod:'2025-09-30', epsCurrPeriod:'2026-09-30',
     earningsQualityStatus:'PASS', valuationStatus:'PASS',
+    promoterHoldingPct:30, fiiHoldingPct:10, diiHoldingPct:5, publicHoldingPct:55,
+    marketCapInr:1000000000, enterpriseValueInr:2000000000,
+    firstTradeDateIso:'2025-01-01', nextEarningsDate:'2026-01-01',
     source:'Unknown', fundamentalSources:['Unknown provider'],
   } as unknown as ScannerFundamentalProfile;
   const applied = applyNseValidatedFundamentalPatches(new Map([['NO-SOURCE',legacy]]),new Map()).get('NO-SOURCE')!;
@@ -124,5 +127,13 @@ test('pipeline adapter withholds EPS and valuation even when legacy source label
   assert.equal(applied.epsCurrPeriod,'');
   assert.equal(applied.earningsQualityStatus,'BLOCKED');
   assert.equal(applied.valuationStatus,'BLOCKED');
+  assert.equal(applied.promoterHoldingPct,null);
+  assert.equal(applied.fiiHoldingPct,null);
+  assert.equal(applied.diiHoldingPct,null);
+  assert.equal(applied.publicHoldingPct,null);
+  assert.equal(applied.marketCapInr,null);
+  assert.equal(applied.enterpriseValueInr,null);
+  assert.equal(applied.firstTradeDateIso,'');
+  assert.equal(applied.nextEarningsDate,'');
   assert.deepEqual(applied.fundamentalSources,[]);
 });
