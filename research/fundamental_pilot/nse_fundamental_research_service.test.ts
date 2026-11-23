@@ -195,7 +195,13 @@ test('XBRL issuer identity must match official NSE ISIN across Original and Revi
   );
   assert.equal(mismatch.valid, false);
   assert.match(mismatch.issues.join(' '), /differs across Original\/Revision/);
-  assert.match(mismatch.issues.join(' '), /does not match the official NSE ISIN/);
+  assert.match(mismatch.issues.join(' '), /differs across Original\/Revision/);
+  const wrongIssuer = auditXbrlIssuerIdentity(
+    [entityExtraction('INE0XYZ01010'), entityExtraction('INE0XYZ01010')],
+    'INE0ABC01010',
+  );
+  assert.equal(wrongIssuer.valid, false);
+  assert.match(wrongIssuer.issues.join(' '), /does not match the official NSE ISIN/);
 });
 
 test('XBRL issuer identity blocks missing entity identifiers and absent official ISIN', () => {
