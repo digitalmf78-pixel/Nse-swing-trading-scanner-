@@ -1,6 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
+import { fetchNseEquityMaster, loadNseEquityMasterCache } from './nseEquityMasterCache.ts';
+import { appendValidatedNseFundamentalProfile } from './nseValidatedFundamentalCache.ts';
+import { nsePipeline } from './nsePipeline.ts';
+import type { FundamentalProfile as ValidatedFundamentalProfile, FundamentalMetricRecord, FilingProvenance, RawFactEvidence } from '../research/fundamental_pilot/fundamental_profile.ts';
 import { collectNseFilingHistoryForSymbols, loadNseFilingHistoryCache } from './nseFilingHistoryCache.ts';
 import { collectXbrlEvidenceForFilingRows, loadNseXbrlEvidenceCache, type NseXbrlEvidenceDocument } from './nseXbrlEvidenceCache.ts';
 import { resolveNseConceptMap } from '../research/fundamental_pilot/nse_concept_map_resolver.ts';
@@ -24,19 +28,22 @@ export interface NseComparableFilingPair {
 export interface NseRevisionMetricAudit {
   stable: boolean;
   checkedRevisions: number;
+  stableMetrics: string[];
   changedMetrics: string[];
   issues: string[];
 }
 
 export interface NseFundamentalResearchResult {
   symbol: string;
-  status: 'CANDIDATE_READY' | 'REVISION_REVIEW_REQUIRED' | 'BLOCKED';
+  status: 'PARTIAL_RELEASED' | 'CANDIDATE_READY' | 'REVISION_REVIEW_REQUIRED' | 'BLOCKED';
   sector: IssuerSector;
   basis?: 'STANDALONE' | 'CONSOLIDATED';
   currentPeriodEnd?: string;
   priorPeriodEnd?: string;
   candidateReport?: ReturnType<typeof buildSevenMetricXbrlPipeline>;
   revisionAudit?: NseRevisionMetricAudit;
+  releasedMetrics?: string[];
+  productionProfileSaved?: boolean;
   scannerEligible: false;
   productionApproved: false;
   warnings: string[];
@@ -52,6 +59,7 @@ export interface NseFundamentalResearchStatus {
   xbrlDocumentsSaved: number;
   succeeded: number;
   candidateReady: number;
+  partialReleased: number;
   revisionReviewRequired: number;
   failed: number;
   currentSymbol: string;
@@ -81,7 +89,7 @@ const CANDIDATE_CACHE_FILE = path.join(process.cwd(), 'data', 'research', 'nse_f
 let job: NseFundamentalResearchStatus = {
   running: false, scope: 'BHAVCOPY', total: 0, processed: 0,
   filingHistoryProcessed: 0, filingHistorySucceeded: 0, xbrlDocumentsSaved: 0,
-  succeeded: 0, candidateReady: 0, revisionReviewRequired: 0, failed: 0,
+  succeeded: 0, candidateReady: 0, partialReleased: 0, revisionReviewRequired: 0, failed: 0,
   currentSymbol: '', startedAtUtc: '', finishedAtUtc: '', lastError: null,
   candidateCacheFile: CANDIDATE_CACHE_FILE,
 };
@@ -290,28 +298,228 @@ function auditRevisions(
   ] as const;
   const changedMetrics: string[] = [];
   const issues: string[] = [];
+  const stableMetrics: string[] = [];
   for (const [label, concept] of metrics) {
+    let stable = true;
     const originalValue = selectedValue(original, concept, periodStart, periodEnd, periodType, basis);
     if (originalValue === null) {
       issues.push(label + ': original exact-period fact is not uniquely selectable');
-      continue;
+      stable = false;
     }
-    for (const revision of revisions) {
-      const revisionValue = selectedValue(revision, concept, periodStart, periodEnd, periodType, basis);
-      if (revisionValue === null) {
-        issues.push(label + ': revision ' + revision.seqId + ' has no unique exact-period fact');
-      } else if (Math.abs(revisionValue - originalValue) > Math.max(0.000001, Math.abs(originalValue) * 1e-10)) {
-        if (!changedMetrics.includes(label)) changedMetrics.push(label);
+    if (originalValue !== null) {
+      for (const revision of revisions) {
+        const revisionValue = selectedValue(revision, concept, periodStart, periodEnd, periodType, basis);
+        if (revisionValue === null) {
+          issues.push(label + ': revision ' + revision.seqId + ' has no unique exact-period fact');
+          stable = false;
+        } else if (Math.abs(revisionValue - originalValue) > Math.max(0.000001, Math.abs(originalValue) * 1e-10)) {
+          if (!changedMetrics.includes(label)) changedMetrics.push(label);
+          stable = false;
+        }
       }
     }
+    if (stable) stableMetrics.push(label);
   }
   return {
     stable: changedMetrics.length === 0 && issues.length === 0,
     checkedRevisions: revisions.length,
+    stableMetrics,
     changedMetrics,
     issues,
   };
 }
+
+function parseNsePublishedAt(value: string | null | undefined): string | null {
+  const text = String(value ?? '').trim();
+  if (!text) return null;
+  const match = text.match(/^(\d{1,2})-([A-Z]{3})-(\d{4})(?:[ T](\d{2}):(\d{2}):(\d{2}))?$/i);
+  if (!match) {
+    const parsed = Date.parse(text);
+    return Number.isFinite(parsed) ? new Date(parsed).toISOString() : null;
+  }
+  const month = MONTHS[match[2].toUpperCase()];
+  if (month === undefined) return null;
+  const date = new Date(Date.UTC(
+    Number(match[3]), month, Number(match[1]),
+    Number(match[4] ?? 0), Number(match[5] ?? 0), Number(match[6] ?? 0),
+  ));
+  if (date.getUTCFullYear() !== Number(match[3]) || date.getUTCMonth() !== month
+      || date.getUTCDate() !== Number(match[1])) return null;
+  return date.toISOString();
+}
+
+function nseAuditStatus(value: string | null | undefined): FilingProvenance['auditStatus'] {
+  const text = String(value ?? '').trim().toLowerCase();
+  if (text.includes('unaudited')) return 'UNAUDITED';
+  if (text.includes('limited')) return 'LIMITED_REVIEW';
+  if (text.includes('audited')) return 'AUDITED';
+  return 'UNKNOWN';
+}
+
+function buildOriginalProvenance(
+  row: NseRevisionRow,
+  symbol: string,
+  isin: string,
+  basis: 'STANDALONE' | 'CONSOLIDATED',
+): FilingProvenance | null {
+  const seqId = String(row.seq_Id ?? '').trim();
+  const periodEnd = parseNseFinancialPeriodEnd(row.qe_Date);
+  const publishedAt = parseNsePublishedAt(row.broadcast_Date || row.creation_Date);
+  const sourceUrl = String(row.xbrl ?? '').trim();
+  if (!seqId || !periodEnd || !publishedAt || !sourceUrl || nseAuditStatus(row.audited) === 'UNKNOWN') return null;
+  return {
+    exchange: 'NSE',
+    symbol,
+    isin,
+    documentId: seqId,
+    sequenceId: seqId,
+    sourceUrl,
+    publishedAt,
+    submission: 'ORIGINAL',
+    revisedAt: null,
+    revisionRemark: null,
+    auditStatus: nseAuditStatus(row.audited),
+    basis,
+    periodEnd,
+  };
+}
+
+function buildRawFactEvidence(
+  document: NseXbrlEvidenceDocument,
+  concept: string,
+  periodStart: string,
+  periodEnd: string,
+  periodType: 'QUARTER' | 'YTD' | 'FY',
+  basis: 'STANDALONE' | 'CONSOLIDATED',
+): RawFactEvidence | null {
+  const selection = selectXbrlMetricFact(document.extraction, {
+    concept, periodStart, periodEnd, periodType, basis, filingBasis: basis,
+  });
+  if (selection.status !== 'SELECTED_UNIQUE_GROUP_FACT' || !selection.fact?.contextRef) return null;
+  const raw = document.extraction.facts.find(fact =>
+    fact.concept === concept && fact.contextRef === selection.fact!.contextRef
+  );
+  if (!raw || !raw.unitRef) return null;
+  const context = document.extraction.contexts[raw.contextRef ?? ''];
+  return {
+    documentId: document.seqId,
+    concept: raw.concept,
+    contextRef: raw.contextRef ?? '',
+    unitMeasures: document.extraction.units[raw.unitRef] ?? [],
+    dimensions: context?.dimensions ?? [],
+    rawValue: raw.rawValue,
+    numericValue: raw.numericValue,
+    isNil: raw.isNil,
+    scale: raw.scale,
+    decimals: raw.decimals,
+  };
+}
+
+function blockedMetricRecord(
+  metric: FundamentalMetricRecord['metric'],
+  periodEnd: string,
+  reason: string,
+): FundamentalMetricRecord {
+  return {
+    metric,
+    status: 'BLOCKED',
+    value: null,
+    currency: null,
+    unit: null,
+    periodType: 'INSTANT',
+    periodStart: null,
+    periodEnd,
+    filings: [],
+    rawFacts: [],
+    formulaId: null,
+    formulaVersion: null,
+    validationNotes: [reason],
+  };
+}
+
+function buildPartialValidatedProfile(
+  symbol: string,
+  isin: string,
+  basis: 'STANDALONE' | 'CONSOLIDATED',
+  currentStart: string,
+  currentEnd: string,
+  currentType: 'QUARTER' | 'YTD' | 'FY',
+  currentDoc: NseXbrlEvidenceDocument,
+  priorDoc: NseXbrlEvidenceDocument,
+  currentOriginal: NseRevisionRow,
+  priorOriginal: NseRevisionRow,
+  concepts: IssuerMetricConceptMap,
+  revenueCandidate: NonNullable<ReturnType<typeof buildSevenMetricXbrlPipeline>['candidateReport']['candidates']['revenueGrowth']>,
+  profitCandidate: NonNullable<ReturnType<typeof buildSevenMetricXbrlPipeline>['candidateReport']['candidates']['profitGrowth']>,
+): ValidatedFundamentalProfile | null {
+  const currentFiling = buildOriginalProvenance(currentOriginal, symbol, isin, basis);
+  const priorFiling = buildOriginalProvenance(priorOriginal, symbol, isin, basis);
+  if (!currentFiling || !priorFiling) return null;
+
+  const revenueCurrent = buildRawFactEvidence(currentDoc, concepts.revenue, currentStart, currentEnd, currentType, basis);
+  const revenuePrior = buildRawFactEvidence(priorDoc, concepts.revenue, shiftIsoYear(currentStart, -1)!, shiftIsoYear(currentEnd, -1)!, currentType, basis);
+  const profitCurrent = buildRawFactEvidence(currentDoc, concepts.profit, currentStart, currentEnd, currentType, basis);
+  const profitPrior = buildRawFactEvidence(priorDoc, concepts.profit, shiftIsoYear(currentStart, -1)!, shiftIsoYear(currentEnd, -1)!, currentType, basis);
+  if (!revenueCurrent || !revenuePrior || !profitCurrent || !profitPrior) return null;
+
+  const revenueRecord: FundamentalMetricRecord = {
+    metric: 'REVENUE_GROWTH',
+    status: 'VALIDATED',
+    value: revenueCandidate.growthPercent,
+    currency: null,
+    unit: 'PERCENT',
+    periodType: currentType,
+    periodStart: currentStart,
+    periodEnd: currentEnd,
+    filings: [currentFiling, priorFiling],
+    rawFacts: [revenueCurrent, revenuePrior],
+    formulaId: revenueCandidate.formulaId,
+    formulaVersion: revenueCandidate.formulaVersion,
+    validationNotes: [
+      'Official NSE XBRL only; exact taxonomy QName matched across current and prior Original filings.',
+      'Exact undimensioned duration contexts, basis and one-year period alignment passed.',
+      'All available Original/Revision facts for this metric were compared and remained unchanged.',
+      'Prior-period base was positive; same-period year-on-year growth formula passed.',
+    ],
+  };
+  const profitRecord: FundamentalMetricRecord = {
+    metric: 'PROFIT_GROWTH',
+    status: 'VALIDATED',
+    value: profitCandidate.growthPercent,
+    currency: null,
+    unit: 'PERCENT',
+    periodType: currentType,
+    periodStart: currentStart,
+    periodEnd: currentEnd,
+    filings: [currentFiling, priorFiling],
+    rawFacts: [profitCurrent, profitPrior],
+    formulaId: profitCandidate.formulaId,
+    formulaVersion: profitCandidate.formulaVersion,
+    validationNotes: [
+      'Official NSE XBRL only; exact standalone entity or consolidated owners-of-parent profit concept was selected.',
+      'Exact undimensioned duration contexts, basis and one-year period alignment passed.',
+      'All available Original/Revision facts for this metric were compared and remained unchanged.',
+      'Prior-period base was positive; same-period year-on-year growth formula passed.',
+    ],
+  };
+
+  return {
+    symbol,
+    isin,
+    basis,
+    periodEnd: currentEnd,
+    metrics: {
+      REVENUE_GROWTH: revenueRecord,
+      PROFIT_GROWTH: profitRecord,
+      ROE: blockedMetricRecord('ROE', currentEnd, 'ROE formula and average-equity policy are not yet approved.'),
+      ROCE: blockedMetricRecord('ROCE', currentEnd, 'ROCE formula and capital-employed policy are not yet approved.'),
+      DEBT_EQUITY: blockedMetricRecord('DEBT_EQUITY', currentEnd, 'Debt/equity denominator and sector policy are not yet approved.'),
+      INTEREST_COVERAGE: blockedMetricRecord('INTEREST_COVERAGE', currentEnd, 'Interest coverage formula and finance-sector exclusions are not yet approved.'),
+      OPERATING_CASH_FLOW: blockedMetricRecord('OPERATING_CASH_FLOW', currentEnd, 'OCF remains blocked until cash-flow statement reconciliation and signed statement cross-check pass.'),
+    },
+  };
+}
+
 
 function blocked(symbol: string, sector: IssuerSector, reason: string): NseFundamentalResearchResult {
   return {
