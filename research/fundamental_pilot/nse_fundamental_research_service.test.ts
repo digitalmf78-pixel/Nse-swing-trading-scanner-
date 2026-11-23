@@ -59,6 +59,24 @@ test('latest comparable filing pair blocks when prior-year Original is missing',
   assert.equal(pair, null);
 });
 
+test('latest period without prior-year pair does not silently fall back to stale older period', () => {
+  const pair = selectLatestComparableFilingPair([
+    row('100', '30-Sep-2026', 'Original', 'Consolidated'),
+    row('90', '30-Jun-2026', 'Original', 'Consolidated'),
+    row('80', '30-Jun-2025', 'Original', 'Consolidated'),
+  ], 'ABC');
+  assert.equal(pair, null);
+});
+
+test('latest period may use standalone only when consolidated pair is unavailable at that same period', () => {
+  const pair = selectLatestComparableFilingPair([
+    row('100', '30-Sep-2026', 'Original', 'Consolidated'),
+    row('101', '30-Sep-2025', 'Original', 'Standalone'),
+    row('102', '30-Sep-2026', 'Original', 'Standalone'),
+  ], 'ABC');
+  assert.equal(pair?.basis, 'Standalone');
+});
+
 test('sector classification keeps financial issuers out of generic industrial mapping', () => {
   assert.equal(classifyIssuerSector('Private Sector Bank'), 'BANK');
   assert.equal(classifyIssuerSector('Banking'), 'BANK');
