@@ -409,12 +409,11 @@ async function startServer() {
       const symbol = typeof req.body?.symbol === 'string' ? req.body.symbol.trim().toUpperCase() : '';
       const saveAll = Boolean(req.body?.saveAll);
       const rows = nsePipeline.getAllScreenerRows();
-      const sectorBySymbol = Object.fromEntries(rows.map(row => [row.symbol, row.providerSector || '']));
 
       if (symbol) {
         const row = rows.find(item => item.symbol === symbol);
         if (!row) return res.status(404).json({ code: 'NSE_SYMBOL_NOT_IN_BHAVCOPY_UNIVERSE', symbol });
-        const status = startNseFundamentalResearchCollection([symbol], { [symbol]: row.providerSector || '' });
+        const status = startNseFundamentalResearchCollection([symbol]);
         return res.json({
           started: status.running,
           mode: 'NSE_OFFICIAL_XBRL_CANDIDATE_RESEARCH',
@@ -434,7 +433,7 @@ async function startServer() {
         });
       }
       const targets = nsePipeline.getAuditCollectionTargets('BHAVCOPY');
-      const status = startNseFundamentalResearchCollection(targets, sectorBySymbol);
+      const status = startNseFundamentalResearchCollection(targets);
       return res.json({
         started: status.running,
         mode: 'NSE_OFFICIAL_XBRL_CANDIDATE_RESEARCH',
