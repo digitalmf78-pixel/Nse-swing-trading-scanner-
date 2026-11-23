@@ -58,8 +58,6 @@ export const StockDetailView: React.FC<StockDetailViewProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
 
-  const [fundFetching, setFundFetching] = useState(false);
-  const [fundNotice, setFundNotice] = useState<string | null>(null);
 
   const [useSearchGrounding, setUseSearchGrounding] = useState(false);
   const [geminiLoading, setGeminiLoading] = useState(false);
@@ -216,34 +214,6 @@ export const StockDetailView: React.FC<StockDetailViewProps> = ({
     const cleaned = searchInput.trim().toUpperCase();
     if (cleaned && cleaned !== symbol) {
       onSelectSymbol(cleaned);
-    }
-  };
-
-  const handleFetchLiveFundamentals = async () => {
-    if (!data) return;
-    setFundFetching(true);
-    setFundNotice(null);
-    try {
-      const res = await fetch('/api/fundamentals/save-to-cache', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol: data.summary.symbol, force: true }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
-      await loadStock(data.summary.symbol);
-      if (json.saved) {
-        setFundNotice(
-          `Verified & saved fundamentals from NSE XBRL + YFinance (.NS) + BSE (.BO) (${json.totalSavedCount} cached).`
-        );
-      } else {
-        const failMsg = json.error || 'No additional metrics returned.';
-        setFundNotice(`Verification incomplete: ${failMsg}`);
-      }
-    } catch (err) {
-      setFundNotice(`Verification failed: ${(err as Error).message}`);
-    } finally {
-      setFundFetching(false);
     }
   };
 
@@ -1238,8 +1208,7 @@ export const StockDetailView: React.FC<StockDetailViewProps> = ({
             fundamentals={data.fundamentals}
             detectedPeakPrice={detectedPeak.price}
             detectedPeakDate={detectedPeak.date}
-            verifying={fundFetching}
-            onVerifyFundamentals={handleFetchLiveFundamentals}
+            verificationEnabled={false}
           />
 
           {/* U-Turn Strategy Monitor (Peak Price & EPS Drop vs Live Delivery % & RVOL) */}
@@ -1445,12 +1414,13 @@ export const StockDetailView: React.FC<StockDetailViewProps> = ({
                     </span>
                   )}
                   <button
-                    onClick={handleFetchLiveFundamentals}
-                    disabled={fundFetching}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50 rounded-md transition-colors whitespace-nowrap shrink-0"
+                    type="button"
+                    disabled
+                    title="NSE official XBRL validation and main-cache writing are still being completed"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-500 bg-slate-100 border border-slate-200 rounded-md whitespace-nowrap shrink-0 cursor-not-allowed"
                   >
-                    <RefreshCw className={`w-3.5 h-3.5 ${fundFetching ? 'animate-spin' : ''}`} />
-                    {fundFetching ? 'Collecting...' : 'Collect Live (NSE+BSE+YF)'}
+                    <Info className="w-3.5 h-3.5" />
+                    NSE Metrics Pending
                   </button>
                 </div>
               </div>
@@ -1485,12 +1455,6 @@ export const StockDetailView: React.FC<StockDetailViewProps> = ({
                   </span>
                 )}
               </div>
-
-              {fundNotice && (
-                <div className="px-5 py-2 bg-slate-50 border-b border-slate-200 text-xs text-slate-700">
-                  {fundNotice}
-                </div>
-              )}
 
               {data.fundamentals ? (
                 <table className="w-full text-left border-collapse text-xs">
