@@ -20,8 +20,9 @@ interface QuarterlyEpsValuationPanelProps {
   fundamentals: FundamentalProfile | null;
   detectedPeakPrice: number;
   detectedPeakDate: string;
-  verifying: boolean;
-  onVerifyFundamentals: () => void;
+  verifying?: boolean;
+  onVerifyFundamentals?: () => void;
+  verificationEnabled?: boolean;
 }
 
 export const QuarterlyEpsValuationPanel: React.FC<QuarterlyEpsValuationPanelProps> = ({
@@ -30,8 +31,9 @@ export const QuarterlyEpsValuationPanel: React.FC<QuarterlyEpsValuationPanelProp
   fundamentals,
   detectedPeakPrice,
   detectedPeakDate,
-  verifying,
+  verifying = false,
   onVerifyFundamentals,
+  verificationEnabled = true,
 }) => {
   const close = summary.closePrice;
   const peak = detectedPeakPrice > 0 ? detectedPeakPrice : close;
@@ -49,12 +51,14 @@ export const QuarterlyEpsValuationPanel: React.FC<QuarterlyEpsValuationPanelProp
       : null;
 
   // Mandatory Fundamental Verification Checks
-  const hasSources = (summary.fundamentalSources?.length ?? 0) > 0 && summary.fundamentalCoverage !== 'MISSING';
+  const hasSources =
+    summary.fundamentalSources?.some((source) => /NSE Official XBRL \(validated\)/i.test(source)) === true &&
+    summary.fundamentalCoverage !== 'MISSING';
   const isFreshEnough =
     summary.fundamentalFreshness === 'LATEST' || summary.fundamentalFreshness === 'OLD_3M';
   const hasTwoQuartersEps = epsPrev !== null && epsCurr !== null;
   const hasValidPE = trailingPE !== null && trailingPE > 0;
-  const allVerified = hasSources && isFreshEnough && hasTwoQuartersEps && hasValidPE;
+  const allVerified = verificationEnabled && hasSources && isFreshEnough && hasTwoQuartersEps && hasValidPE;
 
   // 2-Quarterly EPS Calculations
   const twoQDelta = epsPrev !== null && epsCurr !== null ? epsCurr - epsPrev : null;
@@ -152,8 +156,9 @@ export const QuarterlyEpsValuationPanel: React.FC<QuarterlyEpsValuationPanelProp
       return {
         tone: 'amber' as const,
         title: 'Verification Required Before Relying on Targets',
-        detail:
-          'Fundamental verification is mandatory. Click "Verify & Save Fundamentals" above to pull live NSE XBRL + BSE + Yahoo Finance 2-quarter EPS and P/E before sizing.',
+        detail: verificationEnabled
+          ? 'Only an approved NSE XBRL profile with period-aligned EPS and valuation inputs can clear this gate.'
+          : 'NSE official XBRL metric validation and main-cache integration are still in progress. Legacy Yahoo/BSE fundamentals are not accepted for this gate; do not rely on EPS-based targets until the NSE service is ready.',
       };
     }
     if (hasEpsDropFormula && uTurnSupportPrice !== null && close > uTurnSupportPrice * 1.02) {
@@ -214,7 +219,7 @@ export const QuarterlyEpsValuationPanel: React.FC<QuarterlyEpsValuationPanelProp
         <button
           type="button"
           onClick={onVerifyFundamentals}
-          disabled={verifying}
+          disabled={!verificationEnabled || verifying}
           className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
             allVerified
               ? 'bg-slate-100 text-slate-800 hover:bg-slate-200'
@@ -222,11 +227,13 @@ export const QuarterlyEpsValuationPanel: React.FC<QuarterlyEpsValuationPanelProp
           } disabled:opacity-50`}
         >
           <RefreshCw className={`w-3.5 h-3.5 ${verifying ? 'animate-spin' : ''}`} />
-          {verifying
-            ? 'Verifying NSE+BSE+YF...'
-            : allVerified
-              ? 'Re-Verify Fundamentals'
-              : 'Verify & Save Fundamentals (MUST)'}
+          {!verificationEnabled
+            ? 'NSE Verification Pending'
+            : verifying
+              ? 'Verifying NSE...'
+              : allVerified
+                ? 'Re-Verify Fundamentals'
+                : 'Verify NSE Fundamentals (MUST)'}
         </button>
       </div>
 
