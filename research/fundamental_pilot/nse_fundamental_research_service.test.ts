@@ -95,7 +95,7 @@ test('duration classifier accepts quarter, YTD and FY periods only', () => {
   assert.equal(classifyNsePeriodType('2026-01-01', '2026-01-31'), null);
 });
 
-test('period start inference requires one shared undimensioned duration context across all mapped metrics', () => {
+test('period start inference requires revenue and profit shared undimensioned duration context', () => {
   const extraction: XbrlExtraction = {
     contexts: {
       ctx1: {
@@ -127,5 +127,11 @@ test('period start inference requires one shared undimensioned duration context 
     operatingCashFlow: 'ns:CashFlowsFromUsedInOperatingActivities',
   };
   assert.equal(inferExactPeriodStart(extraction, '2026-09-30', concepts), '2026-04-01');
+  const withoutOcf: XbrlExtraction = {
+    ...extraction,
+    facts: extraction.facts.filter(fact => fact.concept !== concepts.operatingCashFlow),
+    factCount: 3,
+  };
+  assert.equal(inferExactPeriodStart(withoutOcf, '2026-09-30', concepts), '2026-04-01');
   assert.equal(inferExactPeriodStart(extraction, '2026-06-30', concepts), null);
 });
