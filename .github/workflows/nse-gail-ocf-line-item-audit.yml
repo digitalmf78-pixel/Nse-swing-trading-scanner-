@@ -1,0 +1,57 @@
+name: NSE GAIL OCF comparative line-item audit
+
+on:
+  push:
+    branches:
+      - research/free-fundamental-sources
+    paths:
+      - ".github/workflows/nse-gail-ocf-line-item-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pdf-line-item-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Install PDF text extractor
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+      - name: Download official current and prior results PDFs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36"
+          curl --fail --location --show-error --retry 3 --retry-all-errors --retry-delay 2 --max-time 120 \
+            --user-agent "$ua" --referer "https://www.nseindia.com/" \
+            --output artifacts/GAIL_current_H1_FY27.pdf \
+            "https://nsearchives.nseindia.in/content/debt/WDM/DEVIKA_30102026143622_UFR.pdf"
+          curl --fail --location --show-error --retry 3 --retry-all-errors --retry-delay 2 --max-time 120 \
+            --user-agent "$ua" --referer "https://www.nseindia.com/" \
+            --output artifacts/GAIL_prior_H1_FY26_original.pdf \
+            "https://nsearchives.nseindia.in/corporate/Himanshugail_31102025142548_BMoutcome.pdf"
+          file artifacts/*.pdf
+          pdfinfo artifacts/GAIL_current_H1_FY27.pdf | head -15
+          pdfinfo artifacts/GAIL_prior_H1_FY26_original.pdf | head -15
+      - name: Extract cash flow statements with page layout preserved
+        shell: bash
+        run: |
+          set -euo pipefail
+          pdftotext -layout artifacts/GAIL_current_H1_FY27.pdf artifacts/GAIL_current_H1_FY27.txt
+          pdftotext -layout artifacts/GAIL_prior_H1_FY26_original.pdf artifacts/GAIL_prior_H1_FY26_original.txt
+          for f in artifacts/*.txt; do
+            echo "===== $f ====="
+            grep -in -E -B 4 -A 55 "cash flows from operating activities|cash generated from operations|operating profit before working capital|changes in working capital|net cash.*operating" "$f" | head -180 || true
+          done
+      - name: Upload official PDF and extracted text evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gail-ocf-line-item-official-pdf-audit
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 14
