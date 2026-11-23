@@ -453,14 +453,20 @@ async function startServer() {
       if (symbol) {
         const row = rows.find(item => item.symbol === symbol);
         if (!row) return res.status(404).json({ code: 'NSE_SYMBOL_NOT_IN_BHAVCOPY_UNIVERSE', symbol });
+        const current = getNseFundamentalResearchStatus();
+        if (current.running) {
+          return res.status(409).json({
+            code: 'NSE_FUNDAMENTAL_COLLECTION_ALREADY_RUNNING',
+            mode: 'NSE_OFFICIAL_XBRL_CANDIDATE_RESEARCH',
+            ...current,
+            message: 'An NSE fundamental research collection is already running.',
+          });
+        }
         const status = startNseFundamentalResearchCollection([symbol]);
-        return res.status(status.running && status.total === 1 && status.processed === 0
-          ? 202 : 409).json({
+        return res.status(202).json({
           mode: 'NSE_OFFICIAL_XBRL_CANDIDATE_RESEARCH',
           ...status,
-          message: status.total === 1
-            ? 'NSE candidate research started for this Bhavcopy-eligible symbol.'
-            : 'An NSE fundamental research collection is already running.',
+          message: 'NSE candidate research started for this Bhavcopy-eligible symbol.',
           note: 'Research candidates only; production scanner metrics are unchanged.',
         });
       }
