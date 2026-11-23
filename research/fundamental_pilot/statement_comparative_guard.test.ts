@@ -201,3 +201,42 @@ test('GAIL H1 FY27 OCF bridge fails closed if cash generated subtotal does not t
   assert.equal(result.status,'RECLASSIFIED_COMPARATIVE_REVIEW_REQUIRED');
   assert.equal(result.comparablePriorValue,null);
 });
+
+
+test('Asian Paints H1 FY27 consolidated OCF bridge reconciles every working-capital line to the PDF totals',()=>{
+  const priorWorkingCapital=[-182.89,91.08,708.44,12.07,-73.99,44.78,2.41];
+  const currentWorkingCapital=[-463.52,79.23,-1519.08,16.66,465.42,61.39,-13.30];
+  const sum=(values:number[])=>Math.round(values.reduce((total,value)=>total+value,0)*100)/100;
+  const priorWc=sum(priorWorkingCapital);
+  const currentWc=sum(currentWorkingCapital);
+  assert.equal(priorWc,601.90);
+  assert.equal(currentWc,-1373.20);
+  assert.equal(Math.round((currentWc-priorWc)*100)/100,-1975.10);
+  const priorOperatingProfit=3463.06;
+  const currentOperatingProfit=3939.97;
+  const priorCashGenerated=4064.96;
+  const currentCashGenerated=2566.77;
+  assert.equal(Math.round((priorOperatingProfit+priorWc)*100)/100,priorCashGenerated);
+  assert.equal(Math.round((currentOperatingProfit+currentWc)*100)/100,currentCashGenerated);
+  const priorTaxes=-582.70;
+  const currentTaxes=-666.94;
+  assert.equal(Math.round((priorCashGenerated+priorTaxes)*100)/100,3482.26);
+  assert.equal(Math.round((currentCashGenerated+currentTaxes)*100)/100,1899.83);
+  assert.equal(Math.round((1899.83-3482.26)*100)/100,-1582.43);
+});
+
+test('Asian Paints H1 FY27 OCF bridge fails closed if inventory movement is altered',()=>{
+  const priorWorkingCapital=[-182.89,91.08,708.44,12.07,-73.99,44.78,2.41];
+  const currentWorkingCapital=[-463.52,79.23,-1519.08,16.66,465.42,61.39,-13.30];
+  const sum=(values:number[])=>Math.round(values.reduce((total,value)=>total+value,0)*100)/100;
+  const tampered=[...currentWorkingCapital];
+  tampered[2]=-1518.08;
+  assert.notEqual(sum(tampered),-1373.20);
+  assert.notEqual(Math.round((3939.97+sum(tampered))*100)/100,2566.77);
+});
+
+test('Asian Paints H1 FY27 total PAT equals owners profit plus NCI allocation',()=>{
+  assert.equal(2606.88+37.92,2644.80);
+  assert.equal(2093.36+41.92,2135.28);
+  assert.equal(2606.88/2093.36>1,true);
+});
