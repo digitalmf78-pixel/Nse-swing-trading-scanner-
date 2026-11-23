@@ -11,11 +11,26 @@ test('industrial revenue, profit and OCF have candidate-only definitions',()=>{
   }
 });
 
-test('industrial ROE, ROCE, Debt/Equity and Interest Coverage stay blocked',()=>{
+test('industrial ROE, ROCE, Debt/Equity and Interest Coverage have explicit non-production candidate formulas',()=>{
   for(const metric of ['ROE','ROCE','DEBT_EQUITY','INTEREST_COVERAGE'] as const) {
     const p=getMetricDefinitionPolicy(metric,'NON_FINANCIAL');
-    assert.equal(p.readiness,'BLOCKED_DEFINITION');
-    assert.equal(p.candidateFormula,null);
+    assert.equal(p.readiness,'CANDIDATE_ONLY');
+    assert.ok(p.candidateFormula);
+    assert.ok(p.requiredFacts.length>=3);
+    assert.ok(p.hardGates.length>=4);
+    assert.ok(p.caveats.length>0);
+  }
+});
+
+test('candidate formula policy does not leak into financial or unknown sectors',()=>{
+  for(const sector of ['BANK','NBFC','INSURANCE','UNKNOWN'] as const) {
+    for(const metric of ['ROE','ROCE','DEBT_EQUITY','INTEREST_COVERAGE'] as const) {
+      const p=getMetricDefinitionPolicy(metric,sector);
+      assert.equal(p.candidateFormula,null,`${sector} ${metric} must not inherit an industrial formula`);
+      if(sector==='UNKNOWN') assert.equal(p.readiness,'BLOCKED_UNKNOWN_SECTOR');
+      else if(sector==='BANK' && ['ROCE','DEBT_EQUITY','INTEREST_COVERAGE'].includes(metric)) assert.equal(p.readiness,'NOT_APPLICABLE_GENERIC');
+      else assert.equal(p.readiness,'REQUIRES_SECTOR_SPECIFIC_MAPPING');
+    }
   }
 });
 
@@ -42,23 +57,4 @@ test('NBFC and insurance definitions remain sector-specific',()=>{
 test('unknown sector blocks every formula',()=>{
   assert.equal(getMetricDefinitionPolicy('REVENUE_GROWTH','UNKNOWN').readiness,'BLOCKED_UNKNOWN_SECTOR');
   assert.equal(getMetricDefinitionPolicy('ROE','UNKNOWN').candidateFormula,null);
-});
-
-test('all seven metrics fail closed for every non-industrial sector',()=>{
-  const metrics = [
-    'REVENUE_GROWTH','PROFIT_GROWTH','ROE','ROCE',
-    'DEBT_EQUITY','INTEREST_COVERAGE','OPERATING_CASH_FLOW',
-  ] as const;
-  for(const sector of ['BANK','NBFC','INSURANCE','UNKNOWN'] as const) {
-    for(const metric of metrics) {
-      const policy = getMetricDefinitionPolicy(metric,sector);
-      assert.equal(policy.candidateFormula,null,sector + ' ' + metric + ' must not inherit an industrial formula');
-      if(sector === 'UNKNOWN') assert.equal(policy.readiness,'BLOCKED_UNKNOWN_SECTOR');
-      else if(sector === 'BANK' && ['ROCE','DEBT_EQUITY','INTEREST_COVERAGE'].includes(metric)) {
-        assert.equal(policy.readiness,'NOT_APPLICABLE_GENERIC');
-      } else {
-        assert.equal(policy.readiness,'REQUIRES_SECTOR_SPECIFIC_MAPPING');
-      }
-    }
-  }
 });
