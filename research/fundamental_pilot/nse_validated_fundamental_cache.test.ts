@@ -17,7 +17,7 @@ function profile(value = 12.5, periodEnd = '2026-09-30'): FundamentalProfile {
   const metrics = Object.fromEntries(keys.map(metric => [metric, {
     metric,status:'BLOCKED',value:null,currency:null,unit:null,periodType:'QUARTER',periodStart:'2026-07-01',
     periodEnd,filings:[],rawFacts:[],formulaId:null,formulaVersion:null,validationNotes:['Not yet validated'],
-  }])) as FundamentalProfile['metrics'];
+  }])) as unknown as FundamentalProfile['metrics'];
   metrics.REVENUE_GROWTH = { metric:'REVENUE_GROWTH',status:'VALIDATED',value,currency:null,unit:'PERCENT',
     periodType:'QUARTER',periodStart:'2026-07-01',periodEnd,filings:[filing],rawFacts:[fact],
     formulaId:'revenue-growth-yoy',formulaVersion:'1.0.0',validationNotes:[] };

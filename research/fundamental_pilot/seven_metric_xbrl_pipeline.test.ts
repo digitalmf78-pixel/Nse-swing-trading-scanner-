@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildSevenMetricXbrlPipeline, type XbrlFilingPeriodInput } from './seven_metric_xbrl_pipeline.ts';
+import { buildSevenMetricXbrlPipeline, type IssuerMetricConceptMap, type XbrlFilingPeriodInput } from './seven_metric_xbrl_pipeline.ts';
 import type { XbrlExtraction } from './xbrl_extract.ts';
 
-const concepts={
+const concepts: IssuerMetricConceptMap={
   revenue:'in-capmkt:RevenueFromOperations',
   profit:'in-capmkt:ProfitOrLossAttributableToOwnersOfParent',
   profitAttribution:'OWNERS_OF_PARENT',

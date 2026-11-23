@@ -8,7 +8,7 @@ function profile(periodEnd='2026-09-30', revenueStatus:'VALIDATED'|'BLOCKED'='VA
   const metrics = Object.fromEntries((['REVENUE_GROWTH','PROFIT_GROWTH','ROE','ROCE','DEBT_EQUITY','INTEREST_COVERAGE','OPERATING_CASH_FLOW'] as const).map(metric => [metric,{
     metric,status:'BLOCKED',value:null,currency:null,unit:null,periodType:'QUARTER',periodStart:'2026-07-01',periodEnd,
     filings:[],rawFacts:[],formulaId:null,formulaVersion:null,validationNotes:['Not validated'],
-  }])) as FundamentalProfile['metrics'];
+  }])) as unknown as FundamentalProfile['metrics'];
   metrics.REVENUE_GROWTH = {...metrics.REVENUE_GROWTH,status:revenueStatus,value:revenueStatus==='VALIDATED'?15:null,unit:revenueStatus==='VALIDATED'?'PERCENT':null};
   return {symbol:'ABC',isin:'INE0ABC01010',basis:'STANDALONE',periodEnd,metrics};
 }

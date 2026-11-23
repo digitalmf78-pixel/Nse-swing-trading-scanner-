@@ -58,7 +58,7 @@ test('bank sector does not inherit industrial growth or ratio definitions',()=>{
 });
 
 test('mixed basis is blocked by the candidate comparison guard',()=>{
-  const wrongPrior={...prior,basis:'STANDALONE',revenue:{...prior.revenue!,basis:'STANDALONE'}};
+  const wrongPrior={...prior,basis:'STANDALONE' as const,revenue:{...prior.revenue!,basis:'STANDALONE'}};
   const report=buildSevenMetricCandidateReport('NON_FINANCIAL',current,wrongPrior);
   assert.equal(report.candidates.revenueGrowth?.status,'BLOCKED_BASIS_MISMATCH');
   assert.equal(report.auditMatrix.metrics.REVENUE_GROWTH.decision,'DATA_BLOCKED');

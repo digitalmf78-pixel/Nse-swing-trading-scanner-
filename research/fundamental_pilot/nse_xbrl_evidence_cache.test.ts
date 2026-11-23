@@ -9,7 +9,7 @@ import {validateOfficialXbrlArchiveUrl, mergeXbrlEvidenceDocuments} from '../../
 const doc = (seqId:string, sha256='a'.repeat(64), patch:Partial<any>={}) => ({
   symbol:'ABC',seqId,periodEnd:'2026-03-31',filingType:'Integrated Filing- Financials',
   filingSubType:'Original',basis:'Standalone',filingUrl:'https://nsearchives.nseindia.com/corporate/xbrl/a.xml',
-  fetchedAtUtc:'2026-11-23T00:00:00Z',sha256,extraction:{contexts:{},units:{},facts:[],contextCount:0,factCount:0,warnings:[]},...patch
+  rawArchivePath:'',fetchedAtUtc:'2026-11-23T00:00:00Z',sha256,extraction:{contexts:{},units:{},facts:[],contextCount:0,factCount:0,warnings:[]},...patch
 });
 
 test('XBRL evidence URL accepts official archive host/path only',()=>{

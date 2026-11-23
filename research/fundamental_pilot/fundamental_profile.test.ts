@@ -18,7 +18,7 @@ function makeProfile(): FundamentalProfile {
     metric,status:'BLOCKED',value:null,currency:null,unit:null,periodType:'QUARTER',
     periodStart:'2026-07-01',periodEnd:'2026-09-30',filings:[],rawFacts:[],
     formulaId:null,formulaVersion:null,validationNotes:['Awaiting source and formula validation'],
-  }])) as FundamentalProfile['metrics'];
+  }])) as unknown as FundamentalProfile['metrics'];
   metrics.REVENUE_GROWTH={
     metric:'REVENUE_GROWTH',status:'VALIDATED',value:12.5,currency:null,unit:'PERCENT',
     periodType:'QUARTER',periodStart:'2026-07-01',periodEnd:'2026-09-30',
