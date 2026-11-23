@@ -1,6 +1,6 @@
 # Research-only NSE/BSE fundamental data pilot
 
-This folder is isolated from the scanner runtime. The intended production implementation is TypeScript because this Google AI Studio project is a Node.js/TypeScript application.
+This folder contains the research-only TypeScript engines used by the NSE candidate-research service in the scanner server. The service is reachable from the Fundamental Audit UI/API, but every output remains candidate-only and is stored separately; no unapproved metric is written to the production scanner cache.
 
 ## Current TypeScript extractor
 
@@ -58,9 +58,9 @@ This folder is isolated from the scanner runtime. The intended production implem
 ## Official source strategy
 
 1. NSE Integrated Filing - Financials / Regulation 33 XBRL is primary.
-2. BSE Integrated Filing - Financial is an official cross-check/fallback.
-3. Screener.in packages may be used only as non-authoritative comparison sources after terms and data provenance are checked. They must not override official filings.
-4. Yahoo Finance remains price-only in the target design. Its current fundamental code path has not yet been removed because the official replacement is not yet validated.
+2. BSE Integrated Filing is not used as a fallback for this NSE-only scanner fundamental path; missing NSE evidence remains MISSING/BLOCKED.
+3. Third-party packages and aggregator sites are not accepted as fundamental sources for scanner decisions.
+4. Yahoo Finance is retained only for live price/quote/chart paths. Legacy Yahoo/BSE fundamental fetch and batch routes fail closed and do not return fundamentals.
 
 NSE official references:
 - Integrated Filing: https://www.nseindia.in/companies-listing/corporate-integrated-filing
@@ -70,14 +70,14 @@ NSE official references:
 
 ## Important limits — not production-ready
 
-- This is a raw-fact extractor, not a seven-metric fundamentals engine.
-- It does not yet map the current NSE Regulation 33 taxonomy concepts to all seven metrics.
-- It does not yet select a single consistent consolidated/standalone basis, audited status, or original/revised filing version.
-- It does not yet derive quarter-only values from YTD periods or calculate ratios.
+- The candidate-research service now orchestrates NSE filing history, exact current/prior Original pairs, all available revisions, XBRL evidence download, strict fact selection, candidate calculations and issuer-identity checks.
+- Revenue Growth, Profit Growth and OCF are candidate-eligible only where exact taxonomy mapping, period, basis, unit and revision checks pass. EPS is separately extracted as an INR-per-share candidate and remains non-production.
+- ROE, ROCE, Debt/Equity and Interest Coverage remain blocked until numerator/denominator, average-balance, lease, annualization, sector and statement-reconciliation policies are explicitly approved.
+- Quarterly OCF from YTD is available only through a separate research helper and is not yet integrated into the main candidate service; no ratio is released to the scanner.
 - It does not yet handle ZIP decompression, Inline XBRL continuation chains, or every issuer-specific taxonomy extension.
 - The synthetic test suite is not evidence of real-issuer parser correctness.
 - Real official NSE raw XBRL bytes have now been downloaded and parsed for ITC, HDFC Bank and KSH International in isolated GitHub Actions runs. This validates selected real-issuer parser paths only; it does not prove complete taxonomy coverage across the NSE universe.
-- Do not connect this pilot to app runtime until real filing fixtures, taxonomy mapping, period/basis/revision rules, and cross-source reconciliation pass.
+- The Fundamental Audit UI/API can start this isolated research service. This is not production metric integration: no candidate or EPS value is written into the scanner's validated fundamental cache. Production release still requires real-filing fixtures, statement/PDF reconciliation, audited-status policy, and approved formula/version gates.
 
 ## Data quality rules
 
