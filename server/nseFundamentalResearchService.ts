@@ -371,6 +371,9 @@ async function processIssuer(
     .filter((doc): doc is NseXbrlEvidenceDocument => Boolean(doc));
   const currentRevisionDocs = revisionDocsFor(pair.currentRows);
   const priorRevisionDocs = revisionDocsFor(pair.priorRows);
+  if ([...currentRevisionDocs, ...priorRevisionDocs].some(doc => doc.extraction.warnings.length > 0)) {
+    return { report: blocked(symbol, sector, 'A revision XBRL parser warning is present; revision comparison is incomplete.'), xbrlSaved: download.saved };
+  }
   const currentRevisionAudit = auditRevisions(
     currentDoc, currentRevisionDocs, mapping.conceptMap, currentStart,
     pair.currentPeriodEnd, currentType, basis,
@@ -419,10 +422,20 @@ async function runCollection(
       },
     });
     const filingCache = loadNseFilingHistoryCache();
+    const filingFailures = new Map(filingReport.failed.map(item => [item.symbol, item.error]));
     for (const symbol of symbols) {
       job.currentSymbol = symbol;
       const cached = filingCache.symbols[symbol]?.rows ?? [];
       try {
+        if (filingFailures.has(symbol)) {
+          const report = blocked(symbol, classifyIssuerSector(sectorBySymbol[symbol] ?? ''),
+            'Fresh NSE filing metadata fetch failed; stale cached filing history was not used: ' + filingFailures.get(symbol));
+          appendCandidateReport(report);
+          job.processed += 1;
+          job.failed += 1;
+          job.lastError = report.warnings[0];
+          continue;
+        }
         const sector = classifyIssuerSector(sectorBySymbol[symbol] ?? '');
         const result = await processIssuer(symbol, sector, cached, fetchImpl);
         job.xbrlDocumentsSaved += result.xbrlSaved;
