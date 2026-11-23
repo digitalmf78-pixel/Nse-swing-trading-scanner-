@@ -39,6 +39,31 @@ test('fetches official NSE industry classification and ISIN', async () => {
   assert.equal(buildNseIndustryText(record), 'Financial Services | Financial Services | Banks | Private Sector Bank');
 });
 
+test('falls back to the second official NSE host when the primary quote API is blocked', async () => {
+  const fetchImpl: typeof fetch = async input => {
+    const url = String(input);
+    if (url === 'https://www.nseindia.com/') {
+      return new Response('ok', { status: 200, headers: { 'set-cookie': 'primary=1; Path=/' } });
+    }
+    if (url.startsWith('https://www.nseindia.com/api/quote-equity')) {
+      return new Response('blocked', { status: 403 });
+    }
+    if (url === 'https://www.nseindia.in/') {
+      return new Response('ok', { status: 200, headers: { 'set-cookie': 'fallback=1; Path=/' } });
+    }
+    if (url.startsWith('https://www.nseindia.in/api/quote-equity')) {
+      return new Response(JSON.stringify({
+        info: { isin: 'INE123A01016' },
+        industryInfo: { macro: 'Industrials', sector: 'Capital Goods', industry: 'Industrial Products', basicIndustry: 'Bearings' },
+      }), { status: 200, headers: { 'content-type': 'application/json' } });
+    }
+    throw new Error('Unexpected NSE URL: ' + url);
+  };
+  const record = await fetchNseIssuerIndustry('ABC', fetchImpl);
+  assert.match(record.sourceUrl, /^https:\/\/www\.nseindia\.in\//);
+  assert.equal(record.industry, 'Industrial Products');
+});
+
 test('blocks invalid ISIN and missing industry classification', async () => {
   const invalidIsin: typeof fetch = async () => new Response(JSON.stringify({
     info: { isin: 'BAD' }, industryInfo: { industry: 'Banks' },
