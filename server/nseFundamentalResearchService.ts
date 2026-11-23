@@ -353,6 +353,12 @@ async function processIssuer(
   fetchImpl: typeof fetch,
   isin: string | null,
 ): Promise<{ report: NseFundamentalResearchResult; xbrlSaved: number }> {
+  if (sector !== 'NON_FINANCIAL') {
+    const reason = sector === 'UNKNOWN'
+      ? 'Official NSE industry classification is missing or unrecognized; issuer is not assumed to be non-financial.'
+      : 'Issuer belongs to ' + sector + '; industrial-company metric formulas are not applied to financial-sector issuers.';
+    return { report: blocked(symbol, sector, reason), xbrlSaved: 0 };
+  }
   const pair = selectLatestComparableFilingPair(rows, symbol);
   if (!pair) return { report: blocked(symbol, sector, 'No exact current and prior-year Original NSE financial filing pair with matching basis was found.'), xbrlSaved: 0 };
 
