@@ -527,10 +527,15 @@ async function runCollection(
           const report = blocked(symbol, classifyIssuerSector(sectorBySymbol[symbol] ?? ''),
             'Fresh NSE filing metadata fetch failed; stale cached filing history was not used: ' + filingFailures.get(symbol));
           appendCandidateReport(report, candidateCache!);
-          candidateCacheDirty = true;
+        candidateCacheDirty = true;
           job.processed += 1;
           job.failed += 1;
           job.lastError = report.warnings[0];
+          if (candidateCacheDirty && job.processed % 25 === 0) {
+            saveCandidateCache(candidateCache!);
+            candidateCacheDirty = false;
+          }
+          await new Promise(resolve => setTimeout(resolve, 150));
           continue;
         }
         const sector = classifyIssuerSector(sectorBySymbol[symbol] ?? '');
