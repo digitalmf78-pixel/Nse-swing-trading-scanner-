@@ -365,14 +365,18 @@ export function saveCandidateCache(cache: CandidateCache, filePath = CANDIDATE_C
   else fs.renameSync(temp, filePath);
 }
 
-export function getNseFundamentalCandidateReports(symbol?: string, limit = 100): {
+export function getNseFundamentalCandidateReports(
+  symbol?: string,
+  limit = 100,
+  filePath = CANDIDATE_CACHE_FILE,
+): {
   source: 'NSE_OFFICIAL';
   productionApproved: false;
   symbols: number;
   reportCount: number;
   reports: Array<{ reportHash: string; savedAtUtc: string; report: NseFundamentalResearchResult }>;
 } {
-  const cache = loadCandidateCache();
+  const cache = loadCandidateCache(filePath);
   const normalized = symbol?.trim().toUpperCase();
   const entries = normalized
     ? (cache.symbols[normalized]?.reports ?? [])
