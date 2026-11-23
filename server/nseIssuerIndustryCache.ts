@@ -60,8 +60,8 @@ export function loadNseIssuerIndustryCache(file = CACHE_FILE): NseIssuerIndustry
         || (row.isin !== '' && !ISIN_RE.test(row.isin))
         || !buildNseIndustryText(row)) {
       throw new Error('NSE issuer industry cache identity validation failed: ' + symbol);
-      validateOfficialQuoteUrl(row.sourceUrl, symbol);
     }
+    validateOfficialQuoteUrl(row.sourceUrl, symbol);
   }
   return { schemaVersion: 1, updatedAtUtc: parsed.updatedAtUtc ?? '', symbols: parsed.symbols };
 }
