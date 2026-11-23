@@ -224,6 +224,17 @@ function loadCandidateCache(): CandidateCache {
   if (parsed.schemaVersion !== 1 || !parsed.symbols || typeof parsed.symbols !== 'object' || Array.isArray(parsed.symbols)) {
     throw new Error('NSE candidate cache schema invalid; refusing to overwrite');
   }
+  for (const [symbol, entry] of Object.entries(parsed.symbols)) {
+    if (symbol !== symbol.trim().toUpperCase() || !entry || entry.symbol !== symbol || !Array.isArray(entry.reports)) {
+      throw new Error('NSE candidate cache issuer entry invalid: ' + symbol);
+    }
+    for (const item of entry.reports) {
+      if (!item || !item.report || item.report.symbol !== symbol || !/^[a-f0-9]{64}$/.test(item.reportHash)
+          || createHash('sha256').update(JSON.stringify(item.report)).digest('hex') !== item.reportHash) {
+        throw new Error('NSE candidate cache report integrity failed: ' + symbol);
+      }
+    }
+  }
   return { schemaVersion: 1, updatedAtUtc: parsed.updatedAtUtc ?? '', symbols: parsed.symbols };
 }
 
@@ -257,8 +268,9 @@ export function getNseFundamentalCandidateReports(symbol?: string, limit = 100):
   const entries = normalized
     ? (cache.symbols[normalized]?.reports ?? [])
     : Object.values(cache.symbols).flatMap(entry => entry.reports);
+  const safeLimit = Number.isFinite(limit) ? Math.max(1, Math.min(1000, Math.floor(limit))) : 100;
   const reports = [...entries].sort((a, b) => b.savedAtUtc.localeCompare(a.savedAtUtc))
-    .slice(0, Math.max(1, Math.min(1000, Math.floor(limit))));
+    .slice(0, safeLimit);
   return {
     source: 'NSE_OFFICIAL',
     productionApproved: false,
