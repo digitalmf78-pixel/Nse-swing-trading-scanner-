@@ -9,6 +9,7 @@ on:
     paths:
       - "src/**"
       - "server/**"
+      - "research/**"
       - "scripts/**"
       - "data/**"
       - "outputs/**"
