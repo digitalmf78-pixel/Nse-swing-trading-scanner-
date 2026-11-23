@@ -46,7 +46,7 @@ test('pipeline adapter clears legacy seven-metric values and never falls back fo
   const legacy = {
     symbol:'ABC', revenueGrowthPct:44, profitGrowthPct:33, roePct:22, rocePct:21,
     debtToEquity:0.2, interestCoverage:8, operatingCashFlowInr:900,
-    trailingPE:28, epsPrev:4.2, epsCurr:3.1, epsTtmPrev:15, epsTtmCurr:12,
+    trailingPE:28, priceToBook:4, dividendYieldPct:2, freeCashFlowInr:500, earningsQualityStatus:'PASS', valuationStatus:'PASS', epsPrev:4.2, epsCurr:3.1, epsTtmPrev:15, epsTtmCurr:12,
     epsPrevPeriod:'2026-03-31', epsCurrPeriod:'2026-06-30',
     source:'Yahoo Finance (.NS)',
     fundamentalSources:['Yahoo Finance (.NS)','Free Source Cache'],
@@ -62,6 +62,11 @@ test('pipeline adapter clears legacy seven-metric values and never falls back fo
   assert.equal(applied.interestCoverage,null);
   assert.equal(applied.operatingCashFlowInr,null);
   assert.equal(applied.trailingPE,null);
+  assert.equal(applied.priceToBook,null);
+  assert.equal(applied.dividendYieldPct,null);
+  assert.equal(applied.freeCashFlowInr,null);
+  assert.equal(applied.earningsQualityStatus,'BLOCKED');
+  assert.equal(applied.valuationStatus,'BLOCKED');
   assert.equal(applied.epsPrev,null);
   assert.equal(applied.epsCurr,null);
   assert.equal(applied.epsTtmPrev,null);
@@ -92,5 +97,32 @@ test('pipeline adapter clears legacy seven-metric values when no approved NSE pr
   assert.equal(applied.epsCurr,null);
   assert.equal(applied.epsTtmPrev,null);
   assert.equal(applied.epsTtmCurr,null);
+  assert.deepEqual(applied.fundamentalSources,[]);
+});
+
+
+test('pipeline adapter withholds EPS and valuation even when legacy source label is not Yahoo', () => {
+  const legacy = {
+    symbol:'NO-SOURCE', revenueGrowthPct:10, profitGrowthPct:20, roePct:12, rocePct:14,
+    debtToEquity:0.5, interestCoverage:3, operatingCashFlowInr:100,
+    trailingPE:19, priceToBook:2.1, dividendYieldPct:1.5, freeCashFlowInr:40,
+    epsPrev:3, epsCurr:4, epsTtmPrev:10, epsTtmCurr:12,
+    epsPrevPeriod:'2025-09-30', epsCurrPeriod:'2026-09-30',
+    earningsQualityStatus:'PASS', valuationStatus:'PASS',
+    source:'Unknown', fundamentalSources:['Unknown provider'],
+  } as unknown as ScannerFundamentalProfile;
+  const applied = applyNseValidatedFundamentalPatches(new Map([['NO-SOURCE',legacy]]),new Map()).get('NO-SOURCE')!;
+  assert.equal(applied.trailingPE,null);
+  assert.equal(applied.priceToBook,null);
+  assert.equal(applied.dividendYieldPct,null);
+  assert.equal(applied.freeCashFlowInr,null);
+  assert.equal(applied.epsPrev,null);
+  assert.equal(applied.epsCurr,null);
+  assert.equal(applied.epsTtmPrev,null);
+  assert.equal(applied.epsTtmCurr,null);
+  assert.equal(applied.epsPrevPeriod,'');
+  assert.equal(applied.epsCurrPeriod,'');
+  assert.equal(applied.earningsQualityStatus,'BLOCKED');
+  assert.equal(applied.valuationStatus,'BLOCKED');
   assert.deepEqual(applied.fundamentalSources,[]);
 });
