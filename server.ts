@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { nsePipeline } from './server/nsePipeline.ts';
 import { getNseFilingHistoryJobStatus } from './server/nseFilingHistoryCache.ts';
-import { getNseFundamentalResearchStatus, startNseFundamentalResearchCollection } from './server/nseFundamentalResearchService.ts';
+import { getNseFundamentalResearchStatus, getNseFundamentalCandidateReports, startNseFundamentalResearchCollection } from './server/nseFundamentalResearchService.ts';
 import { evaluateRiskControls } from './server/riskControls.ts';
 import { runEcmsGeminiResearch } from './server/geminiResearch.ts';
 import {
@@ -511,6 +511,16 @@ async function startServer() {
 
   app.get('/api/fundamentals/collect-status', (_req, res) => {
     res.json(getNseFundamentalResearchStatus());
+  });
+
+  app.get('/api/fundamentals/nse-candidates', (req, res) => {
+    try {
+      const symbol = typeof req.query.symbol === 'string' ? req.query.symbol : undefined;
+      const limit = typeof req.query.limit === 'string' ? Number(req.query.limit) : 100;
+      return res.json(getNseFundamentalCandidateReports(symbol, limit));
+    } catch (err) {
+      return res.status(500).json({ error: (err as Error).message });
+    }
   });
 
   app.get('/api/fundamentals/nse-filing-history-status', (_req, res) => {
