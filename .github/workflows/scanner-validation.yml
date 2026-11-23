@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
+      - main
       - fix/delivery-30d-criteria-labels
     paths:
       - "src/**"
@@ -33,7 +34,7 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - name: Checkout isolated scanner branch
+      - name: Checkout scanner source branch
         uses: actions/checkout@v4
 
       - name: Set up Node.js
@@ -43,11 +44,6 @@ jobs:
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
-
-      - name: Read-only NSE data audit
-        id: dataaudit
-        continue-on-error: true
-        run: npm run audit:data
 
       - name: TypeScript validation
         id: typecheck
@@ -70,7 +66,6 @@ jobs:
             echo "- Commit: ${GITHUB_SHA}"
             echo "- Node: $(node --version 2>/dev/null || echo unavailable)"
             echo "- npm: $(npm --version 2>/dev/null || echo unavailable)"
-            echo "- Read-only data audit: ${{ steps.dataaudit.outcome }}"
             echo "- TypeScript check: ${{ steps.typecheck.outcome }}"
             echo "- Production build: ${{ steps.build.outcome }}"
             echo
