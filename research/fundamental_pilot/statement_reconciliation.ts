@@ -95,8 +95,8 @@ function evidenceMetadataIssues(facts: StatementFactEvidence[]): string[] {
     if (!fact.issuerSymbol?.trim() || !fact.isin?.trim()
       || !fact.filingSequenceId?.trim()
       || !/^[a-f0-9]{64}$/i.test(fact.sourceDocumentSha256 ?? '')
-      || !/^\\d{4}-\\d{2}-\\d{2}$/.test(fact.periodStart ?? '')
-      || !/^\\d{4}-\\d{2}-\\d{2}$/.test(fact.periodEnd ?? '')
+      || !/^\d{4}-\d{2}-\d{2}$/.test(fact.periodStart ?? '')
+      || !/^\d{4}-\d{2}-\d{2}$/.test(fact.periodEnd ?? '')
       || fact.periodStart >= fact.periodEnd
       || !fact.currency?.trim() || !fact.unit?.trim()
       || !['Standalone', 'Consolidated'].includes(fact.basis)
