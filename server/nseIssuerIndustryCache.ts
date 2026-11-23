@@ -81,6 +81,16 @@ export class NseIssuerIndustryClient {
   private readonly baseUrls: string[];
   private readonly cookies = new Map<string, string>();
   private readonly initializedBases = new Set<string>();
+  private lastQuoteRequestAt = 0;
+
+  private async waitForQuoteRequestSlot(): Promise<void> {
+    const minimumSpacingMs = 150;
+    const elapsed = Date.now() - this.lastQuoteRequestAt;
+    if (elapsed < minimumSpacingMs) {
+      await new Promise(resolve => setTimeout(resolve, minimumSpacingMs - elapsed));
+    }
+    this.lastQuoteRequestAt = Date.now();
+  }
 
   constructor(options: NseQuoteClientOptions = {}) {
     this.fetchImpl = options.fetchImpl ?? fetch;
@@ -139,6 +149,7 @@ export class NseIssuerIndustryClient {
         };
         const cookie = this.cookies.get(baseUrl) ?? '';
         if (cookie) headers.Cookie = cookie;
+        await this.waitForQuoteRequestSlot();
         const response = await this.fetchImpl(url, {
           method: 'GET',
           headers,
