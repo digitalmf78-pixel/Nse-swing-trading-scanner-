@@ -12,8 +12,15 @@ import {
 
 test('fetches official NSE industry classification and ISIN', async () => {
   let requested = '';
-  const fetchImpl: typeof fetch = async input => {
+  let apiCookie = '';
+  let calls = 0;
+  const fetchImpl: typeof fetch = async (input, init) => {
+    calls += 1;
+    if (calls === 1) {
+      return new Response('ok', { status: 200, headers: { 'set-cookie': 'nseSession=abc; Path=/' } });
+    }
     requested = String(input);
+    apiCookie = (init?.headers as Record<string, string>)?.Cookie ?? '';
     return new Response(JSON.stringify({
       info: { isin: 'INE123A01016' },
       industryInfo: {
@@ -26,6 +33,7 @@ test('fetches official NSE industry classification and ISIN', async () => {
   };
   const record = await fetchNseIssuerIndustry('abc', fetchImpl);
   assert.match(requested, /quote-equity\\?symbol=ABC/);
+  assert.equal(apiCookie, 'nseSession=abc');
   assert.equal(record.symbol, 'ABC');
   assert.equal(record.isin, 'INE123A01016');
   assert.equal(buildNseIndustryText(record), 'Financial Services | Financial Services | Banks | Private Sector Bank');
