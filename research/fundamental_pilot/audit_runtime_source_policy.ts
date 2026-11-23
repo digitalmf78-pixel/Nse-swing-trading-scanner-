@@ -91,10 +91,12 @@ check(
 );
 
 check(
-  'Annual statement inputs are not inferred from Yahoo',
+  'Bot keeps Yahoo OHLCV only and withholds Yahoo financial statements',
   bot.includes('annualYears: []')
-    && bot.includes('const fund = detail.fundamentals'),
-  'Bot annual statements are not explicitly withheld pending the NSE annual-statement pipeline',
+    && bot.includes('const fund = detail.fundamentals')
+    && !/quoteSummary|fundamentals-timeseries|fetchYahooSummary|fetchYahooAnnualTimeseries/i.test(bot)
+    && bot.includes('fetchYahoo3YChart'),
+  'Yahoo financial statement endpoints or cached annual metrics remain in the bot; only Yahoo chart history is allowed',
 );
 
 check(
