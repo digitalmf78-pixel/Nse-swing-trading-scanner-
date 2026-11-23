@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { runNseFundamentalBatch } from './nse_fundamental_batch_engine.ts';
+import { formatNsePeriodDate, runNseFundamentalBatch } from './nse_fundamental_batch_engine.ts';
 
 test('NSE fundamental batch requires at least one issuer', async () => {
   await assert.rejects(
@@ -72,4 +72,16 @@ test('NSE fundamental batch preserves input order for invalid issuer rows', asyn
   assert.equal(report.blocked, 1);
   assert.equal(report.results[0].symbol, 'INVALID SYMBOL');
   assert.equal(report.results[0].status, 'BLOCKED');
+});
+
+
+test('NSE period formatter accepts valid ISO dates and formats NSE API date', () => {
+  assert.equal(formatNsePeriodDate('2026-09-30'), '30-Sep-2026');
+  assert.equal(formatNsePeriodDate('2026-03-31'), '31-Mar-2026');
+});
+
+test('NSE period formatter rejects malformed and impossible dates', () => {
+  assert.throws(() => formatNsePeriodDate('26-09-2026'), /Invalid ISO period end/);
+  assert.throws(() => formatNsePeriodDate('2026-02-30'), /Invalid ISO period end/);
+  assert.throws(() => formatNsePeriodDate('2026/09/30'), /Invalid ISO period end/);
 });
