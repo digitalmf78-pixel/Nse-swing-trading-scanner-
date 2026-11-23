@@ -5,7 +5,6 @@ import { loadNseValidatedFundamentalCache } from './nseValidatedFundamentalCache
 import { applyNseValidatedFundamentalPatches, selectNseScannerFundamentalPatches } from './nseValidatedFundamentalAdapter.ts';
 import {
   classifyMarketCap,
-  loadLiveFundamentalOverrides,
   toIstDateIso,
 } from './liveFetcher.ts';
 import {
@@ -604,66 +603,6 @@ class NsePipelineEngine {
       if (prof) {
         this.fundamentalsBySymbol.set(sym, this.recomputeChecks(prof));
       }
-    }
-  }
-
-  private mergeLiveOverrides(): void {
-    const overrides = loadLiveFundamentalOverrides();
-    for (const [rawSym, rec] of Object.entries(overrides)) {
-      const sym = rawSym.trim().toUpperCase();
-      const existing = this.fundamentalsBySymbol.get(sym) ?? this.emptyFundamentalProfile(sym);
-      const validRecDe =
-        rec.debtToEquity !== null &&
-        rec.debtToEquity !== undefined &&
-        rec.debtToEquity >= 0 &&
-        (rec.debtToEquity > 0.005 || existing.debtToEquity === null)
-          ? rec.debtToEquity
-          : existing.debtToEquity;
-      const validRecIc =
-        rec.interestCoverage !== null &&
-        rec.interestCoverage !== undefined &&
-        (rec.interestCoverage > 0.1 || existing.interestCoverage === null)
-          ? rec.interestCoverage
-          : existing.interestCoverage;
-      const merged: FundamentalProfile = {
-        ...existing,
-        asOfDate: rec.asOfDate || existing.asOfDate,
-        source: rec.source || existing.source,
-        sourceUrl: rec.sourceUrl || existing.sourceUrl,
-        financialPeriodEnd: rec.financialPeriodEnd || existing.financialPeriodEnd,
-        publicationDate: rec.publicationDate || existing.publicationDate,
-        officialFilingUrl: rec.officialFilingUrl || existing.officialFilingUrl,
-        officialFilingSource: rec.officialFilingSource || existing.officialFilingSource,
-        fundamentalSources: Array.from(
-          new Set([...(existing.fundamentalSources || []), ...(rec.sources || [])])
-        ),
-        lastUpdatedUtc: rec.fetchedAtUtc || rec.asOfDate || existing.lastUpdatedUtc,
-        providerSector: rec.providerSector || existing.providerSector,
-        revenueGrowthPct: rec.revenueGrowthPct ?? existing.revenueGrowthPct,
-        profitGrowthPct: rec.profitGrowthPct ?? existing.profitGrowthPct,
-        roePct: rec.roePct ?? existing.roePct,
-        rocePct: rec.rocePct ?? existing.rocePct,
-        debtToEquity: validRecDe !== null && validRecDe >= 0 ? validRecDe : null,
-        interestCoverage: validRecIc !== null && validRecIc > 0.1 ? validRecIc : null,
-        operatingCashFlowInr: rec.operatingCashFlowInr ?? existing.operatingCashFlowInr,
-        freeCashFlowInr: rec.freeCashFlowInr ?? existing.freeCashFlowInr,
-        trailingPE: rec.trailingPE ?? existing.trailingPE,
-        priceToBook: rec.priceToBook ?? existing.priceToBook,
-        marketCapInr: rec.marketCapInr ?? existing.marketCapInr,
-        enterpriseValueInr: rec.enterpriseValueInr ?? existing.enterpriseValueInr,
-        dividendYieldPct: rec.dividendYieldPct ?? existing.dividendYieldPct,
-        promoterHoldingPct: rec.promoterHoldingPct ?? existing.promoterHoldingPct,
-        epsPrev: rec.epsPrev ?? existing.epsPrev,
-        epsCurr: rec.epsCurr ?? existing.epsCurr,
-        epsPrevPeriod: rec.epsPrevPeriod || existing.epsPrevPeriod,
-        epsCurrPeriod: rec.epsCurrPeriod || existing.epsCurrPeriod,
-        epsTtmPrev: rec.epsTtmPrev ?? existing.epsTtmPrev,
-        epsTtmCurr: rec.epsTtmCurr ?? existing.epsTtmCurr,
-        firstTradeDateIso: rec.firstTradeDateIso || existing.firstTradeDateIso,
-        nextEarningsDate: rec.nextEarningsDate || existing.nextEarningsDate,
-        companyName: rec.companyName || existing.companyName,
-      };
-      this.fundamentalsBySymbol.set(sym, this.recomputeChecks(merged));
     }
   }
 
