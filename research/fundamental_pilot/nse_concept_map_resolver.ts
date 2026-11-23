@@ -75,9 +75,11 @@ function resolveAcrossPeriods(
 
 /**
  * Conservative automatic mapping for non-financial issuers.
- * It maps only the three well-defined statement concepts by exact taxonomy
- * local name, requires one QName in each filing and requires the QName to be
- * identical across current/prior filings. It never guesses custom extensions.
+ * Revenue and Profit are the minimum pair required for growth candidates.
+ * OCF is mapped independently; a missing OCF concept blocks only OCF and
+ * never suppresses exact Revenue/Profit candidates. Every mapped concept
+ * requires one QName in each filing and the same QName across periods.
+ * Custom extensions are never guessed.
  */
 export function resolveNseConceptMap(
   sector: IssuerSector,
