@@ -390,11 +390,22 @@ async function processIssuer(
   };
   const hasRevisionHistory = pair.currentRows.some(row => row.type_Sub === 'Revision')
     || pair.priorRows.some(row => row.type_Sub === 'Revision');
-  const status = hasRevisionHistory && !revisionAudit.stable ? 'REVISION_REVIEW_REQUIRED' : 'CANDIDATE_READY';
+  const candidateIssues = [
+    ['Revenue Growth', candidateReport.candidateReport.candidates.revenueGrowth?.status],
+    ['Profit Growth', candidateReport.candidateReport.candidates.profitGrowth?.status],
+    ['Operating Cash Flow', candidateReport.candidateReport.candidates.operatingCashFlow?.status],
+  ].filter(([, status]) => status !== 'CANDIDATE_ONLY')
+    .map(([metric, status]) => metric + ': candidate calculation status ' + String(status ?? 'MISSING'));
+  const status = candidateIssues.length > 0
+    ? 'BLOCKED'
+    : hasRevisionHistory && !revisionAudit.stable
+      ? 'REVISION_REVIEW_REQUIRED'
+      : 'CANDIDATE_READY';
   const warnings = [
     ...(hasRevisionHistory ? ['Every Original/Revision exact-period Revenue, Profit and OCF fact was compared.'] : []),
     ...revisionAudit.changedMetrics.map(metric => metric + ' changed in revision history.'),
     ...revisionAudit.issues,
+    ...candidateIssues,
     'Research candidates only: no values are written to the production scanner cache.',
     'OCF statement reconciliation and signed statement PDF cross-check remain required before any production release.',
   ];
