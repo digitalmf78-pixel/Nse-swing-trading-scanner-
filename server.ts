@@ -415,7 +415,7 @@ async function startServer() {
     }
   });
 
-  // Automatic & Explicit Fundamental Save-to-Cache (Single Symbol or Bhavcopy Universe)
+  // Save-to-Cache: single-symbol legacy Yahoo fetch is disabled; Bhavcopy scope stages NSE filing evidence only.
   app.post('/api/fundamentals/save-to-cache', async (req, res) => {
     try {
       const symbol =
@@ -443,57 +443,19 @@ async function startServer() {
             error: 'Legacy Yahoo fundamental collection is disabled. Only Bhavcopy-scoped NSE filing evidence sync is currently available.',
           });
         }
-        const result = await saveSymbolFundamentalsToCache(
-          symbol,
-          nsePipeline.getXbrlFilingsForSymbol(symbol),
-          forceBse
-        );
-        if (result.record) {
-          nsePipeline.reload();
-        }
-        const detail = nsePipeline.getStockDetail(symbol);
-        return res.json({
-          saved: Boolean(result.record),
-          symbol,
-          totalSavedCount: result.totalSavedCount,
-          error: result.error || null,
-          summary: detail?.summary ?? null,
-          auditEntry: detail?.fundamentalAuditRows?.[0] ?? null,
-        });
-      }
 
-        const targets = nsePipeline.getAuditCollectionTargets(scope);
-        if (scope === 'BHAVCOPY') {
-          const status = startNseFilingHistoryCollection(targets);
-          return res.json({
-            started: status.running,
-            mode: 'NSE_OFFICIAL_FILING_HISTORY_ONLY',
-            ...status,
-            note: 'Official NSE filing metadata is staged separately; no Yahoo fundamental values are written to the main cache.',
-          });
-        }
-        if (targets.length === 0) {
-          return res.json({
-            started: false,
-            ...getCollectionJobStatus(),
-            message: 'All Bhavcopy symbols in the selected scope are already saved & up to date in cache.',
-          });
-        }
-
-        const status = startFullFundamentalCollection(
-          targets,
-          scope,
-          nsePipeline.getXbrlBySymbolMap(),
-          () => nsePipeline.reload()
-        );
+        const targets = nsePipeline.getAuditCollectionTargets('BHAVCOPY');
+        const status = startNseFilingHistoryCollection(targets);
         return res.json({
-          started: true,
+          started: status.running,
+          mode: 'NSE_OFFICIAL_FILING_HISTORY_ONLY',
           ...status,
+          note: 'Official NSE filing metadata is staged separately; no fundamental metric values are yet approved or written to the main cache.',
         });
       }
 
       return res.status(400).json({
-        error: 'Provide either { symbol } or { saveAll: true } in request body.',
+        error: 'Provide either { symbol } or { saveAll: true, scope: "BHAVCOPY" } in request body.',
       });
     } catch (err) {
       return res.status(500).json({ error: (err as Error).message });
