@@ -83,7 +83,8 @@ function filingBasis(basis: 'STANDALONE' | 'CONSOLIDATED'): 'Standalone' | 'Cons
 function officialArchiveUrl(value: string | undefined): URL {
   if (!value) throw new Error('NSE filing row is missing its XBRL archive URL');
   const url = new URL(value);
-  if (url.protocol !== 'https:' || !['nsearchives.nseindia.in', 'nsearchives.nseindia.com'].includes(url.hostname)
+  if (url.protocol !== 'https:' || url.port !== '' || url.username !== '' || url.password !== ''
+      || !['nsearchives.nseindia.in', 'nsearchives.nseindia.com'].includes(url.hostname)
       || !url.pathname.startsWith('/corporate/xbrl/')) {
     throw new Error('XBRL archive URL is outside the official NSE archive allowlist');
   }
@@ -120,7 +121,7 @@ async function fetchOriginal(
   if (!response.ok) throw new Error(`${symbol}: NSE XBRL archive returned HTTP ${response.status}`);
   if (response.url) {
     const finalUrl = new URL(response.url);
-    if (finalUrl.protocol !== 'https:'
+    if (finalUrl.protocol !== 'https:' || finalUrl.port !== '' || finalUrl.username !== '' || finalUrl.password !== ''
         || !['nsearchives.nseindia.in', 'nsearchives.nseindia.com'].includes(finalUrl.hostname)
         || !finalUrl.pathname.startsWith('/corporate/xbrl/')) {
       throw new Error(`${symbol}: XBRL archive redirected outside the official NSE archive allowlist`);
