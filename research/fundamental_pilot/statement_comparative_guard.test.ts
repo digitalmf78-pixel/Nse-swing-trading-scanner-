@@ -92,3 +92,68 @@ test('accepts TEMBO standalone OCF statement values as candidate-only after reco
   assert.equal(result.comparablePriorValue,644929000);
   assert.equal(result.productionApproved,false);
 });
+
+
+test('Asian Paints H1 FY27 Revenue reconciles across both official PDF periods',()=>{
+  const result=assessStatementComparativeGuard({
+    currentXbrl:20518.45,priorOriginalXbrl:17469.82,
+    currentPdfCurrent:20518.45,currentPdfPriorComparative:17469.82,
+    priorOriginalPdf:17469.82,
+  });
+  assert.equal(result.status,'MATCHED_ALL_PERIODS');
+  assert.equal(result.comparablePriorValue,17469.82);
+  assert.equal(result.productionApproved,false);
+});
+
+test('Asian Paints H1 FY27 owner-attributable Profit reconciles, not total group PAT',()=>{
+  const result=assessStatementComparativeGuard({
+    currentXbrl:2606.88,priorOriginalXbrl:2093.36,
+    currentPdfCurrent:2606.88,currentPdfPriorComparative:2093.36,
+    priorOriginalPdf:2093.36,
+  });
+  assert.equal(result.status,'MATCHED_ALL_PERIODS');
+  assert.equal(result.comparablePriorValue,2093.36);
+  assert.equal(result.productionApproved,false);
+});
+
+test('Asian Paints H1 FY27 OCF reconciles across both official PDF periods',()=>{
+  const result=assessStatementComparativeGuard({
+    currentXbrl:1899.83,priorOriginalXbrl:3482.26,
+    currentPdfCurrent:1899.83,currentPdfPriorComparative:3482.26,
+    priorOriginalPdf:3482.26,
+  });
+  assert.equal(result.status,'MATCHED_ALL_PERIODS');
+  assert.equal(result.comparablePriorValue,3482.26);
+  assert.equal(result.productionApproved,false);
+});
+
+test('GAIL H1 FY27 Revenue and owner-attributable Profit reconcile to current and prior Original PDFs',()=>{
+  const revenue=assessStatementComparativeGuard({
+    currentXbrl:88651.21,priorOriginalXbrl:71086.05,
+    currentPdfCurrent:88651.21,currentPdfPriorComparative:71086.05,
+    priorOriginalPdf:71086.05,
+  });
+  const ownerProfit=assessStatementComparativeGuard({
+    currentXbrl:9385.02,priorOriginalXbrl:4341.61,
+    currentPdfCurrent:9385.02,currentPdfPriorComparative:4341.61,
+    priorOriginalPdf:4341.61,
+  });
+  assert.equal(revenue.status,'MATCHED_ALL_PERIODS');
+  assert.equal(ownerProfit.status,'MATCHED_ALL_PERIODS');
+  assert.equal(revenue.productionApproved,false);
+  assert.equal(ownerProfit.productionApproved,false);
+});
+
+test('GAIL H1 FY27 OCF preserves ₹121.88 Cr reclassified comparative and withholds YoY base',()=>{
+  const result=assessStatementComparativeGuard({
+    currentXbrl:10602.50,priorOriginalXbrl:5747.34,
+    currentPdfCurrent:10602.50,currentPdfPriorComparative:5869.22,
+    priorOriginalPdf:5747.34,
+  });
+  assert.equal(result.status,'RECLASSIFIED_COMPARATIVE_REVIEW_REQUIRED');
+  assert.equal(result.priorOriginalValue,5747.34);
+  assert.equal(result.currentComparativeValue,5869.22);
+  assert.equal(result.reclassificationDifference,121.88);
+  assert.equal(result.comparablePriorValue,null);
+  assert.equal(result.productionApproved,false);
+});
