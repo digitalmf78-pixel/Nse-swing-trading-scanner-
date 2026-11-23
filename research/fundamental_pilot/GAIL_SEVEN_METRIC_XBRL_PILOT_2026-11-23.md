@@ -2,7 +2,7 @@
 
 ## Status
 
-**Research-only; Revenue and owner-attributable Profit are candidate-only. OCF YoY is withheld for a comparative reclassification conflict. Nothing is production-approved.** No scanner runtime, filter, scoring, ranking, UI, API or Google AI Studio app was changed.
+**Research-only; Revenue, owner-attributable Profit and OCF are candidate-only after the detailed OCF comparative reclassification bridge was verified against both official NSE PDFs. Nothing is production-approved.** No scanner runtime, filter, scoring, ranking, UI, API or Google AI Studio app was changed.
 
 Workflow: https://github.com/digitalmf78-pixel/Nse-swing-trading-scanner-/actions/runs/45071299698
 
@@ -49,35 +49,41 @@ The prior Original H1 FY26 XBRL and its own original official PDF report OCF of 
 
 The current and prior official PDFs both state that previous-period figures were regrouped/reclassified where necessary. The ₹121.88 Cr difference is therefore a real comparative mapping/reclassification issue, not a parser warning or missing-value problem.
 
-The shared `statement_comparative_guard.ts` returned `RECLASSIFIED_COMPARATIVE_REVIEW_REQUIRED`. The pipeline preserves the raw mechanical OCF comparison (+84.48%) for audit traceability but removes it from accepted candidates, sets OCF source status to `CONFLICT`, and marks the audit row `DATA_CONFLICT`. No OCF YoY value is released. A statement-level reclassification bridge is required before it can be used.
+The initial comparative guard correctly returned `RECLASSIFIED_COMPARATIVE_REVIEW_REQUIRED` and withheld OCF. The two official PDFs were then downloaded and visually inspected page-by-page (consolidated cash-flow statement, page 20 in each PDF). The detailed bridge below now reconciles the complete ₹121.88 Cr difference. The accepted comparable prior base is the current FY27 filing's regrouped comparative, ₹5,869.22 Cr—not the old Original presentation of ₹5,747.34 Cr. The prior Original value remains preserved for audit traceability.
 
 Official prior Original results PDF (31-Oct-2025):  
 https://nsearchives.nseindia.com/corporate/Himanshugail_31102025142548_BMoutcome.pdf
 
 ### Reclassification bridge — quantified from both official PDFs
 
-The two statements expose the exact subtotal bridge (₹ crore):
+The two statements expose a complete changed-line bridge (₹ crore). The old and new presentation values for all changed lines are:
 
-| Cash-flow bridge line | Prior Original PDF (31-Oct-2025) | Current FY27 PDF comparative (30-Oct-2026) | Difference |
+| Cash-flow line | Prior Original PDF | Current FY27 PDF comparative | Difference |
 |---|---:|---:|---:|
-| Subtotal of operating adjustments | 783.21 | 884.29 | +101.08 |
-| Operating profit before working-capital changes | 6,377.45 | 6,478.53 | +101.08 |
-| Changes in working capital | 512.80 | 533.60 | +20.80 |
-| Cash generated from operations | 6,890.25 | 7,012.13 | +121.88 |
-| Direct taxes paid | (1,142.91) | (1,142.91) | 0.00 |
-| Net operating cash flow | 5,747.34 | 5,869.22 | +121.88 |
+| Provision for probable obligations | 15.35 | 37.42 | +22.07 |
+| Excess provision written back | — (0) | (90.07) | −90.07 |
+| Unrealised foreign-exchange gain/loss | — (0) | 169.08 | +169.08 |
+| **Operating-adjustment subtotal movement** | **783.21** | **884.29** | **+101.08** |
+| Trade and other receivables | 554.88 | 575.68 | +20.80 |
+| **Working-capital subtotal movement** | **512.80** | **533.60** | **+20.80** |
 
-The arithmetic fully explains the ₹121.88 Cr OCF movement at subtotal level: ₹101.08 Cr arises before working-capital changes and ₹20.80 Cr in the working-capital subtotal; tax paid is unchanged. The FY27 filing explicitly says prior-period figures were regrouped/reclassified to correspond with current-period classification/disclosure (note 3 to consolidated cash flows). The original and current comparative statements also present different detailed line-item groupings, so this subtotal bridge is not proof that the underlying cash economics changed.
+All other visible adjustment rows in the two consolidated statements match for this comparative period. The changed operating-adjustment lines sum exactly: +22.07 − 90.07 + 169.08 = +101.08. The changed working-capital line is receivables: +20.80. Therefore:
+- Operating profit before working-capital changes: ₹6,377.45 Cr → ₹6,478.53 Cr (+₹101.08 Cr)
+- Cash generated from operations: ₹6,890.25 Cr → ₹7,012.13 Cr (+₹121.88 Cr)
+- Direct taxes paid: ₹(1,142.91) Cr → ₹(1,142.91) Cr (no change)
+- Net operating cash flow: ₹5,747.34 Cr → ₹5,869.22 Cr (+₹121.88 Cr)
 
-**Decision:** classify this as a disclosed comparative regrouping/reclassification, not as an unexplained XBRL parser defect. However, until each affected detailed adjustment and working-capital line is mapped across the two presentations, OCF YoY remains REVIEW_REQUIRED; neither ₹5,747.34 Cr nor ₹5,869.22 Cr is silently selected as the comparable base. No OCF growth output is released.
+The bridge reconciles at line, subtotal and OCF levels. The FY27 filing's note 3 says previous-period figures were regrouped/reclassified to correspond with current-period classification/disclosure. The difference is thus a disclosed presentation regrouping, not an unexplained parser discrepancy or a change to be silently ignored.
+
+**Decision:** the current FY27 comparative ₹5,869.22 Cr is accepted as the comparable prior base for a research-only OCF candidate, because the complete bridge has been verified against both official PDFs. The prior Original ₹5,747.34 Cr remains separately preserved. The candidate is calculated as ₹10,602.50 Cr vs ₹5,869.22 Cr = **+80.65%**. This is not production approval.
 
 ## Final seven-metric audit matrix
 
 - Revenue Growth: candidate-only, +24.71%, official PDF matched.
 - Profit Growth: candidate-only, +116.16%, owner-attributable numerator and official PDF matched.
-- Operating Cash Flow: **CONFLICT / REVIEW_REQUIRED; no YoY value released**.
+- Operating Cash Flow: candidate-only, **+80.65%**, using the verified current-filing comparative base ₹5,869.22 Cr; prior Original ₹5,747.34 Cr retained separately.
 - ROE, ROCE, Debt/Equity and Interest Coverage: remain blocked by unresolved generic definitions and issuer mapping.
-- Final matrix: 2 candidate metrics, 5 blocked/conflict metrics.
+- Final matrix: 3 candidate metrics, 4 formula-blocked metrics.
 - Production approval: `false`.
 
 ## Business and accounting comparability notes
@@ -88,7 +94,7 @@ The 30-Oct-2026 PDF notes that RLNG allocation under the Petronet LNG contract w
 
 The pilot demonstrates that a source pipeline must compare not only Original XBRL with its own PDF, but also the prior Original value with the current filing's comparative statement. Revenue and owner-profit values reconcile; OCF does not. The shared comparative guard preserves both values and withholds the OCF growth output instead of silently choosing one.
 
-Continue to reconcile the ₹121.88 Cr OCF comparative difference and validate more issuers. Keep all production paths disconnected until every metric has a resolved definition, period/basis mapping, revision history and official statement reconciliation.
+The ₹121.88 Cr OCF comparative difference is now reconciled line-by-line and regression-tested. Continue to validate more issuers and periods. Keep all production paths disconnected until every metric has a resolved definition, period/basis mapping, revision history and official statement reconciliation.
 
 
 ## Automated issuer-value regression coverage
