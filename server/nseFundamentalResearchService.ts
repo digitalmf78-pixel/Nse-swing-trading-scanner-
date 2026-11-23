@@ -46,6 +46,12 @@ export interface NseFundamentalResearchResult {
   isin?: string;
   isinVerified?: boolean;
   industryClassification?: NseIssuerIndustryRecord | null;
+  xbrlEntityIdentity?: {
+    entityScheme: string;
+    entityIdentifier: string;
+    documentsChecked: number;
+    matchesOfficialNseIsin: true;
+  };
   scannerEligible: false;
   productionApproved: false;
   warnings: string[];
@@ -588,6 +594,14 @@ async function processIssuer(
     symbol, status, sector, isin: isin ?? undefined, isinVerified: Boolean(isin),
     basis, currentPeriodEnd: pair.currentPeriodEnd,
     priorPeriodEnd: pair.priorPeriodEnd, candidateReport, epsCandidate, revisionAudit,
+    xbrlEntityIdentity: identityAudit.entityScheme && identityAudit.entityIdentifier
+      ? {
+          entityScheme: identityAudit.entityScheme,
+          entityIdentifier: identityAudit.entityIdentifier,
+          documentsChecked: identityAudit.documentsChecked,
+          matchesOfficialNseIsin: true,
+        }
+      : undefined,
     scannerEligible: false, productionApproved: false, warnings,
   };
   return { report, xbrlSaved: download.saved };
