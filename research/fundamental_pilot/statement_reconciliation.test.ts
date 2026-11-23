@@ -37,6 +37,8 @@ const evidence = (overrides: Partial<import('./statement_reconciliation.ts').Sta
   issuerSymbol: 'ITC',
   isin: 'INE154A01025',
   filingSequenceId: '208371',
+  filingGroupId: 'ITC|2026-04-01|2026-09-30|CONSOLIDATED',
+  sourceDocumentType: 'XBRL' as const,
   sourceDocumentSha256: 'a'.repeat(64),
   periodStart: '2026-04-01',
   periodEnd: '2026-09-30',
@@ -47,9 +49,13 @@ const evidence = (overrides: Partial<import('./statement_reconciliation.ts').Sta
   ...overrides,
 });
 
-test('strict evidence reconciliation accepts same filing provenance with separate source document hashes', async () => {
+test('strict evidence reconciliation accepts XBRL and PDF artifacts in one resolved filing group', async () => {
   const { reconcileStatementEvidence } = await import('./statement_reconciliation.ts');
-  const result = reconcileStatementEvidence(evidence(), evidence({ sourceDocumentSha256: 'b'.repeat(64) }), evidence({ sourceDocumentSha256: 'c'.repeat(64) }));
+  const result = reconcileStatementEvidence(
+    evidence(),
+    evidence({ filingSequenceId: 'ITC-PDF-RESULTS', sourceDocumentType: 'RESULTS_PDF', sourceDocumentSha256: 'b'.repeat(64) }),
+    evidence({ filingSequenceId: 'ITC-PDF-ALTERNATE', sourceDocumentType: 'OTHER_OFFICIAL', sourceDocumentSha256: 'c'.repeat(64) }),
+  );
   assert.equal(result.status, 'MATCHES_BOTH');
   assert.equal(result.metadataValid, true);
   assert.equal(result.metricMappingApproved, false);
@@ -63,13 +69,15 @@ test('strict evidence reconciliation blocks cross-issuer facts', async () => {
   assert.match(result.metadataIssues.join(' '), /same issuer/);
 });
 
-test('strict evidence reconciliation blocks period, basis, unit and source-filing mismatches', async () => {
+test('strict evidence reconciliation blocks period, basis, unit and filing-group mismatches', async () => {
   const { reconcileStatementEvidence } = await import('./statement_reconciliation.ts');
   for (const mismatch of [
     { periodEnd: '2026-06-30' },
     { basis: 'Standalone' as const },
     { unit: 'INR Lakhs' },
+    { filingGroupId: 'ITC|2025-04-01|2025-09-30|CONSOLIDATED' },
     { filingSequenceId: '208372' },
+    { periodType: 'QUARTER' as const },
     { issuerSymbol: 'GAIL', isin: 'INE129A01019' },
   ]) {
     const result = reconcileStatementEvidence(evidence(), evidence(mismatch));
@@ -90,4 +98,17 @@ test('strict evidence reconciliation rejects malformed source document hashes', 
   const result = reconcileStatementEvidence(evidence(), evidence({ sourceDocumentSha256: 'not-a-sha256' }));
   assert.equal(result.status, 'BLOCKED_METADATA_MISMATCH');
   assert.equal(result.metadataValid, false);
+});
+
+
+test('strict evidence reconciliation rejects impossible calendar dates and invalid source types', async () => {
+  const { reconcileStatementEvidence } = await import('./statement_reconciliation.ts');
+  for (const invalid of [
+    { periodEnd: '2026-02-30' },
+    { sourceDocumentType: 'UNVERIFIED' as 'OTHER_OFFICIAL' },
+  ]) {
+    const result = reconcileStatementEvidence(evidence(), evidence(invalid));
+    assert.equal(result.status, 'BLOCKED_METADATA_MISMATCH');
+    assert.equal(result.metadataValid, false);
+  }
 });
