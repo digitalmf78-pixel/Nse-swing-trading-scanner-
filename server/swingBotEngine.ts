@@ -2956,7 +2956,7 @@ export async function runBotBacktestFramework(
   return {
     symbol: sym,
     paperTradingMode: true,
-    dataSource: `Yahoo Finance 3Y OHLCV (${yf.tickerUsed})`,
+    dataSource: 'NSE Bhavcopy cached OHLCV only',
     fromDate: bars[0].date,
     toDate: bars[bars.length - 1].date,
     totalSessions: bars.length,
