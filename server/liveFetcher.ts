@@ -331,8 +331,6 @@ export async function fetchYahooFundamentalsForSymbol(
   throw new Error(`YAHOO_FUNDAMENTALS_DISABLED: ${sym} — fundamentals must be fetched through the official NSE service only.`);
 }
 
-const EPS_ATTEMPT_CACHE = new Map<string, number>();
-
 export async function saveSymbolFundamentalsToCache(
   symbol: string,
   _xbrlFilings?: XbrlFiling[],
@@ -345,7 +343,7 @@ export async function saveSymbolFundamentalsToCache(
   const sym = symbol.trim().toUpperCase();
   return {
     record: null,
-    totalSavedCount: Object.keys(loadLiveFundamentalOverrides()).length,
+    totalSavedCount: 0,
     error: `NSE_FUNDAMENTAL_SERVICE_REQUIRED: Yahoo/BSE fundamental collection is disabled for ${sym}.`,
   };
 }
