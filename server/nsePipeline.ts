@@ -121,10 +121,8 @@ class NsePipelineEngine {
     const root = process.cwd();
     this.loadThresholds(root);
     const streakMap = this.loadStreakState(root);
-    this.loadFundamentals(root);
-    this.mergeFreeSourceCache(root);
-    // Legacy live_fundamental_overrides.json may contain Yahoo/BSE fundamentals.
-    // Do not merge it into scanner profiles; only the validated NSE cache is authoritative.
+    // Legacy CSV/free-source/Yahoo caches are intentionally not loaded as fundamentals.
+    // Only explicitly validated official NSE metric patches may populate scanner profiles.
     this.mergeNseValidatedFundamentals(root);
     this.mergeScreenerShareholding(root);
     this.loadXbrlFilings(root);
