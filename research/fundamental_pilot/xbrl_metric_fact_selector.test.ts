@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { selectXbrlMetricFact } from './xbrl_metric_fact_selector.ts';
+import { selectXbrlMetricFact, selectXbrlMetricFactBundle } from './xbrl_metric_fact_selector.ts';
 import type { XbrlExtraction } from './xbrl_extract.ts';
 
 const base=():XbrlExtraction=>({
@@ -84,4 +84,26 @@ test('blocks share-count and pure units for monetary statement metrics',()=>{
   const result=selectXbrlMetricFact(extraction,request);
   assert.equal(result.status,'BLOCKED_NON_CURRENCY_UNIT');
   assert.equal(result.fact,null);
+});
+
+
+test('selects a complete duration bundle with exact dates and common currency',()=>{
+  const extraction=base();
+  extraction.facts.push({concept:'in-capmkt:FinanceCosts',contextRef:'current',unitRef:'INR',rawValue:'90',numericValue:90,decimals:'-3',scale:null,sign:null,format:null,continuedAt:null,isNil:false,isInline:false});
+  const result=selectXbrlMetricFactBundle(extraction,{
+    concepts:{pbt:'in-capmkt:ProfitBeforeTax',financeCosts:'in-capmkt:FinanceCosts'},
+    periodStart:'2026-04-01',periodEnd:'2026-09-30',periodType:'YTD',basis:'CONSOLIDATED',filingBasis:'CONSOLIDATED',
+  });
+  assert.equal(result.status,'SELECTED_ALL_FACTS');
+  assert.equal(result.facts?.financeCosts.numericValue,90);
+  assert.equal(result.currency,'iso4217:INR');
+});
+test('withholds incomplete duration bundles instead of returning partial inputs',()=>{
+  const result=selectXbrlMetricFactBundle(base(),{
+    concepts:{revenue:'in-capmkt:RevenueFromOperations',financeCosts:'in-capmkt:FinanceCosts'},
+    periodStart:'2026-04-01',periodEnd:'2026-09-30',periodType:'YTD',basis:'CONSOLIDATED',filingBasis:'CONSOLIDATED',
+  });
+  assert.equal(result.status,'BLOCKED_FACT_SELECTION');
+  assert.equal(result.facts,null);
+  assert.deepEqual(result.failedConcepts,['financeCosts (in-capmkt:FinanceCosts): MISSING_CONCEPT']);
 });
