@@ -87,5 +87,10 @@ test('pipeline adapter clears legacy seven-metric values when no approved NSE pr
   assert.equal(applied.debtToEquity,null);
   assert.equal(applied.interestCoverage,null);
   assert.equal(applied.operatingCashFlowInr,null);
+  assert.equal(applied.trailingPE,null);
+  assert.equal(applied.epsPrev,null);
+  assert.equal(applied.epsCurr,null);
+  assert.equal(applied.epsTtmPrev,null);
+  assert.equal(applied.epsTtmCurr,null);
   assert.deepEqual(applied.fundamentalSources,[]);
 });
