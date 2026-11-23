@@ -361,7 +361,8 @@ export function saveCandidateCache(cache: CandidateCache, filePath = CANDIDATE_C
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   const temp = filePath + '.tmp.' + process.pid + '.' + Date.now();
   fs.writeFileSync(temp, JSON.stringify(cache, null, 2) + '\n', 'utf8');
-  fs.renameSync(temp, filePath);
+  if (filePath === CANDIDATE_CACHE_FILE) fs.renameSync(temp, CANDIDATE_CACHE_FILE);
+  else fs.renameSync(temp, filePath);
 }
 
 export function getNseFundamentalCandidateReports(symbol?: string, limit = 100): {
