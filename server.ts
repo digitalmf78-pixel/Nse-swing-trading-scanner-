@@ -3,12 +3,12 @@ import express from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
 import { nsePipeline } from './server/nsePipeline.ts';
-import { getNseFilingHistoryJobStatus, startNseFilingHistoryCollection } from './server/nseFilingHistoryCache.ts';
+import { getNseFilingHistoryJobStatus } from './server/nseFilingHistoryCache.ts';
+import { getNseFundamentalResearchStatus, startNseFundamentalResearchCollection } from './server/nseFundamentalResearchService.ts';
 import { evaluateRiskControls } from './server/riskControls.ts';
 import { runEcmsGeminiResearch } from './server/geminiResearch.ts';
 import {
   fetchNseBhavcopyForDate,
-  getCollectionJobStatus,
   syncLatestBhavcopiesCatchup,
 } from './server/liveFetcher.ts';
 import {
@@ -406,58 +406,65 @@ async function startServer() {
   // Save-to-Cache: single-symbol legacy Yahoo fetch is disabled; Bhavcopy scope stages NSE filing evidence only.
   app.post('/api/fundamentals/save-to-cache', async (req, res) => {
     try {
-      const symbol =
-        typeof req.body?.symbol === 'string' ? req.body.symbol.trim().toUpperCase() : '';
+      const symbol = typeof req.body?.symbol === 'string' ? req.body.symbol.trim().toUpperCase() : '';
       const saveAll = Boolean(req.body?.saveAll);
+      const rows = nsePipeline.getAllScreenerRows();
+      const sectorBySymbol = Object.fromEntries(rows.map(row => [row.symbol, row.providerSector || '']));
 
       if (symbol) {
-        return res.status(503).json({
-          code: 'NSE_FUNDAMENTAL_SERVICE_NOT_READY',
-          symbol,
-          error: 'Legacy Yahoo fundamental fetch is disabled. NSE official XBRL validation and main-cache writing are not yet production-ready.',
-        });
-      }
-
-      if (saveAll) {
-        const rawScope =
-          typeof req.body?.scope === 'string' ? req.body.scope.toUpperCase() : 'MISSING_OR_OLD';
-        const scope: 'MISSING_OR_OLD' | 'NOT_AVAILABLE' | 'LIQUID' | 'ALL' | 'BHAVCOPY' =
-          rawScope === 'NOT_AVAILABLE' || rawScope === 'LIQUID' || rawScope === 'ALL' || rawScope === 'BHAVCOPY'
-            ? rawScope
-            : 'MISSING_OR_OLD';
-        if (scope !== 'BHAVCOPY') {
-          return res.status(503).json({
-            code: 'NSE_FUNDAMENTAL_SERVICE_NOT_READY',
-            error: 'Legacy Yahoo fundamental collection is disabled. Only Bhavcopy-scoped NSE filing evidence sync is currently available.',
-          });
-        }
-
-        const targets = nsePipeline.getAuditCollectionTargets('BHAVCOPY');
-        const status = startNseFilingHistoryCollection(targets);
+        const row = rows.find(item => item.symbol === symbol);
+        if (!row) return res.status(404).json({ code: 'NSE_SYMBOL_NOT_IN_BHAVCOPY_UNIVERSE', symbol });
+        const status = startNseFundamentalResearchCollection([symbol], { [symbol]: row.providerSector || '' });
         return res.json({
           started: status.running,
-          mode: 'NSE_OFFICIAL_FILING_HISTORY_ONLY',
+          mode: 'NSE_OFFICIAL_XBRL_CANDIDATE_RESEARCH',
           ...status,
-          note: 'Official NSE filing metadata is staged separately; no fundamental metric values are yet approved or written to the main cache.',
+          note: 'Official NSE filing metadata and XBRL are fetched, compared and staged as research candidates. No values are written to the production scanner cache.',
         });
       }
 
-      return res.status(400).json({
-        error: 'Provide either { symbol } or { saveAll: true, scope: "BHAVCOPY" } in request body.',
+      if (!saveAll) {
+        return res.status(400).json({ error: 'Provide either { symbol } or { saveAll: true, scope: "BHAVCOPY" }.' });
+      }
+      const rawScope = typeof req.body?.scope === 'string' ? req.body.scope.toUpperCase() : 'MISSING_OR_OLD';
+      if (rawScope !== 'BHAVCOPY') {
+        return res.status(503).json({
+          code: 'NSE_FUNDAMENTAL_SCOPE_NOT_SUPPORTED',
+          error: 'NSE fundamental research is restricted to symbols present in the latest Bhavcopy universe.',
+        });
+      }
+      const targets = nsePipeline.getAuditCollectionTargets('BHAVCOPY');
+      const status = startNseFundamentalResearchCollection(targets, sectorBySymbol);
+      return res.json({
+        started: status.running,
+        mode: 'NSE_OFFICIAL_XBRL_CANDIDATE_RESEARCH',
+        ...status,
+        note: 'NSE filing history and current/prior Original plus all available revisions are fetched. Candidate metrics remain research-only; production cache is unchanged.',
       });
     } catch (err) {
       return res.status(500).json({ error: (err as Error).message });
     }
   });
 
-  // Legacy Yahoo fundamental refresh endpoint is fail-closed until NSE production service is ready.
-  app.post('/api/refresh/fundamentals', async (_req, res) => {
-    return res.status(503).json({
-      code: 'NSE_FUNDAMENTAL_SERVICE_NOT_READY',
-      error: 'Legacy Yahoo fundamental refresh is disabled. NSE official XBRL validation and main-cache writing are not yet production-ready.',
-    });
+  // Explicit refresh action now uses the same NSE-only research service.
+  app.post('/api/refresh/fundamentals', async (req, res) => {
+    try {
+      const symbol = typeof req.body?.symbol === 'string' ? req.body.symbol.trim().toUpperCase() : '';
+      const rows = nsePipeline.getAllScreenerRows();
+      const sectorBySymbol = Object.fromEntries(rows.map(row => [row.symbol, row.providerSector || '']));
+      if (symbol) {
+        const row = rows.find(item => item.symbol === symbol);
+        if (!row) return res.status(404).json({ code: 'NSE_SYMBOL_NOT_IN_BHAVCOPY_UNIVERSE', symbol });
+        const status = startNseFundamentalResearchCollection([symbol], { [symbol]: row.providerSector || '' });
+        return res.json({ mode: 'NSE_OFFICIAL_XBRL_CANDIDATE_RESEARCH', ...status });
+      }
+      const targets = nsePipeline.getAuditCollectionTargets('BHAVCOPY');
+      const status = startNseFundamentalResearchCollection(targets, sectorBySymbol);
+      return res.json({ mode: 'NSE_OFFICIAL_XBRL_CANDIDATE_RESEARCH', ...status });
+    } catch (err) {
+      return res.status(500).json({ error: (err as Error).message });
+    }
   });
-
 
   // Fundamental Audit Universe Query (NSE/BSE Mapping & Freshness Tiers)
   app.get('/api/fundamentals/audit', (req, res) => {
@@ -501,7 +508,7 @@ async function startServer() {
   });
 
   app.get('/api/fundamentals/collect-status', (_req, res) => {
-    res.json(getCollectionJobStatus());
+    res.json(getNseFundamentalResearchStatus());
   });
 
   app.get('/api/fundamentals/nse-filing-history-status', (_req, res) => {
