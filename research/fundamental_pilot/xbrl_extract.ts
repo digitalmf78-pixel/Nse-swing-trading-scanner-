@@ -137,7 +137,7 @@ function numericValue(raw: string, scale: number | null, sign: string | null): n
   if (!value) return null;
   const parenthesized = /^\([\s\S]*\)$/.test(value);
   if (parenthesized) value = value.slice(1, -1);
-  value = value.replace(/[\s,]/g, '').replace(/[^0-9.+\-eE]/g, '');
+  value = value.replace(/[\s,]/g, '');
   if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(value)) return null;
   let parsed = Number(value);
   if (!Number.isFinite(parsed)) return null;
