@@ -153,6 +153,8 @@ export function buildNseEpsCandidate(
   const warnings = [
     currentSelection.explanation,
     priorSelection.explanation,
+    ...(current.periodType === 'YTD' ? ['YTD EPS is cumulative and must not be displayed as standalone quarterly EPS.'] : []),
+    ...(current.periodType === 'FY' ? ['EPS represents a full financial year, not a single quarter.'] : []),
     ...changedPeriods.map(period => period + ' EPS changed in revision history.'),
     ...issues,
     'EPS is a research candidate only; no scanner EPS field is updated.',
