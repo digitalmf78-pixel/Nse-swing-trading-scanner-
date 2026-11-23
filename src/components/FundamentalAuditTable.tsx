@@ -57,6 +57,13 @@ interface NseCandidateRow {
       };
     };
     epsCandidate?: { status: string; currentValue: number | null; unit: string | null; periodType?: string } | null;
+    xbrlEntityIdentity?: { entityIdentifier: string | null; entityScheme: string | null; valid: boolean; matchesOfficialNseIsin: boolean };
+    filingEvidence?: {
+      currentOriginal: { sequenceId: string; audited: string | null; xbrlUrl: string; ixbrlUrl: string };
+      currentRevisions: Array<{ sequenceId: string; audited: string | null; xbrlUrl: string; ixbrlUrl: string }>;
+      priorOriginal: { sequenceId: string; audited: string | null; xbrlUrl: string; ixbrlUrl: string };
+      priorRevisions: Array<{ sequenceId: string; audited: string | null; xbrlUrl: string; ixbrlUrl: string }>;
+    };
     warnings?: string[];
   };
 }
@@ -691,6 +698,26 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
                         </td>
                         <td className="py-2 px-4 max-w-[360px] text-slate-600">
                           {(report.warnings || []).slice(0, 3).join(' · ') || 'No additional notes'}
+                          {(report.filingEvidence || report.xbrlEntityIdentity) && (
+                            <details className="mt-1 text-[10px]">
+                              <summary className="cursor-pointer font-medium text-blue-700">View NSE filing evidence</summary>
+                              <div className="mt-1 space-y-1">
+                                <div>Entity: {report.xbrlEntityIdentity?.entityIdentifier || 'MISSING'} · {report.xbrlEntityIdentity?.valid ? 'ISIN verified' : 'identity blocked'}</div>
+                                {report.filingEvidence && (
+                                  <>
+                                    <div>Current Original #{report.filingEvidence.currentOriginal.sequenceId} · {report.filingEvidence.currentOriginal.audited || 'Audit status unknown'} · <a className="text-blue-700 underline" href={report.filingEvidence.currentOriginal.xbrlUrl} target="_blank" rel="noreferrer">XBRL</a> · <a className="text-blue-700 underline" href={report.filingEvidence.currentOriginal.ixbrlUrl} target="_blank" rel="noreferrer">iXBRL</a></div>
+                                    {report.filingEvidence.currentRevisions.map((filing) => (
+                                      <div key={`current-${filing.sequenceId}`}>Current Revision #{filing.sequenceId} · {filing.audited || 'Audit status unknown'} · <a className="text-blue-700 underline" href={filing.xbrlUrl} target="_blank" rel="noreferrer">XBRL</a></div>
+                                    ))}
+                                    <div>Prior Original #{report.filingEvidence.priorOriginal.sequenceId} · {report.filingEvidence.priorOriginal.audited || 'Audit status unknown'} · <a className="text-blue-700 underline" href={report.filingEvidence.priorOriginal.xbrlUrl} target="_blank" rel="noreferrer">XBRL</a></div>
+                                    {report.filingEvidence.priorRevisions.map((filing) => (
+                                      <div key={`prior-${filing.sequenceId}`}>Prior Revision #{filing.sequenceId} · {filing.audited || 'Audit status unknown'} · <a className="text-blue-700 underline" href={filing.xbrlUrl} target="_blank" rel="noreferrer">XBRL</a></div>
+                                    ))}
+                                  </>
+                                )}
+                              </div>
+                            </details>
+                          )}
                         </td>
                       </tr>
                     );
