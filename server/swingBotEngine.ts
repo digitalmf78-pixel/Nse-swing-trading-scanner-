@@ -17,7 +17,7 @@ import type {
   ScreenerRow,
 } from '../src/types/trading.ts';
 import { nsePipeline } from './nsePipeline.ts';
-import { classifyMarketCap, getFxRateToInr } from './liveFetcher.ts';
+import { classifyMarketCap } from './liveFetcher.ts';
 import { getOpenMacroAndNewsDashboard } from './openMacroNewsEngine.ts';
 import { fetchLiveYahooQuote } from './paperTradeStore.ts';
 import { loadWatchlistSymbols } from './watchlistStore.ts';
@@ -70,12 +70,9 @@ interface ScreenerShareholdingEntry {
   latestDiiPct: number | null;
 }
 
-interface YahooBotCacheEntry {
+interface NseBotData {
   symbol: string;
-  tickerUsed: string;
-  fetchedAtUtc: string;
   companyName: string;
-  financialCurrency?: string;
   bars: OhlcvBar[];
   annualYears: AnnualStatementYear[];
   epsTtm: number | null;
@@ -91,764 +88,46 @@ interface YahooBotCacheEntry {
   institutionalHoldingPct: number | null;
 }
 
-const BOT_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
-const SCREENER_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-let memoryBotCache: Record<string, YahooBotCacheEntry> | null = null;
-let memoryScreenerCache: Record<string, ScreenerShareholdingEntry> | null = null;
-let cacheWriteQueue: Promise<void> = Promise.resolve();
-let screenerWriteQueue: Promise<void> = Promise.resolve();
-
-let yahooCookie = '';
-let yahooCrumb = '';
-let yahooCrumbExpiry = 0;
-
-function botCachePath(): string {
-  return path.join(process.cwd(), 'data', 'research', 'bot_yahoo_cache.json');
-}
-
-function screenerCachePath(): string {
-  return path.join(process.cwd(), 'data', 'research', 'bot_screener_cache.json');
-}
-
-function loadScreenerCache(): Record<string, ScreenerShareholdingEntry> {
-  if (memoryScreenerCache) return memoryScreenerCache;
-  const file = screenerCachePath();
-  if (!fs.existsSync(file)) {
-    memoryScreenerCache = {};
-    return memoryScreenerCache;
-  }
-  try {
-    const parsed = JSON.parse(fs.readFileSync(file, 'utf-8'));
-    memoryScreenerCache =
-      parsed && typeof parsed === 'object'
-        ? (parsed as Record<string, ScreenerShareholdingEntry>)
-        : {};
-  } catch {
-    memoryScreenerCache = {};
-  }
-  return memoryScreenerCache;
-}
-
-async function saveScreenerCacheEntry(entry: ScreenerShareholdingEntry): Promise<void> {
-  const cache = loadScreenerCache();
-  cache[entry.symbol] = entry;
-  const op = screenerWriteQueue.then(() => {
-    const file = screenerCachePath();
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-    const tmp = `${file}.tmp.${process.pid}.${Date.now()}`;
-    fs.writeFileSync(tmp, JSON.stringify(cache), 'utf-8');
-    fs.renameSync(tmp, file);
-  });
-  screenerWriteQueue = op.catch(() => {});
-  await op;
-}
-
-function cleanHtmlText(raw: string): string {
-  return raw
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function parsePctCell(raw: string): number | null {
-  const cleaned = raw.replace(/[%,\s]/g, '');
-  if (!cleaned || cleaned === '-' || cleaned === '—') return null;
-  const n = Number(cleaned);
-  return Number.isFinite(n) ? n : null;
-}
-
-async function fetchScreenerShareholding(
-  symbol: string,
-  forceRefresh = false
-): Promise<ScreenerShareholdingEntry | null> {
-  const sym = symbol.trim().toUpperCase();
-  const cache = loadScreenerCache();
-  const existing = cache[sym];
-  if (
-    !forceRefresh &&
-    existing &&
-    Date.now() - Date.parse(existing.fetchedAtUtc) < SCREENER_CACHE_TTL_MS &&
-    existing.quarters.length > 0
-  ) {
-    return existing;
-  }
-
-  const urls = [
-    `https://www.screener.in/company/${encodeURIComponent(sym)}/consolidated/`,
-    `https://www.screener.in/company/${encodeURIComponent(sym)}/`,
-  ];
-
-  for (const url of urls) {
-    try {
-      const res = await fetch(url, {
-        headers: {
-          'User-Agent': UA,
-          Accept: 'text/html,application/xhtml+xml',
-        },
-        signal: AbortSignal.timeout(6500),
-      });
-      if (!res.ok) continue;
-      const html = await res.text();
-      const secMatch = html.match(/<section[^>]*id=["']shareholding["'][\s\S]*?<\/section>/i);
-      const tblMatch = secMatch?.[0]?.match(/<table[\s\S]*?<\/table>/i);
-      if (!tblMatch) continue;
-
-      const tableHtml = tblMatch[0];
-      const theadMatch = tableHtml.match(/<thead[\s\S]*?<\/thead>/i);
-      const headerSource = theadMatch ? theadMatch[0] : tableHtml;
-      const headers = [...headerSource.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/gi)].map((m) =>
-        cleanHtmlText(m[1])
-      );
-      if (headers.length < 3) continue;
-
-      const tbodyMatch = tableHtml.match(/<tbody[\s\S]*?<\/tbody>/i);
-      const bodySource = tbodyMatch ? tbodyMatch[0] : tableHtml;
-      const rows = [...bodySource.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)].map((tr) =>
-        [...tr[1].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((td) => cleanHtmlText(td[1]))
-      );
-
-      const promRow = rows.find((r) => /^promoter/i.test(r[0] || ''));
-      const fiiRow = rows.find((r) => /^fii/i.test(r[0] || ''));
-      const diiRow = rows.find((r) => /^dii/i.test(r[0] || ''));
-      if (!promRow && !fiiRow && !diiRow) continue;
-
-      const quarters: ScreenerShareholdingQuarter[] = [];
-      for (let col = 1; col < headers.length; col++) {
-        const period = headers[col];
-        if (!period || !/[A-Za-z]{3}\s+\d{4}/.test(period)) continue;
-        const promoterPct = promRow && col < promRow.length ? parsePctCell(promRow[col]) : null;
-        const fiiPct = fiiRow && col < fiiRow.length ? parsePctCell(fiiRow[col]) : null;
-        const diiPct = diiRow && col < diiRow.length ? parsePctCell(diiRow[col]) : null;
-        if (promoterPct === null && fiiPct === null && diiPct === null) continue;
-        quarters.push({ period, promoterPct, fiiPct, diiPct });
-      }
-      if (quarters.length === 0) continue;
-
-      const trimmed = quarters.slice(-8);
-      const lastWithProm = [...trimmed].reverse().find((q) => q.promoterPct !== null);
-      const lastWithFii = [...trimmed].reverse().find((q) => q.fiiPct !== null);
-      const lastWithDii = [...trimmed].reverse().find((q) => q.diiPct !== null);
-
-      const entry: ScreenerShareholdingEntry = {
-        symbol: sym,
-        fetchedAtUtc: new Date().toISOString(),
-        quarters: trimmed,
-        latestPromoterPct: lastWithProm?.promoterPct ?? null,
-        latestFiiPct: lastWithFii?.fiiPct ?? null,
-        latestDiiPct: lastWithDii?.diiPct ?? null,
+function buildNseBotData(
+  detail: NonNullable<ReturnType<typeof nsePipeline.getStockDetail>>
+): NseBotData {
+  const fund = detail.fundamentals;
+  const fii = fund?.fiiHoldingPct ?? null;
+  const dii = fund?.diiHoldingPct ?? null;
+  const institutionalHoldingPct =
+    fii !== null && dii !== null ? fii + dii : null;
+  const bars: OhlcvBar[] = detail.history
+    .filter((row) => row.close !== null)
+    .map((row) => {
+      const close = row.close as number;
+      return {
+        date: row.date,
+        open: row.open ?? close,
+        high: row.high ?? close,
+        low: row.low ?? close,
+        close,
+        volume: row.volume,
       };
-      await saveScreenerCacheEntry(entry);
-      return entry;
-    } catch {
-      // Try next fallback URL
-    }
-  }
-
-  return existing ?? null;
-}
-
-function loadBotCache(): Record<string, YahooBotCacheEntry> {
-  if (memoryBotCache) return memoryBotCache;
-  const file = botCachePath();
-  if (!fs.existsSync(file)) {
-    memoryBotCache = {};
-    return memoryBotCache;
-  }
-  try {
-    const parsed = JSON.parse(fs.readFileSync(file, 'utf-8'));
-    memoryBotCache =
-      parsed && typeof parsed === 'object' ? (parsed as Record<string, YahooBotCacheEntry>) : {};
-  } catch {
-    memoryBotCache = {};
-  }
-  return memoryBotCache;
-}
-
-async function saveBotCacheEntry(entry: YahooBotCacheEntry): Promise<void> {
-  const cache = loadBotCache();
-  cache[entry.symbol] = entry;
-  const op = cacheWriteQueue.then(() => {
-    const file = botCachePath();
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-    const tmp = `${file}.tmp.${process.pid}.${Date.now()}`;
-    fs.writeFileSync(tmp, JSON.stringify(cache), 'utf-8');
-    fs.renameSync(tmp, file);
-  });
-  cacheWriteQueue = op.catch(() => {});
-  await op;
-}
-
-async function getYahooSession(): Promise<{ cookie: string; crumb: string } | null> {
-  if (yahooCookie && yahooCrumb && Date.now() < yahooCrumbExpiry) {
-    return { cookie: yahooCookie, crumb: yahooCrumb };
-  }
-  try {
-    const r0 = await fetch('https://fc.yahoo.com', {
-      headers: { 'User-Agent': UA },
-      signal: AbortSignal.timeout(6000),
     });
-    const setCookies =
-      typeof r0.headers.getSetCookie === 'function'
-        ? r0.headers.getSetCookie()
-        : [r0.headers.get('set-cookie')].filter((x): x is string => Boolean(x));
-    const cookie = setCookies.map((c) => c.split(';')[0]).join('; ');
-    const rCrumb = await fetch('https://query1.finance.yahoo.com/v1/test/getcrumb', {
-      headers: { 'User-Agent': UA, Cookie: cookie },
-      signal: AbortSignal.timeout(6000),
-    });
-    if (!rCrumb.ok) return null;
-    const crumb = (await rCrumb.text()).trim();
-    if (!crumb) return null;
-    yahooCookie = cookie;
-    yahooCrumb = crumb;
-    yahooCrumbExpiry = Date.now() + 15 * 60 * 1000;
-    return { cookie, crumb };
-  } catch {
-    return null;
-  }
-}
-
-function rawNum(obj: unknown): number | null {
-  if (obj === null || obj === undefined) return null;
-  if (typeof obj === 'number') return Number.isFinite(obj) ? obj : null;
-  if (typeof obj === 'object' && 'raw' in (obj as Record<string, unknown>)) {
-    const r = (obj as Record<string, unknown>).raw;
-    return typeof r === 'number' && Number.isFinite(r) ? r : null;
-  }
-  return null;
-}
-
-function toIstIso(unixSec: number): string {
-  return new Date((unixSec + 19800) * 1000).toISOString().slice(0, 10);
-}
-
-async function fetchYahoo3YChart(tickerWithSuffix: string): Promise<OhlcvBar[]> {
-  try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
-      tickerWithSuffix
-    )}?range=3y&interval=1d`;
-    const res = await fetch(url, {
-      headers: { 'User-Agent': UA, Accept: 'application/json' },
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!res.ok) return [];
-    const json = (await res.json()) as {
-      chart?: {
-        result?: Array<{
-          timestamp?: number[];
-          indicators?: {
-            quote?: Array<{
-              open?: Array<number | null>;
-              high?: Array<number | null>;
-              low?: Array<number | null>;
-              close?: Array<number | null>;
-              volume?: Array<number | null>;
-            }>;
-          };
-        }>;
-      };
-    };
-    const result = json.chart?.result?.[0];
-    const ts = result?.timestamp ?? [];
-    const q = result?.indicators?.quote?.[0];
-    if (!q || ts.length === 0) return [];
-
-    const byDate = new Map<string, OhlcvBar>();
-    for (let i = 0; i < ts.length; i++) {
-      const c = q.close?.[i];
-      const o = q.open?.[i] ?? c;
-      const h = q.high?.[i] ?? c;
-      const l = q.low?.[i] ?? c;
-      const v = q.volume?.[i] ?? 0;
-      if (
-        typeof c !== 'number' ||
-        !Number.isFinite(c) ||
-        c <= 0 ||
-        typeof o !== 'number' ||
-        typeof h !== 'number' ||
-        typeof l !== 'number'
-      ) {
-        continue;
-      }
-      const date = toIstIso(ts[i]);
-      byDate.set(date, {
-        date,
-        open: o,
-        high: h,
-        low: l,
-        close: c,
-        volume: typeof v === 'number' && Number.isFinite(v) ? v : 0,
-      });
-    }
-    return Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
-  } catch {
-    return [];
-  }
-}
-
-async function fetchYahooAnnualTimeseries(
-  tickerWithSuffix: string
-): Promise<{ years: AnnualStatementYear[]; currencyCode: string }> {
-  const types = [
-    'annualTotalRevenue',
-    'annualGrossProfit',
-    'annualNetIncome',
-    'annualEBIT',
-    'annualOperatingIncome',
-    'annualEBITDA',
-    'annualNormalizedEBITDA',
-    'annualInterestExpense',
-    'annualTotalAssets',
-    'annualCurrentAssets',
-    'annualCurrentLiabilities',
-    'annualStockholdersEquity',
-    'annualTotalDebt',
-    'annualLongTermDebt',
-    'annualCashAndCashEquivalents',
-    'annualOperatingCashFlow',
-    'annualFreeCashFlow',
-    'annualOrdinarySharesNumber',
-    'annualDilutedEPS',
-  ].join(',');
-
-  const period1 = Math.floor(Date.now() / 1000) - 5 * 365 * 24 * 60 * 60;
-  const period2 = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
-  try {
-    const url = `https://query1.finance.yahoo.com/ws/fundamentals-timeseries/v1/finance/timeseries/${encodeURIComponent(
-      tickerWithSuffix
-    )}?type=${types}&period1=${period1}&period2=${period2}`;
-    const res = await fetch(url, {
-      headers: { 'User-Agent': UA, Accept: 'application/json' },
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!res.ok) return { years: [], currencyCode: 'INR' };
-    const json = (await res.json()) as {
-      timeseries?: {
-        result?: Array<
-          Record<string, unknown> & { meta?: { type?: string[]; currencyCode?: string } }
-        >;
-      };
-    };
-
-    let currencyCode = '';
-    const byDate = new Map<string, AnnualStatementYear>();
-    const ensureDate = (d: string): AnnualStatementYear => {
-      let cur = byDate.get(d);
-      if (!cur) {
-        cur = {
-          asOfDate: d,
-          revenue: null,
-          grossProfit: null,
-          netIncome: null,
-          ebit: null,
-          ebitda: null,
-          interestExpense: null,
-          totalAssets: null,
-          currentAssets: null,
-          currentLiabilities: null,
-          equity: null,
-          totalDebt: null,
-          cash: null,
-          ocf: null,
-          fcf: null,
-          shares: null,
-          dilutedEps: null,
-        };
-        byDate.set(d, cur);
-      }
-      return cur;
-    };
-
-    for (const item of json?.timeseries?.result ?? []) {
-      const key = item.meta?.type?.[0];
-      if (!key) continue;
-      if (!currencyCode && typeof item.meta?.currencyCode === 'string') {
-        currencyCode = item.meta.currencyCode.trim().toUpperCase();
-      }
-      const arr = item[key];
-      if (!Array.isArray(arr)) continue;
-      for (const p of arr) {
-        if (!p || typeof p !== 'object') continue;
-        const rec = p as {
-          asOfDate?: string;
-          currencyCode?: string;
-          reportedValue?: { raw?: number };
-        };
-        if (!currencyCode && typeof rec.currencyCode === 'string') {
-          currencyCode = rec.currencyCode.trim().toUpperCase();
-        }
-        const val = rec.reportedValue?.raw;
-        if (typeof rec.asOfDate !== 'string' || typeof val !== 'number' || !Number.isFinite(val)) {
-          continue;
-        }
-        const row = ensureDate(rec.asOfDate);
-        if (key === 'annualTotalRevenue') row.revenue = val;
-        else if (key === 'annualGrossProfit') row.grossProfit = val;
-        else if (key === 'annualNetIncome') row.netIncome = val;
-        else if (key === 'annualEBIT') row.ebit = val;
-        else if (key === 'annualOperatingIncome' && row.ebit === null) row.ebit = val;
-        else if (key === 'annualEBITDA') row.ebitda = val;
-        else if (key === 'annualNormalizedEBITDA' && row.ebitda === null) row.ebitda = val;
-        else if (key === 'annualInterestExpense') row.interestExpense = val;
-        else if (key === 'annualTotalAssets') row.totalAssets = val;
-        else if (key === 'annualCurrentAssets') row.currentAssets = val;
-        else if (key === 'annualCurrentLiabilities') row.currentLiabilities = val;
-        else if (key === 'annualStockholdersEquity') row.equity = val;
-        else if (key === 'annualTotalDebt') row.totalDebt = val;
-        else if (key === 'annualLongTermDebt' && row.totalDebt === null) row.totalDebt = val;
-        else if (key === 'annualCashAndCashEquivalents') row.cash = val;
-        else if (key === 'annualOperatingCashFlow') row.ocf = val;
-        else if (key === 'annualFreeCashFlow') row.fcf = val;
-        else if (key === 'annualOrdinarySharesNumber') row.shares = val;
-        else if (key === 'annualDilutedEPS') row.dilutedEps = val;
-      }
-    }
-
-    const years = Array.from(byDate.values())
-      .filter((y) => y.revenue !== null || y.netIncome !== null || y.totalAssets !== null)
-      .sort((a, b) => b.asOfDate.localeCompare(a.asOfDate));
-    return { years, currencyCode: currencyCode || 'INR' };
-  } catch {
-    return { years: [], currencyCode: 'INR' };
-  }
-}
-
-async function fetchYahooSummary(tickerWithSuffix: string): Promise<{
-  companyName: string;
-  financialCurrency: string;
-  quoteCurrency: string;
-  epsTtm: number | null;
-  bookValuePerShare: number | null;
-  sharesOutstanding: number | null;
-  floatShares: number | null;
-  evToEbitda: number | null;
-  roePctLatest: number | null;
-  debtToEquityRatio: number | null;
-  fcfLatest: number | null;
-  ocfLatest: number | null;
-  promoterHoldingPct: number | null;
-  institutionalHoldingPct: number | null;
-  incomeHist: Array<Record<string, unknown>>;
-  balanceHist: Array<Record<string, unknown>>;
-  cashflowHist: Array<Record<string, unknown>>;
-} | null> {
-  const session = await getYahooSession();
-  if (!session) return null;
-  const modules =
-    'incomeStatementHistory,balanceSheetHistory,cashflowStatementHistory,defaultKeyStatistics,financialData,summaryDetail,majorHoldersBreakdown,price';
-  try {
-    const url = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(
-      tickerWithSuffix
-    )}?modules=${modules}&crumb=${encodeURIComponent(session.crumb)}`;
-    const res = await fetch(url, {
-      headers: { 'User-Agent': UA, Cookie: session.cookie, Accept: 'application/json' },
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!res.ok) return null;
-    const json = (await res.json()) as {
-      quoteSummary?: { result?: Array<Record<string, Record<string, unknown>>> };
-    };
-    const q = json.quoteSummary?.result?.[0];
-    if (!q) return null;
-
-    const ks = q.defaultKeyStatistics ?? {};
-    const fd = q.financialData ?? {};
-    const pr = q.price ?? {};
-    const mh = q.majorHoldersBreakdown ?? {};
-
-    const roeRaw = rawNum(fd.returnOnEquity);
-    const deRaw = rawNum(fd.debtToEquity);
-    const insPct = rawNum(mh.insidersPercentHeld);
-    const instPct = rawNum(mh.institutionsPercentHeld);
-
-    const deRatio = deRaw !== null && deRaw >= 0 ? deRaw / 100 : null;
-
-    return {
-      companyName: String(pr.longName || pr.shortName || ''),
-      financialCurrency: String(fd.financialCurrency || 'INR').toUpperCase(),
-      quoteCurrency: String(pr.currency || 'INR').toUpperCase(),
-      epsTtm: rawNum(ks.trailingEps),
-      bookValuePerShare: rawNum(ks.bookValue),
-      sharesOutstanding: rawNum(ks.sharesOutstanding),
-      floatShares: rawNum(ks.floatShares),
-      evToEbitda: rawNum(ks.enterpriseToEbitda),
-      roePctLatest: roeRaw !== null ? roeRaw * 100 : null,
-      debtToEquityRatio: deRatio,
-      fcfLatest: rawNum(fd.freeCashflow),
-      ocfLatest: rawNum(fd.operatingCashflow),
-      promoterHoldingPct: insPct !== null ? insPct * 100 : null,
-      institutionalHoldingPct: instPct !== null ? instPct * 100 : null,
-      incomeHist:
-        ((q.incomeStatementHistory as Record<string, unknown>)
-          ?.incomeStatementHistory as Array<Record<string, unknown>>) || [],
-      balanceHist:
-        ((q.balanceSheetHistory as Record<string, unknown>)
-          ?.balanceSheetStatements as Array<Record<string, unknown>>) || [],
-      cashflowHist:
-        ((q.cashflowStatementHistory as Record<string, unknown>)
-          ?.cashflowStatements as Array<Record<string, unknown>>) || [],
-    };
-  } catch {
-    return null;
-  }
-}
-
-function scaleAnnualStatementByFx(y: AnnualStatementYear, fx: number): AnnualStatementYear {
-  if (fx === 1) return y;
-  const s = (v: number | null | undefined) =>
-    v !== null && v !== undefined && Number.isFinite(v) ? v * fx : v ?? null;
   return {
-    ...y,
-    revenue: s(y.revenue),
-    grossProfit: s(y.grossProfit),
-    netIncome: s(y.netIncome),
-    ebit: s(y.ebit),
-    ebitda: s(y.ebitda),
-    interestExpense: s(y.interestExpense),
-    totalAssets: s(y.totalAssets),
-    currentAssets: s(y.currentAssets),
-    currentLiabilities: s(y.currentLiabilities),
-    equity: s(y.equity),
-    totalDebt: s(y.totalDebt),
-    cash: s(y.cash),
-    ocf: s(y.ocf),
-    fcf: s(y.fcf),
-    dilutedEps: s(y.dilutedEps),
-  };
-}
-
-async function fetchAndCacheYahooForSymbol(
-  symbol: string,
-  forceRefresh = false
-): Promise<YahooBotCacheEntry> {
-  const sym = symbol.trim().toUpperCase();
-  const cache = loadBotCache();
-  const existing = cache[sym];
-  if (
-    !forceRefresh &&
-    existing &&
-    Date.now() - Date.parse(existing.fetchedAtUtc) < BOT_CACHE_TTL_MS &&
-    existing.bars.length > 0 &&
-    existing.financialCurrency !== undefined
-  ) {
-    // Backfill EBITDA/cash once on legacy cache entries without discarding OHLCV bars
-    if (
-      existing.annualYears.length > 0 &&
-      !existing.annualYears.some((y) => y.ebitda !== undefined)
-    ) {
-      const enriched = await fetchYahooAnnualTimeseries(existing.tickerUsed);
-      if (enriched.years.length > 0) {
-        const fx =
-          enriched.currencyCode && enriched.currencyCode !== 'INR'
-            ? await getFxRateToInr(enriched.currencyCode)
-            : 1;
-        const updated: YahooBotCacheEntry = {
-          ...existing,
-          financialCurrency: enriched.currencyCode || 'INR',
-          annualYears: enriched.years.map((y) => scaleAnnualStatementByFx(y, fx)),
-        };
-        await saveBotCacheEntry(updated);
-        return updated;
-      }
-    }
-    return existing;
-  }
-
-  let tickerUsed = `${sym}.NS`;
-  let bars = await fetchYahoo3YChart(tickerUsed);
-  if (bars.length < 30) {
-    const boBars = await fetchYahoo3YChart(`${sym}.BO`);
-    if (boBars.length > bars.length) {
-      bars = boBars;
-      tickerUsed = `${sym}.BO`;
-    }
-  }
-
-  const [tsRes, summary] = await Promise.all([
-    fetchYahooAnnualTimeseries(tickerUsed),
-    fetchYahooSummary(tickerUsed),
-  ]);
-
-  const finCurrency =
-    (tsRes.currencyCode && tsRes.currencyCode !== 'INR'
-      ? tsRes.currencyCode
-      : summary?.financialCurrency) || 'INR';
-  const fxFin = finCurrency && finCurrency !== 'INR' ? await getFxRateToInr(finCurrency) : 1;
-
-  let annualYears = tsRes.years.map((y) => scaleAnnualStatementByFx(y, fxFin));
-  if (annualYears.length < 2 && summary && summary.incomeHist.length > 0) {
-    // Merge fallback from quoteSummary statements if timeseries sparse
-    const byDate = new Map<string, AnnualStatementYear>(
-      annualYears.map((y) => [y.asOfDate, { ...y }])
-    );
-    const dateOf = (rec: Record<string, unknown>): string => {
-      const end = rec.endDate as { fmt?: string } | undefined;
-      return end?.fmt || '';
-    };
-    const scaleRaw = (v: number | null) => (v !== null ? v * fxFin : null);
-    for (const inc of summary.incomeHist) {
-      const d = dateOf(inc);
-      if (!d) continue;
-      const cur = byDate.get(d) || {
-        asOfDate: d,
-        revenue: null,
-        grossProfit: null,
-        netIncome: null,
-        ebit: null,
-        ebitda: null,
-        interestExpense: null,
-        totalAssets: null,
-        currentAssets: null,
-        currentLiabilities: null,
-        equity: null,
-        totalDebt: null,
-        cash: null,
-        ocf: null,
-        fcf: null,
-        shares: null,
-        dilutedEps: null,
-      };
-      cur.revenue = cur.revenue ?? scaleRaw(rawNum(inc.totalRevenue));
-      cur.grossProfit = cur.grossProfit ?? scaleRaw(rawNum(inc.grossProfit));
-      cur.netIncome = cur.netIncome ?? scaleRaw(rawNum(inc.netIncome));
-      cur.ebit = cur.ebit ?? scaleRaw(rawNum(inc.ebit));
-      cur.interestExpense = cur.interestExpense ?? scaleRaw(rawNum(inc.interestExpense));
-      byDate.set(d, cur);
-    }
-    for (const bal of summary.balanceHist) {
-      const d = dateOf(bal);
-      if (!d) continue;
-      const cur = byDate.get(d);
-      if (!cur) continue;
-      cur.totalAssets = cur.totalAssets ?? scaleRaw(rawNum(bal.totalAssets));
-      cur.currentAssets = cur.currentAssets ?? scaleRaw(rawNum(bal.totalCurrentAssets));
-      cur.currentLiabilities =
-        cur.currentLiabilities ?? scaleRaw(rawNum(bal.totalCurrentLiabilities));
-      cur.equity = cur.equity ?? scaleRaw(rawNum(bal.totalStockholderEquity));
-      const st = scaleRaw(rawNum(bal.shortLongTermDebt)) ?? 0;
-      const lt = scaleRaw(rawNum(bal.longTermDebt)) ?? 0;
-      if (cur.totalDebt === null && (st > 0 || lt > 0)) cur.totalDebt = st + lt;
-    }
-    for (const cf of summary.cashflowHist) {
-      const d = dateOf(cf);
-      if (!d) continue;
-      const cur = byDate.get(d);
-      if (!cur) continue;
-      cur.ocf = cur.ocf ?? scaleRaw(rawNum(cf.totalCashFromOperatingActivities));
-      const capex = scaleRaw(rawNum(cf.capitalExpenditures));
-      if (cur.fcf === null && cur.ocf !== null && capex !== null) {
-        cur.fcf = cur.ocf - Math.abs(capex);
-      }
-    }
-    annualYears = Array.from(byDate.values()).sort((a, b) =>
-      b.asOfDate.localeCompare(a.asOfDate)
-    );
-  }
-
-  const entry: YahooBotCacheEntry = {
-    symbol: sym,
-    tickerUsed,
-    fetchedAtUtc: new Date().toISOString(),
-    companyName: summary?.companyName || '',
-    financialCurrency: finCurrency,
+    symbol: detail.summary.symbol,
+    companyName: detail.summary.companyName || fund?.companyName || detail.summary.symbol,
     bars,
-    annualYears,
-    epsTtm: summary?.epsTtm ?? null,
-    bookValuePerShare: summary?.bookValuePerShare ?? null,
-    sharesOutstanding: summary?.sharesOutstanding ?? null,
-    floatShares: summary?.floatShares ?? null,
-    evToEbitda: summary?.evToEbitda ?? null,
-    roePctLatest: summary?.roePctLatest ?? null,
-    debtToEquityRatio: summary?.debtToEquityRatio ?? null,
-    fcfLatest:
-      summary?.fcfLatest !== null && summary?.fcfLatest !== undefined
-        ? summary.fcfLatest * fxFin
-        : null,
-    ocfLatest:
-      summary?.ocfLatest !== null && summary?.ocfLatest !== undefined
-        ? summary.ocfLatest * fxFin
-        : null,
-    promoterHoldingPct: summary?.promoterHoldingPct ?? null,
-    institutionalHoldingPct: summary?.institutionalHoldingPct ?? null,
+    // Annual statement comparisons are not inferred from partial quarterly data.
+    // They will be populated only by a separately validated NSE annual-statement pipeline.
+    annualYears: [],
+    epsTtm: fund?.epsTtmCurr ?? null,
+    bookValuePerShare: null,
+    sharesOutstanding: null,
+    floatShares: null,
+    evToEbitda: null,
+    roePctLatest: fund?.roePct ?? null,
+    debtToEquityRatio: fund?.debtToEquity ?? null,
+    fcfLatest: null,
+    ocfLatest: fund?.operatingCashFlowInr ?? null,
+    promoterHoldingPct: fund?.promoterHoldingPct ?? null,
+    institutionalHoldingPct,
   };
-
-  if (bars.length > 0 || annualYears.length > 0) {
-    await saveBotCacheEntry(entry);
-  }
-  return entry;
-}
-
-// =========================================================================
-// INDICATOR HELPERS (EMA, RSI, MACD, BOLLINGER)
-// =========================================================================
-
-function computeEmaSeries(closes: number[], period: number): Array<number | null> {
-  const out: Array<number | null> = new Array(closes.length).fill(null);
-  if (closes.length < period) return out;
-  const k = 2 / (period + 1);
-  let ema = closes.slice(0, period).reduce((a, b) => a + b, 0) / period;
-  out[period - 1] = ema;
-  for (let i = period; i < closes.length; i++) {
-    ema = closes[i] * k + ema * (1 - k);
-    out[i] = ema;
-  }
-  return out;
-}
-
-function computeRsiSeries(closes: number[], period = 14): Array<number | null> {
-  const out: Array<number | null> = new Array(closes.length).fill(null);
-  if (closes.length <= period) return out;
-  let gainSum = 0;
-  let lossSum = 0;
-  for (let i = 1; i <= period; i++) {
-    const d = closes[i] - closes[i - 1];
-    if (d >= 0) gainSum += d;
-    else lossSum += Math.abs(d);
-  }
-  let avgGain = gainSum / period;
-  let avgLoss = lossSum / period;
-  out[period] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
-  for (let i = period + 1; i < closes.length; i++) {
-    const d = closes[i] - closes[i - 1];
-    avgGain = (avgGain * (period - 1) + (d > 0 ? d : 0)) / period;
-    avgLoss = (avgLoss * (period - 1) + (d < 0 ? Math.abs(d) : 0)) / period;
-    out[i] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
-  }
-  return out;
-}
-
-function computeMacdHistSeries(closes: number[]): Array<number | null> {
-  const ema12 = computeEmaSeries(closes, 12);
-  const ema26 = computeEmaSeries(closes, 26);
-  const macdLine: number[] = [];
-  const validIdx: number[] = [];
-  for (let i = 0; i < closes.length; i++) {
-    if (ema12[i] !== null && ema26[i] !== null) {
-      macdLine.push((ema12[i] as number) - (ema26[i] as number));
-      validIdx.push(i);
-    }
-  }
-  const signal = computeEmaSeries(macdLine, 9);
-  const out: Array<number | null> = new Array(closes.length).fill(null);
-  for (let j = 0; j < validIdx.length; j++) {
-    if (signal[j] !== null) {
-      out[validIdx[j]] = macdLine[j] - (signal[j] as number);
-    }
-  }
-  return out;
-}
-
-function computeBollingerLowerSeries(closes: number[], period = 20, mult = 2): Array<number | null> {
-  const out: Array<number | null> = new Array(closes.length).fill(null);
-  for (let i = period - 1; i < closes.length; i++) {
-    const slice = closes.slice(i - period + 1, i + 1);
-    const mean = slice.reduce((a, b) => a + b, 0) / period;
-    const variance = slice.reduce((a, b) => a + (b - mean) ** 2, 0) / period;
-    out[i] = mean - mult * Math.sqrt(variance);
-  }
-  return out;
 }
 
 function loadBulkDeals30D(): BulkBlockDealItem[] {
@@ -987,7 +266,7 @@ function evaluatePhase3Fundamentals(params: {
   closePrice: number;
   summary: ScreenerRow;
   fund: FundamentalProfile | null;
-  yf: YahooBotCacheEntry;
+  yf: NseBotData;
 }): BotStockAnalysis['phase3Fundamentals'] {
   const { closePrice, summary, fund, yf } = params;
   const yr0 = yf.annualYears[0] ?? null; // Latest FY
@@ -2283,7 +1562,7 @@ function evaluatePhase5Accumulation(params: {
   symbol: string;
   summary: ScreenerRow;
   fund: FundamentalProfile | null;
-  yf: YahooBotCacheEntry;
+  yf: NseBotData;
   bhavHistory: DailyBhavRow[];
   bulkDeals: BulkBlockDealItem[];
   screenerHoldings: ScreenerShareholdingEntry | null;
@@ -2629,8 +1908,8 @@ function evaluatePhase5Accumulation(params: {
     promoterPledgePct: null,
     institutionalLimitationNote:
       quarters.length > 0
-        ? 'Multi-quarter Promoter/FII/DII parsed from public Screener.in shareholding table. Promoter pledge % remains DATA NOT AVAILABLE unless verified.'
-        : 'Quarterly FII/DII history and promoter pledge % are marked DATA NOT AVAILABLE when uncached/unverified.',
+        ? 'NSE-validated Promoter/FII/DII shareholding is not yet available. Promoter pledge % remains DATA NOT AVAILABLE.'
+        : 'NSE-validated quarterly FII/DII history and promoter pledge % are DATA NOT AVAILABLE until implemented.',
   };
 }
 
@@ -2847,10 +2126,8 @@ export async function analyzeStockWithV3Bot(
   const sector1mMap = options?.sector1mMap ?? nsePipeline.getSector1mReturnMap();
   const bulkDeals = options?.bulkDeals ?? loadBulkDeals30D();
 
-  const [yf, screenerHoldings] = await Promise.all([
-    fetchAndCacheYahooForSymbol(sym, Boolean(options?.forceRefresh)),
-    fetchScreenerShareholding(sym, Boolean(options?.forceRefresh)),
-  ]);
+  const yf = buildNseBotData(detail);
+  const screenerHoldings: ScreenerShareholdingEntry | null = null;
   const closePrice = detail.summary.closePrice;
   const bhavHistory = detail.history;
 
@@ -2867,11 +2144,12 @@ export async function analyzeStockWithV3Bot(
     yf,
   });
 
-  const effectiveBars = mergeOhlcvWithBhav(yf.bars, bhavHistory);
+  const effectiveBars = mergeOhlcvWithBhav([], bhavHistory);
 
   const capInfo = classifyMarketCap(
-    detail.fundamentals?.marketCapInr ??
-      (yf.sharesOutstanding ? yf.sharesOutstanding * closePrice : null)
+    detail.summary.marketCapCr !== null && detail.summary.marketCapCr > 0
+      ? detail.summary.marketCapCr * 1e7
+      : null
   );
 
   const phase4Movement = evaluatePhase4MovementPotential(
@@ -2984,7 +2262,7 @@ export async function analyzeStockWithV3Bot(
       marketCapCategory: capInfo.marketCapCategory,
       paperTradingMode: true,
       dataCoverageNotes: [
-        '100% Open-Source Mode (Yahoo Finance + NSE Bhavcopy + Free RSS). Zero paid subscriptions.',
+        'NSE-only fundamentals + NSE Bhavcopy OHLCV + public RSS; Yahoo is restricted to live stock quotes.',
         ...(detail.summary.isIpo
           ? ['IPO Sector (<1Y Cohort): Evaluated with newly listed allowance for sparse multi-year history.']
           : []),
@@ -3118,7 +2396,7 @@ export async function analyzeStockWithV3Bot(
     'Promoter Pledge Zero',
     5,
     false,
-    'DATA NOT AVAILABLE (pledge % not published in free Yahoo/Screener summary)'
+    'DATA NOT AVAILABLE (NSE pledge validation not implemented)'
   );
   addItem(
     'RSS News Positive for Sector',
@@ -3168,7 +2446,7 @@ export async function analyzeStockWithV3Bot(
     marketCapCategory: capInfo.marketCapCategory,
     paperTradingMode: true,
     dataCoverageNotes: [
-      '100% Open-Source Mode (Yahoo Finance + NSE Bhavcopy/Archives + Screener.in + ET/BS/LiveMint RSS). Zero API keys.',
+      'NSE-validated fundamentals + NSE Bhavcopy OHLCV + public RSS; Yahoo is restricted to live stock quotes.',
       ...(detail.summary.isIpo
         ? ['IPO Sector (<1Y Cohort): Evaluated with adaptive Bar/Fundamental gates for newly listed companies.']
         : []),
