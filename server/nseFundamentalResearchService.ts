@@ -176,7 +176,7 @@ export function classifyIssuerSector(rawSector: string | null | undefined): Issu
   const value = String(rawSector ?? '').trim().toLowerCase();
   if (!value) return 'UNKNOWN';
   if (/\binsurance\b/.test(value)) return 'INSURANCE';
-  if (/\bnbfc\b|non banking financial|housing finance|microfinance/.test(value)) return 'NBFC';
+  if (/\bnbfc\b|non[- ]?banking financial|housing finance|microfinance/.test(value)) return 'NBFC';
   if (/\bbanks?\b|banking/.test(value)) return 'BANK';
   if (/financial|finance|investment|capital market|asset management|brokerage/.test(value)) return 'UNKNOWN';
   return 'NON_FINANCIAL';
