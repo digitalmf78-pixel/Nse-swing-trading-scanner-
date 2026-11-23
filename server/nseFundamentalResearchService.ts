@@ -533,6 +533,7 @@ async function processIssuer(
   sector: IssuerSector,
   rows: NseRevisionRow[],
   fetchImpl: typeof fetch,
+  isin: string | null,
 ): Promise<{ report: NseFundamentalResearchResult; xbrlSaved: number }> {
   const pair = selectLatestComparableFilingPair(rows, symbol);
   if (!pair) return { report: blocked(symbol, sector, 'No exact current and prior-year Original NSE financial filing pair with matching basis was found.'), xbrlSaved: 0 };
@@ -613,36 +614,82 @@ async function processIssuer(
     priorDoc, priorRevisionDocs, mapping.conceptMap, priorStart,
     pair.priorPeriodEnd, priorType, basis,
   );
+  const stableMetrics = currentRevisionAudit.stableMetrics.filter(metric =>
+    priorRevisionAudit.stableMetrics.includes(metric)
+  );
   const revisionAudit: NseRevisionMetricAudit = {
     stable: currentRevisionAudit.stable && priorRevisionAudit.stable,
     checkedRevisions: currentRevisionAudit.checkedRevisions + priorRevisionAudit.checkedRevisions,
+    stableMetrics,
     changedMetrics: [...new Set([...currentRevisionAudit.changedMetrics, ...priorRevisionAudit.changedMetrics])],
     issues: [...currentRevisionAudit.issues, ...priorRevisionAudit.issues],
   };
   const hasRevisionHistory = pair.currentRows.some(row => row.type_Sub === 'Revision')
     || pair.priorRows.some(row => row.type_Sub === 'Revision');
+  const revenueCandidate = candidateReport.candidateReport.candidates.revenueGrowth;
+  const profitCandidate = candidateReport.candidateReport.candidates.profitGrowth;
   const candidateIssues = [
-    ['Revenue Growth', candidateReport.candidateReport.candidates.revenueGrowth?.status],
-    ['Profit Growth', candidateReport.candidateReport.candidates.profitGrowth?.status],
+    ['Revenue Growth', revenueCandidate?.status],
+    ['Profit Growth', profitCandidate?.status],
     ['Operating Cash Flow', candidateReport.candidateReport.candidates.operatingCashFlow?.status],
   ].filter(([, status]) => status !== 'CANDIDATE_ONLY')
     .map(([metric, status]) => metric + ': candidate calculation status ' + String(status ?? 'MISSING'));
-  const status = candidateIssues.length > 0
-    ? 'BLOCKED'
-    : hasRevisionHistory && !revisionAudit.stable
-      ? 'REVISION_REVIEW_REQUIRED'
-      : 'CANDIDATE_READY';
+
+  let releasedMetrics: string[] = [];
+  let productionProfileSaved = false;
+  let releaseWarning = '';
+  const growthInputsStable = stableMetrics.includes('REVENUE_GROWTH_INPUT')
+    && stableMetrics.includes('PROFIT_GROWTH_INPUT');
+  if (isin && /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/.test(isin)
+      && growthInputsStable
+      && revenueCandidate?.status === 'CANDIDATE_ONLY'
+      && revenueCandidate.growthPercent !== null
+      && profitCandidate?.status === 'CANDIDATE_ONLY'
+      && profitCandidate.growthPercent !== null) {
+    const profile = buildPartialValidatedProfile(
+      symbol, isin, basis, currentStart, pair.currentPeriodEnd, currentType,
+      currentDoc, priorDoc, pair.currentOriginal, pair.priorOriginal,
+      mapping.conceptMap, revenueCandidate, profitCandidate,
+    );
+    if (profile) {
+      try {
+        appendValidatedNseFundamentalProfile(profile);
+        releasedMetrics = ['REVENUE_GROWTH', 'PROFIT_GROWTH'];
+        productionProfileSaved = true;
+      } catch (error) {
+        releaseWarning = 'NSE growth metrics were not released: ' + (error as Error).message;
+      }
+    } else {
+      releaseWarning = 'NSE growth metrics were not released because verified Original filing provenance or raw fact evidence was incomplete.';
+    }
+  } else if (!isin) {
+    releaseWarning = 'NSE official equity master ISIN is unavailable; no production profile was written.';
+  } else if (!growthInputsStable) {
+    releaseWarning = 'Revenue/Profit inputs changed or were incomplete in revision history; no production profile was written.';
+  } else {
+    releaseWarning = 'Revenue/Profit candidate formulas did not pass all exact-period checks; no production profile was written.';
+  }
+
+  const status = releasedMetrics.length > 0
+    ? 'PARTIAL_RELEASED'
+    : candidateIssues.length > 0
+      ? 'BLOCKED'
+      : hasRevisionHistory && !revisionAudit.stable
+        ? 'REVISION_REVIEW_REQUIRED'
+        : 'CANDIDATE_READY';
   const warnings = [
     ...(hasRevisionHistory ? ['Every Original/Revision exact-period Revenue, Profit and OCF fact was compared.'] : []),
     ...revisionAudit.changedMetrics.map(metric => metric + ' changed in revision history.'),
     ...revisionAudit.issues,
     ...candidateIssues,
-    'Research candidates only: no values are written to the production scanner cache.',
-    'OCF statement reconciliation and signed statement PDF cross-check remain required before any production release.',
+    ...(releasedMetrics.length ? ['Revenue Growth and Profit Growth were appended to the validated NSE cache.'] : [releaseWarning]),
+    'ROE, ROCE, Debt/Equity and Interest Coverage remain blocked pending approved sector formulas.',
+    'Operating Cash Flow remains blocked pending cash-flow statement reconciliation and signed statement cross-check.',
   ];
   const report: NseFundamentalResearchResult = {
     symbol, status, sector, basis, currentPeriodEnd: pair.currentPeriodEnd,
     priorPeriodEnd: pair.priorPeriodEnd, candidateReport, revisionAudit,
+    releasedMetrics, productionProfileSaved,
     scannerEligible: false, productionApproved: false, warnings,
   };
   return { report, xbrlSaved: download.saved };
@@ -654,6 +701,24 @@ async function runCollection(
   fetchImpl: typeof fetch,
 ): Promise<void> {
   try {
+    let isinBySymbol: Record<string, string> = {};
+    try {
+      const equityMaster = await fetchNseEquityMaster(fetchImpl);
+      isinBySymbol = Object.fromEntries(Object.entries(equityMaster.symbols).map(([symbol, item]) => [symbol, item.isin]));
+    } catch (error) {
+      try {
+        const cachedMaster = loadNseEquityMasterCache();
+        const ageMs = Date.now() - Date.parse(cachedMaster.fetchedAtUtc);
+        if (Number.isFinite(ageMs) && ageMs >= 0 && ageMs <= 30 * 24 * 60 * 60 * 1000) {
+          isinBySymbol = Object.fromEntries(Object.entries(cachedMaster.symbols).map(([symbol, item]) => [symbol, item.isin]));
+          job.lastError = 'Using recent cached official NSE equity master after refresh failure: ' + (error as Error).message;
+        } else {
+          job.lastError = 'NSE equity master refresh failed and cached ISIN data is stale: ' + (error as Error).message;
+        }
+      } catch {
+        job.lastError = 'NSE equity master unavailable; candidate research may run but no production metric profile can be written: ' + (error as Error).message;
+      }
+    }
     const filingReport = await collectNseFilingHistoryForSymbols(symbols, {
       concurrency: 1,
       fetchImpl,
@@ -680,7 +745,7 @@ async function runCollection(
           continue;
         }
         const sector = classifyIssuerSector(sectorBySymbol[symbol] ?? '');
-        const result = await processIssuer(symbol, sector, cached, fetchImpl);
+        const result = await processIssuer(symbol, sector, cached, fetchImpl, isinBySymbol[symbol] ?? null);
         job.xbrlDocumentsSaved += result.xbrlSaved;
         appendCandidateReport(result.report);
         job.processed += 1;
@@ -689,7 +754,8 @@ async function runCollection(
           job.lastError = result.report.warnings[0] ?? symbol + ': blocked';
         } else {
           job.succeeded += 1;
-          if (result.report.status === 'CANDIDATE_READY') job.candidateReady += 1;
+          if (result.report.status === 'PARTIAL_RELEASED') job.partialReleased += 1;
+          else if (result.report.status === 'CANDIDATE_READY') job.candidateReady += 1;
           else job.revisionReviewRequired += 1;
         }
       } catch (error) {
@@ -704,6 +770,7 @@ async function runCollection(
     if (filingReport.failed.length > 0 && !job.lastError) {
       job.lastError = filingReport.failed[0].symbol + ': ' + filingReport.failed[0].error;
     }
+    if (job.partialReleased > 0) nsePipeline.reload();
   } catch (error) {
     job.lastError = (error as Error).message;
   } finally {
@@ -724,7 +791,7 @@ export function startNseFundamentalResearchCollection(
     running: true, scope: symbols.length === 1 ? 'SINGLE' : 'BHAVCOPY',
     total: symbols.length, processed: 0, filingHistoryProcessed: 0,
     filingHistorySucceeded: 0, xbrlDocumentsSaved: 0, succeeded: 0,
-    candidateReady: 0, revisionReviewRequired: 0, failed: 0,
+    candidateReady: 0, partialReleased: 0, revisionReviewRequired: 0, failed: 0,
     currentSymbol: symbols[0] ?? '', startedAtUtc: new Date().toISOString(),
     finishedAtUtc: '', lastError: null, candidateCacheFile: CANDIDATE_CACHE_FILE,
   };
