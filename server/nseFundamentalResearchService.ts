@@ -205,6 +205,17 @@ export function inferExactPeriodStart(
   return common.length === 1 ? common[0] : null;
 }
 
+export function resolveGrowthResearchStatus(
+  revenueStatus: string | null | undefined,
+  profitStatus: string | null | undefined,
+  stableMetrics: string[],
+): 'CANDIDATE_READY' | 'REVISION_REVIEW_REQUIRED' | 'BLOCKED' {
+  if (revenueStatus !== 'CANDIDATE_ONLY' || profitStatus !== 'CANDIDATE_ONLY') return 'BLOCKED';
+  const revenueStable = stableMetrics.includes('REVENUE_GROWTH_INPUT');
+  const profitStable = stableMetrics.includes('PROFIT_GROWTH_INPUT');
+  return revenueStable && profitStable ? 'CANDIDATE_READY' : 'REVISION_REVIEW_REQUIRED';
+}
+
 export function classifyNsePeriodType(periodStart: string, periodEnd: string): 'QUARTER' | 'YTD' | 'FY' | null {
   const startMs = Date.parse(periodStart + 'T00:00:00Z');
   const endMs = Date.parse(periodEnd + 'T00:00:00Z');
@@ -467,20 +478,22 @@ async function processIssuer(
   const candidateIssues = [
     ['Revenue Growth', revenueCandidate?.status],
     ['Profit Growth', profitCandidate?.status],
-    ['Operating Cash Flow', candidateReport.candidateReport.candidates.operatingCashFlow?.status],
   ].filter(([, status]) => status !== 'CANDIDATE_ONLY')
     .map(([metric, status]) => metric + ': candidate calculation status ' + String(status ?? 'MISSING'));
+  const ocfCandidate = candidateReport.candidateReport.candidates.operatingCashFlow;
+  const ocfIssue = ocfCandidate?.status === 'CANDIDATE_ONLY'
+    ? ''
+    : 'Operating Cash Flow is independently ' + String(ocfCandidate?.status ?? 'MISSING') + '; it does not suppress Revenue/Profit Growth candidates.';
 
-  const status = candidateIssues.length > 0
-    ? 'BLOCKED'
-    : hasRevisionHistory && !revisionAudit.stable
-      ? 'REVISION_REVIEW_REQUIRED'
-      : 'CANDIDATE_READY';
+  const status = resolveGrowthResearchStatus(
+    revenueCandidate?.status, profitCandidate?.status, stableMetrics,
+  );
   const warnings = [
-    ...(hasRevisionHistory ? ['Every Original/Revision exact-period Revenue, Profit and OCF fact was compared.'] : []),
+    ...(hasRevisionHistory ? ['Every available Original/Revision exact-period Revenue, Profit and OCF fact was compared independently.'] : []),
     ...revisionAudit.changedMetrics.map(metric => metric + ' changed in revision history.'),
     ...revisionAudit.issues,
     ...candidateIssues,
+    ...(ocfIssue ? [ocfIssue] : []),
     'NSE Basic EPS candidate: ' + epsCandidate.status + '.',
     ...epsCandidate.warnings,
     isin ? 'Issuer ISIN matched the official NSE equity master.' : 'Official NSE equity master ISIN is unavailable; issuer identity is not complete.',
