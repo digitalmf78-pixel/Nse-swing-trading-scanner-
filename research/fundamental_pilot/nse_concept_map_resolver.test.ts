@@ -81,3 +81,14 @@ test('blocks industrial aliases for banks and other financial sectors',()=>{
   assert.equal(result.metrics.PROFIT.status,'SECTOR_SPECIFIC_MAPPING_REQUIRED');
   assert.equal(result.conceptMap,null);
 });
+
+
+test('keeps four ratio metrics blocked until exact statement-row bridges are evidenced',()=>{
+  const result=resolveNseConceptMap('NON_FINANCIAL','CONSOLIDATED',filing(),filing());
+  for (const metric of ['ROE','ROCE','DEBT_EQUITY','INTEREST_COVERAGE'] as const) {
+    assert.equal(result.metrics[metric].status,'STATEMENT_ROW_RECONCILIATION_REQUIRED');
+    assert.equal(result.metrics[metric].concept,null);
+    assert.match(result.metrics[metric].explanation,/Blocked:/);
+  }
+  assert.equal(result.productionApproved,false);
+});
