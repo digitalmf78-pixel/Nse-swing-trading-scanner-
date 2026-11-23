@@ -173,30 +173,20 @@ async function startServer() {
     }
   });
 
-  // Sync NSE Bulk/Block 30D Deals + Yahoo Quote Calendar & IPO First-Trade Dates across All NSE Symbols
-  app.post('/api/catalysts/sync', async (req, res) => {
+  // Sync only official NSE Bulk/Block 30D deal archive.
+  // Result calendar/IPO metadata is unavailable until an official NSE-only source is implemented.
+  app.post('/api/catalysts/sync', async (_req, res) => {
     try {
       const refIso = nsePipeline.getLatestSessionRefIso();
       const bulkStore = await syncNseBulkBlockDeals(refIso);
-      const background = Boolean(req.body?.background);
-      const symbols = nsePipeline.getAllSymbols();
-
-      if (background) {
-        void syncUniverseQuoteCalendarAndIpo(symbols, refIso, () => nsePipeline.reload());
-        return res.json({
-          started: true,
-          bulkDeals30D: bulkStore.deals.length,
-          scanStatus: getUniverseQuoteScanStatus(),
-        });
-      }
-
-      const scan = await syncUniverseQuoteCalendarAndIpo(symbols, refIso, () =>
-        nsePipeline.reload()
-      );
       return res.json({
         completed: true,
         bulkDeals30D: bulkStore.deals.length,
-        scan,
+        calendar: {
+          available: false,
+          source: 'NSE_OFFICIAL_PENDING',
+          note: 'Yahoo calendar/IPO metadata is disabled; only official NSE/BSE filings may populate result dates.',
+        },
       });
     } catch (err) {
       return res.status(500).json({ error: (err as Error).message });
@@ -930,32 +920,7 @@ async function startServer() {
           const refIso = nsePipeline.getLatestSessionRefIso();
           await syncNseBulkBlockDeals(refIso);
 
-          const catalystCacheFile = path.join(
-            process.cwd(),
-            'data',
-            'research',
-            'catalysts_cache.json'
-          );
-          let lastQuoteSyncMs = 0;
-          if (fs.existsSync(catalystCacheFile)) {
-            try {
-              const raw = JSON.parse(fs.readFileSync(catalystCacheFile, 'utf-8')) as {
-                lastUniverseQuoteSyncUtc?: string;
-              };
-              if (raw?.lastUniverseQuoteSyncUtc) {
-                lastQuoteSyncMs = Date.parse(raw.lastUniverseQuoteSyncUtc) || 0;
-              }
-            } catch {
-              lastQuoteSyncMs = 0;
-            }
-          }
-
-          if (!lastQuoteSyncMs || Date.now() - lastQuoteSyncMs > 6 * 60 * 60 * 1000) {
-            await syncUniverseQuoteCalendarAndIpo(nsePipeline.getAllSymbols(), refIso, () =>
-              nsePipeline.reload()
-            );
-          }
-
+          // No Yahoo earnings-calendar or IPO metadata scan is run on startup.
           // Fundamental collection is user-triggered and will be routed through the NSE-only
           // service once production validation is complete. Startup/Bhavcopy reload must not
           // silently start the legacy Yahoo fundamental collector.
