@@ -37,11 +37,15 @@ test('selects only exact-period undimensioned basic EPS with INR/share unit', ()
   assert.equal(selected.fact?.numericValue, 4.25);
 });
 
-test('blocks dimensional contexts and non-per-share units', () => {
+test('blocks dimensional contexts and any non-exact INR-per-share unit', () => {
   const dimensional = selectNseBasicEpsFact(extraction(4.25, { dimensions: ['segment=Domestic'] }), '2026-04-01', '2026-06-30');
   assert.equal(dimensional.status, 'NO_EXACT_PERIOD_FACT');
   const invalidUnit = selectNseBasicEpsFact(extraction(4.25, { unit: ['iso4217:INR'] }), '2026-04-01', '2026-06-30');
   assert.equal(invalidUnit.status, 'BLOCKED_INVALID_UNIT');
+  const extraMeasure = selectNseBasicEpsFact(extraction(4.25, { unit: ['iso4217:INR', 'xbrli:shares', 'xbrli:pure'] }), '2026-04-01', '2026-06-30');
+  assert.equal(extraMeasure.status, 'BLOCKED_INVALID_UNIT');
+  const wrongDenominator = selectNseBasicEpsFact(extraction(4.25, { unit: ['iso4217:INR', 'xbrli:pure'] }), '2026-04-01', '2026-06-30');
+  assert.equal(wrongDenominator.status, 'BLOCKED_INVALID_UNIT');
 });
 
 test('EPS candidate compares current and prior values and checks every revision', () => {
