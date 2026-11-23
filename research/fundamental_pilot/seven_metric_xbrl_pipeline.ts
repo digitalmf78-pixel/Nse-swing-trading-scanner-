@@ -18,7 +18,7 @@ export interface IssuerMetricConceptMap {
   profit: string;
   /** Consolidated profit growth must use the owners-of-parent allocation; standalone uses the entity result. */
   profitAttribution: 'OWNERS_OF_PARENT' | 'STANDALONE_ENTITY';
-  operatingCashFlow: string;
+  operatingCashFlow: string | null;
 }
 
 export interface SevenMetricXbrlPipelineReport {
@@ -39,8 +39,17 @@ export interface SevenMetricXbrlPipelineReport {
 
 function selectForPeriod(
   filing: XbrlFilingPeriodInput,
-  concept: string,
+  concept: string | null,
 ): XbrlMetricFactSelection {
+  if (concept === null) {
+    return {
+      status: 'MISSING_CONCEPT',
+      fact: null,
+      eligibleCount: 0,
+      rejectedContextCount: 0,
+      explanation: 'Operating Cash Flow concept mapping is unavailable; this metric is blocked independently.',
+    };
+  }
   const request:XbrlMetricFactRequest={
     concept,periodStart:filing.periodStart,periodEnd:filing.periodEnd,
     periodType:filing.periodType,basis:filing.basis,filingBasis:filing.filingBasis,
