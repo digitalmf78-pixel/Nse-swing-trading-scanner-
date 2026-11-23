@@ -409,8 +409,8 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
             </h3>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Maps symbols to NSE (.NS + XBRL) and BSE (.BO) records, last verified UTC timestamp,
-            and freshness tier (Green &lt; 1M · Yellow 1–3M · Red &gt; 3M / Unverified).
+            Shows exchange mapping and filing freshness. Scanner fundamentals use official NSE filings only;
+            Yahoo Finance is reserved for live prices, while legacy BSE/Yahoo mappings are informational only.
           </p>
         </div>
 
