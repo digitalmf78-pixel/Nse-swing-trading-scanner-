@@ -27,8 +27,8 @@ export interface MetricDefinitionPolicy {
 }
 
 /**
- * This catalog makes unresolved accounting definitions explicit.
- * It is not a formula approval or production calculator.
+ * Research candidate definitions only. A formula here is NOT a validated
+ * NSE taxonomy mapping, a calculated value, or production approval.
  */
 const INDUSTRIAL: Record<FundamentalMetric,Omit<MetricDefinitionPolicy,'metric'|'sector'>> = {
   REVENUE_GROWTH: {
@@ -46,32 +46,32 @@ const INDUSTRIAL: Record<FundamentalMetric,Omit<MetricDefinitionPolicy,'metric'|
     caveats:['Do not substitute PBT for PAT','Do not mix continuing operations and total profit','Non-controlling interest can materially change total group profit versus owners PAT; retain both raw facts but use the declared attribution policy'],
   },
   ROE: {
-    readiness:'BLOCKED_DEFINITION',
-    candidateFormula:null,
-    requiredFacts:['Profit attributable to owners for the matching period','Opening equity attributable to owners','Closing equity attributable to owners'],
-    hardGates:['Select owner-attributable numerator and equity definition','Average opening/closing equity on same basis','Define annualization for quarter/YTD','Same issuer, basis, currency and aligned period'],
-    caveats:['Total profit divided by total equity is not silently accepted as ROE'],
+    readiness:'CANDIDATE_ONLY',
+    candidateFormula:'(PAT attributable to owners for the period / average opening and closing equity attributable to owners) * 100; annualize quarter/YTD numerator by 365 / exact period days, but not FY',
+    requiredFacts:['PAT attributable to owners for the exact duration','Opening equity attributable to owners at prior FY-end/period start','Closing equity attributable to owners at current period end','Same-basis equity attributable to owners, not total equity including NCI'],
+    hardGates:['Map PAT and owner-equity concepts to official NSE statement rows for both dates','Opening and closing equity must use same issuer, basis and currency','Exact duration and annualization policy must be applied consistently','Reject zero/negative average equity; retain raw facts and null result','Reconcile numerator and equity values to filed statements'],
+    caveats:['Quarterly annualization is an estimate, not a reported annual return','For non-FY interim periods opening equity reference date must be explicitly established','Total profit divided by total equity is not silently accepted as ROE'],
   },
   ROCE: {
-    readiness:'BLOCKED_DEFINITION',
-    candidateFormula:null,
-    requiredFacts:['EBIT with explicit statement-row or reconciled formula','Opening capital employed','Closing capital employed'],
-    hardGates:['Resolve EBIT definition including associate/JV presentation','Define capital employed and lease/debt treatment','Average capital employed','Same duration and filing basis'],
-    caveats:['Do not infer EBIT as PBT plus finance costs until PBT concept is reconciled'],
+    readiness:'CANDIDATE_ONLY',
+    candidateFormula:'EBIT for exact duration / average opening and closing capital employed * 100; annualize quarter/YTD EBIT by 365 / exact period days, but not FY',
+    requiredFacts:['EBIT from an explicitly mapped statement row or reconciled PBT plus finance costs','Opening capital employed','Closing capital employed','Documented treatment of lease liabilities, cash and investments'],
+    hardGates:['Resolve EBIT definition including associate/JV presentation and exceptional items','Define capital employed perimeter consistently (equity plus interest-bearing debt, with documented lease policy)','Opening and closing balances must be same-basis and same-currency','Exact duration and annualization policy must be applied consistently','Reject zero/negative average capital employed and reconcile to statements'],
+    caveats:['PBT plus finance costs is only a candidate EBIT bridge after both rows and associate/JV treatment are reconciled','Different lease and excess-cash policies materially change ROCE'],
   },
   DEBT_EQUITY: {
-    readiness:'BLOCKED_DEFINITION',
-    candidateFormula:null,
-    requiredFacts:['Interest-bearing borrowings','Lease liabilities policy','Total equity on the same basis'],
-    hardGates:['Define debt perimeter (current/non-current borrowings and leases)','Exclude trade payables unless explicitly justified','Match balance-sheet instant date and basis','Never replace missing debt with zero'],
-    caveats:['Debt classification and equity attribution differ across sectors'],
+    readiness:'CANDIDATE_ONLY',
+    candidateFormula:'(current and non-current interest-bearing borrowings) / total equity at the same balance-sheet date; lease liabilities reported separately until an explicit policy is approved',
+    requiredFacts:['Current borrowings','Non-current borrowings','Total equity on the same basis and instant date','Lease liabilities separately identified where present'],
+    hardGates:['Map current/non-current borrowings to official balance-sheet rows; do not include trade payables','Do not silently include or exclude lease liabilities: report lease treatment and keep it outside candidate debt until policy is approved','Match balance-sheet instant date, issuer, basis and currency','Never replace missing debt or equity with zero','Reject zero/negative equity; reconcile totals to filed balance sheet'],
+    caveats:['This narrow candidate definition excludes lease liabilities pending explicit accounting policy','For some sectors this generic ratio is not applicable or needs a sector-specific definition'],
   },
   INTEREST_COVERAGE: {
-    readiness:'BLOCKED_DEFINITION',
-    candidateFormula:null,
-    requiredFacts:['EBIT for exact duration','FinanceCosts for exact duration'],
-    hardGates:['Resolve EBIT/PBT concept and associate/JV treatment','Same duration, basis and currency','No mixing annual, TTM, quarter or YTD inputs'],
-    caveats:['Finance costs alone do not validate the EBIT numerator'],
+    readiness:'CANDIDATE_ONLY',
+    candidateFormula:'EBIT for exact duration / finance costs for the same exact duration',
+    requiredFacts:['EBIT from an explicitly mapped statement row or reconciled PBT plus finance costs','FinanceCosts for the identical duration','Same filing basis and currency'],
+    hardGates:['Resolve EBIT/PBT concept and associate/JV treatment','Finance costs must be positive and from the same duration and basis','No mixing annual, TTM, quarter or YTD inputs','Reconcile both numerator and denominator to official statement rows'],
+    caveats:['PBT plus finance costs is only a candidate EBIT bridge after reconciliation','A zero or negative finance-cost denominator is not converted to an infinite or zero ratio'],
   },
   OPERATING_CASH_FLOW: {
     readiness:'CANDIDATE_ONLY',
