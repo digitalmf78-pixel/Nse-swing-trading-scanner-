@@ -82,6 +82,7 @@ test('sector classification keeps financial issuers out of generic industrial ma
   assert.equal(classifyIssuerSector('Banking'), 'BANK');
   assert.equal(classifyIssuerSector('Public Sector Banks'), 'BANK');
   assert.equal(classifyIssuerSector('Housing Finance'), 'NBFC');
+  assert.equal(classifyIssuerSector('Non-Banking Financial Company'), 'NBFC');
   assert.equal(classifyIssuerSector('Life Insurance'), 'INSURANCE');
   assert.equal(classifyIssuerSector('Financial Services'), 'UNKNOWN');
   assert.equal(classifyIssuerSector('Industrial Products'), 'NON_FINANCIAL');
