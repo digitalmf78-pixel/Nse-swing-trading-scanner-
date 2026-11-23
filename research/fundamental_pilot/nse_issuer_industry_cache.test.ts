@@ -1,0 +1,65 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {
+  buildNseIndustryText,
+  fetchNseIssuerIndustry,
+  loadNseIssuerIndustryCache,
+  saveNseIssuerIndustryCache,
+} from '../../server/nseIssuerIndustryCache.ts';
+
+test('fetches official NSE industry classification and ISIN', async () => {
+  let requested = '';
+  const fetchImpl: typeof fetch = async input => {
+    requested = String(input);
+    return new Response(JSON.stringify({
+      info: { isin: 'INE123A01016' },
+      industryInfo: {
+        macro: 'Financial Services',
+        sector: 'Financial Services',
+        industry: 'Banks',
+        basicIndustry: 'Private Sector Bank',
+      },
+    }), { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+  const record = await fetchNseIssuerIndustry('abc', fetchImpl);
+  assert.match(requested, /quote-equity\\?symbol=ABC/);
+  assert.equal(record.symbol, 'ABC');
+  assert.equal(record.isin, 'INE123A01016');
+  assert.equal(buildNseIndustryText(record), 'Financial Services | Financial Services | Banks | Private Sector Bank');
+});
+
+test('blocks invalid ISIN and missing industry classification', async () => {
+  const invalidIsin: typeof fetch = async () => new Response(JSON.stringify({
+    info: { isin: 'BAD' }, industryInfo: { industry: 'Banks' },
+  }), { status: 200 });
+  await assert.rejects(() => fetchNseIssuerIndustry('ABC', invalidIsin), /invalid ISIN/);
+  const noIndustry: typeof fetch = async () => new Response(JSON.stringify({
+    info: { isin: 'INE123A01016' }, industryInfo: {},
+  }), { status: 200 });
+  await assert.rejects(() => fetchNseIssuerIndustry('ABC', noIndustry), /no official industry classification/);
+});
+
+test('NSE issuer industry cache round-trips with identity validation', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nse-industry-'));
+  const file = path.join(dir, 'industry.json');
+  try {
+    const record = {
+      symbol: 'ABC', isin: 'INE123A01016', macro: 'Financial Services',
+      sector: 'Financial Services', industry: 'Banks', basicIndustry: 'Private Sector Bank',
+      source: 'NSE_OFFICIAL_QUOTE_EQUITY' as const,
+      sourceUrl: 'https://www.nseindia.in/api/quote-equity?symbol=ABC',
+      fetchedAtUtc: '2026-11-23T00:00:00.000Z',
+    };
+    saveNseIssuerIndustryCache({
+      schemaVersion: 1, updatedAtUtc: record.fetchedAtUtc, symbols: { ABC: record },
+    }, file);
+    const loaded = loadNseIssuerIndustryCache(file);
+    assert.equal(loaded.symbols.ABC.isin, 'INE123A01016');
+    assert.equal(loaded.symbols.ABC.basicIndustry, 'Private Sector Bank');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
