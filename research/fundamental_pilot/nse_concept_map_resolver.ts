@@ -49,6 +49,12 @@ function resolveAcrossPeriods(
   prior: XbrlExtraction,
   basis: 'STANDALONE' | 'CONSOLIDATED',
 ): ConceptMapMetricResult {
+  if (metric !== 'PROFIT' && metric !== 'REVENUE' && metric !== 'OPERATING_CASH_FLOW') {
+    return {
+      metric, status: 'STATEMENT_ROW_RECONCILIATION_REQUIRED', concept: null,
+      explanation: 'Ratio metrics require a statement-row bridge and cannot use the growth-metric QName resolver.',
+    };
+  }
   const wanted = metric === 'PROFIT'
     ? (basis === 'CONSOLIDATED' ? 'ProfitOrLossAttributableToOwnersOfParent' : 'ProfitLossForPeriod')
     : LOCAL_NAMES[metric];
