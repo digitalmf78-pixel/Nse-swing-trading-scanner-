@@ -580,6 +580,9 @@ async function runCollection(
     }
   } catch (error) {
     job.lastError = (error as Error).message;
+    const remaining = Math.max(0, job.total - job.processed);
+    job.failed += remaining;
+    job.processed = job.total;
   } finally {
     if (candidateCache && candidateCacheDirty) {
       try { saveCandidateCache(candidateCache); }
