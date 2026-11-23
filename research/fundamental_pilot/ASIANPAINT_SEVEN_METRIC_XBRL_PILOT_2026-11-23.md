@@ -57,3 +57,12 @@ The candidate pipeline result is 3 candidate metrics and 4 formula-blocked metri
 This pilot validates the real issuer path from official NSE Original/revision history through XBRL parsing, exact group-fact selection, explicit owner-profit attribution, prior-period comparison, official statement PDF tie-out and seven-metric audit matrix.
 
 It does not establish organic growth, a final valuation or production suitability. Acquisitions, disposals, accounting/presentation changes and issuer-specific comparability notes still require review. Continue to another issuer and sector-specific mapping before considering any production integration.
+
+
+## Automated issuer-value regression coverage
+
+The shared `statement_comparative_guard.test.ts` now includes issuer-specific assertions for Asian Paints H1 FY27:
+- Revenue: ₹20,518.45 Cr current / ₹17,469.82 Cr prior.
+- Owner-attributable profit: ₹2,606.88 Cr / ₹2,093.36 Cr.
+- OCF: ₹1,899.83 Cr / ₹3,482.26 Cr.
+Each assertion requires current XBRL, current PDF, prior Original XBRL, prior Original PDF and current comparative to agree. All remain candidate-only.
