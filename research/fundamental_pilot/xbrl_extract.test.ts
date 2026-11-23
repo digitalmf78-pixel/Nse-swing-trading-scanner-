@@ -63,6 +63,13 @@ test('applies scale and sign to inline fractions', () => {
   assert.equal(fact?.numericValue, -25);
 });
 
+test('rejects malformed numeric text instead of stripping alphabetic characters', () => {
+  const xml = '<xbrli:xbrl><xbrli:context id="c"><xbrli:period><xbrli:instant>2026-09-30</xbrli:instant></xbrli:period></xbrli:context><xbrli:unit id="u"><xbrli:measure>iso4217:INR</xbrli:measure></xbrli:unit><in:Revenue contextRef="c" unitRef="u">12abc34</in:Revenue></xbrli:xbrl>';
+  const out = extractXbrl(xml);
+  assert.equal(out.facts[0]?.rawValue, '12abc34');
+  assert.equal(out.facts[0]?.numericValue, null);
+});
+
 test('rejects DTD/entity declarations', () => {
   assert.throws(() => extractXbrl('<!DOCTYPE x [<!ENTITY e "bad">]><xbrli:xbrl/>'), /DTD and entity/);
 });
