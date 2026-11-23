@@ -130,6 +130,77 @@ function buildNseBotData(
   };
 }
 
+// INDICATOR HELPERS (EMA, RSI, MACD, BOLLINGER)
+// =========================================================================
+
+function computeEmaSeries(closes: number[], period: number): Array<number | null> {
+  const out: Array<number | null> = new Array(closes.length).fill(null);
+  if (closes.length < period) return out;
+  const k = 2 / (period + 1);
+  let ema = closes.slice(0, period).reduce((a, b) => a + b, 0) / period;
+  out[period - 1] = ema;
+  for (let i = period; i < closes.length; i++) {
+    ema = closes[i] * k + ema * (1 - k);
+    out[i] = ema;
+  }
+  return out;
+}
+
+function computeRsiSeries(closes: number[], period = 14): Array<number | null> {
+  const out: Array<number | null> = new Array(closes.length).fill(null);
+  if (closes.length <= period) return out;
+  let gainSum = 0;
+  let lossSum = 0;
+  for (let i = 1; i <= period; i++) {
+    const d = closes[i] - closes[i - 1];
+    if (d >= 0) gainSum += d;
+    else lossSum += Math.abs(d);
+  }
+  let avgGain = gainSum / period;
+  let avgLoss = lossSum / period;
+  out[period] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
+  for (let i = period + 1; i < closes.length; i++) {
+    const d = closes[i] - closes[i - 1];
+    avgGain = (avgGain * (period - 1) + (d > 0 ? d : 0)) / period;
+    avgLoss = (avgLoss * (period - 1) + (d < 0 ? Math.abs(d) : 0)) / period;
+    out[i] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
+  }
+  return out;
+}
+
+function computeMacdHistSeries(closes: number[]): Array<number | null> {
+  const ema12 = computeEmaSeries(closes, 12);
+  const ema26 = computeEmaSeries(closes, 26);
+  const macdLine: number[] = [];
+  const validIdx: number[] = [];
+  for (let i = 0; i < closes.length; i++) {
+    if (ema12[i] !== null && ema26[i] !== null) {
+      macdLine.push((ema12[i] as number) - (ema26[i] as number));
+      validIdx.push(i);
+    }
+  }
+  const signal = computeEmaSeries(macdLine, 9);
+  const out: Array<number | null> = new Array(closes.length).fill(null);
+  for (let j = 0; j < validIdx.length; j++) {
+    if (signal[j] !== null) {
+      out[validIdx[j]] = macdLine[j] - (signal[j] as number);
+    }
+  }
+  return out;
+}
+
+function computeBollingerLowerSeries(closes: number[], period = 20, mult = 2): Array<number | null> {
+  const out: Array<number | null> = new Array(closes.length).fill(null);
+  for (let i = period - 1; i < closes.length; i++) {
+    const slice = closes.slice(i - period + 1, i + 1);
+    const mean = slice.reduce((a, b) => a + b, 0) / period;
+    const variance = slice.reduce((a, b) => a + (b - mean) ** 2, 0) / period;
+    out[i] = mean - mult * Math.sqrt(variance);
+  }
+  return out;
+}
+
+
 function loadBulkDeals30D(): BulkBlockDealItem[] {
   const file = path.join(process.cwd(), 'data', 'research', 'bulk_block_deals_30d.json');
   if (!fs.existsSync(file)) return [];
@@ -2748,11 +2819,11 @@ export async function runBotBacktestFramework(
     throw new Error(`Symbol ${sym} not found in NSE Mainboard dataset.`);
   }
 
-  const yf = await fetchAndCacheYahooForSymbol(sym, false);
+  const yf = buildNseBotData(detail);
   const bars = yf.bars;
   if (bars.length < 240) {
     throw new Error(
-      `Insufficient 2-3Y Yahoo Finance daily history for ${sym} (${bars.length} sessions).`
+      `Insufficient NSE Bhavcopy daily history for ${sym} (${bars.length} sessions); Yahoo historical bars are not used.`
     );
   }
 
