@@ -37,6 +37,10 @@ export interface SevenMetricXbrlPipelineReport {
   productionApproved: false;
 }
 
+function conceptLocalName(qname: string): string {
+  return qname.trim().split(':').pop()?.toLowerCase() ?? '';
+}
+
 function selectForPeriod(
   filing: XbrlFilingPeriodInput,
   concept: string | null,
@@ -100,11 +104,16 @@ export function buildSevenMetricXbrlPipeline(
   conceptMap:IssuerMetricConceptMap,
 ):SevenMetricXbrlPipelineReport {
   if (current.basis!==prior.basis) throw new Error('Current and prior filing basis must match before profit-attribution mapping');
-  if (current.basis==='CONSOLIDATED' && (conceptMap.profitAttribution!=='OWNERS_OF_PARENT' || /(^|:)ProfitLossForPeriod$/i.test(conceptMap.profit))) {
-    throw new Error('Consolidated Profit Growth must use the profit attributable to owners of the parent; unallocated total group ProfitLossForPeriod is not an accepted substitute');
+  const profitLocalName=conceptLocalName(conceptMap.profit);
+  if (current.basis==='CONSOLIDATED'
+      && (conceptMap.profitAttribution!=='OWNERS_OF_PARENT'
+        || profitLocalName!=='profitorlossattributabletoownersofparent')) {
+    throw new Error('Consolidated Profit Growth must use the exact ProfitOrLossAttributableToOwnersOfParent concept and OWNERS_OF_PARENT attribution; an arbitrary or unallocated profit concept is not accepted');
   }
-  if (current.basis==='STANDALONE' && conceptMap.profitAttribution!=='STANDALONE_ENTITY') {
-    throw new Error('Standalone Profit Growth must use the standalone entity profit result');
+  if (current.basis==='STANDALONE'
+      && (conceptMap.profitAttribution!=='STANDALONE_ENTITY'
+        || profitLocalName!=='profitlossforperiod')) {
+    throw new Error('Standalone Profit Growth must use the exact ProfitLossForPeriod concept and STANDALONE_ENTITY attribution');
   }
   const currentSelections={
     revenue:selectForPeriod(current,conceptMap.revenue),
