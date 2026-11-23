@@ -10,6 +10,7 @@ export type XbrlMetricFactSelectionStatus =
   | 'AMBIGUOUS_GROUP_FACTS'
   | 'BLOCKED_BASIS_MISMATCH'
   | 'BLOCKED_MISSING_UNIT'
+  | 'BLOCKED_NON_CURRENCY_UNIT'
   | 'BLOCKED_NON_NUMERIC_FACT';
 
 export interface XbrlMetricFactSelection {
@@ -32,7 +33,7 @@ export interface XbrlMetricFactRequest {
 /**
  * Selects exactly one undimensioned duration fact from a parsed XBRL filing.
  * It requires an explicit filing-level basis and exact period dates, and
- * rejects missing units, nil values and ambiguous duplicate facts.
+ * rejects missing/non-currency units, nil values and ambiguous duplicate facts.
  */
 export function selectXbrlMetricFact(
   extraction: XbrlExtraction,
@@ -89,6 +90,14 @@ export function selectXbrlMetricFact(
       explanation:'Selected fact has no resolvable XBRL unit; numeric value withheld.',
     };
   }
+  const unitMeasures=extraction.units[raw.unitRef];
+  if(unitMeasures.length!==1 || !/^iso4217:[A-Z]{3}$/.test(unitMeasures[0])) {
+    return {
+      status:'BLOCKED_NON_CURRENCY_UNIT',fact:null,eligibleCount:1,
+      rejectedContextCount:selected.rejectedDimensionalOrPeriodCount,
+      explanation:'Revenue, profit and operating cash flow require one explicit ISO 4217 currency unit; shares, pure and compound units are withheld.',
+    };
+  }
   if(raw.isNil || raw.rawValue===null || raw.numericValue===null || !Number.isFinite(raw.numericValue)) {
     return {
       status:'BLOCKED_NON_NUMERIC_FACT',fact:null,eligibleCount:1,
@@ -101,11 +110,11 @@ export function selectXbrlMetricFact(
     status:'SELECTED_UNIQUE_GROUP_FACT',
     fact:{
       concept:raw.concept,numericValue:raw.numericValue,rawValue:raw.rawValue,
-      isNil:raw.isNil,unitMeasures:[...extraction.units[raw.unitRef]],
+      isNil:raw.isNil,unitMeasures:[...unitMeasures],
       dimensions:[],periodStart:request.periodStart,periodEnd:request.periodEnd,
       periodType:request.periodType,basis:request.basis,
     },
     eligibleCount:1,rejectedContextCount:selected.rejectedDimensionalOrPeriodCount,
-    explanation:'One exact-period, undimensioned group fact selected. This confirms context selection only, not accounting concept suitability.',
+    explanation:'One exact-period, undimensioned group fact with an explicit currency unit selected. This confirms context and unit type only, not accounting concept suitability.',
   };
 }
