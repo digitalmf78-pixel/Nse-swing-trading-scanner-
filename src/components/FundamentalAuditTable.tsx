@@ -218,6 +218,7 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
   const activeCounts = scope === 'UNIVERSE' && universeCounts ? universeCounts : peerCounts;
 
   const loadNseCandidates = useCallback(async () => {
+    setShowNseCandidates(true);
     setLoadingNseCandidates(true);
     setNseCandidateError(null);
     try {
