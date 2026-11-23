@@ -48,6 +48,19 @@ test('blocks if required concept is missing instead of guessing an extension',()
   assert.equal(result.conceptMap,null);
 });
 
+test('keeps Revenue and Profit mapping when OCF concept is missing',()=>{
+  const current=filing();
+  const prior=filing();
+  current.facts=current.facts.filter(f=>!f.concept.endsWith('CashFlowsFromUsedInOperatingActivities'));
+  prior.facts=prior.facts.filter(f=>!f.concept.endsWith('CashFlowsFromUsedInOperatingActivities'));
+  const result=resolveNseConceptMap('NON_FINANCIAL','CONSOLIDATED',current,prior);
+  assert.equal(result.status,'PARTIAL');
+  assert.equal(result.conceptMap?.revenue,'in-capmkt:RevenueFromOperations');
+  assert.equal(result.conceptMap?.profit,'in-capmkt:ProfitOrLossAttributableToOwnersOfParent');
+  assert.equal(result.conceptMap?.operatingCashFlow,null);
+  assert.equal(result.metrics.OPERATING_CASH_FLOW.status,'MISSING_CONCEPT');
+});
+
 test('blocks ambiguous local names from multiple namespaces',()=>{
   const current=filing();
   current.facts.push({...current.facts[0],concept:'ifrs-full:RevenueFromOperations'});
