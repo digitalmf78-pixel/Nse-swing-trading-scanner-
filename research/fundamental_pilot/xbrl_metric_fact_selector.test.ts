@@ -90,6 +90,7 @@ test('blocks share-count and pure units for monetary statement metrics',()=>{
 test('selects a complete duration bundle with exact dates and common currency',()=>{
   const extraction=base();
   extraction.facts.push({concept:'in-capmkt:FinanceCosts',contextRef:'current',unitRef:'INR',rawValue:'90',numericValue:90,decimals:'-3',scale:null,sign:null,format:null,continuedAt:null,isNil:false,isInline:false});
+  extraction.facts.push({concept:'in-capmkt:ProfitBeforeTax',contextRef:'current',unitRef:'INR',rawValue:'150',numericValue:150,decimals:'-3',scale:null,sign:null,format:null,continuedAt:null,isNil:false,isInline:false});
   const result=selectXbrlMetricFactBundle(extraction,{
     concepts:{pbt:'in-capmkt:ProfitBeforeTax',financeCosts:'in-capmkt:FinanceCosts'},
     periodStart:'2026-04-01',periodEnd:'2026-09-30',periodType:'YTD',basis:'CONSOLIDATED',filingBasis:'CONSOLIDATED',
