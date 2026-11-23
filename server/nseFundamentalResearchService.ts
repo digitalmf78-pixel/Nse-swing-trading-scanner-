@@ -237,6 +237,29 @@ function appendCandidateReport(report: NseFundamentalResearchResult): void {
   fs.renameSync(temp, CANDIDATE_CACHE_FILE);
 }
 
+export function getNseFundamentalCandidateReports(symbol?: string, limit = 100): {
+  source: 'NSE_OFFICIAL';
+  productionApproved: false;
+  symbols: number;
+  reportCount: number;
+  reports: Array<{ reportHash: string; savedAtUtc: string; report: NseFundamentalResearchResult }>;
+} {
+  const cache = loadCandidateCache();
+  const normalized = symbol?.trim().toUpperCase();
+  const entries = normalized
+    ? (cache.symbols[normalized]?.reports ?? [])
+    : Object.values(cache.symbols).flatMap(entry => entry.reports);
+  const reports = [...entries].sort((a, b) => b.savedAtUtc.localeCompare(a.savedAtUtc))
+    .slice(0, Math.max(1, Math.min(1000, Math.floor(limit))));
+  return {
+    source: 'NSE_OFFICIAL',
+    productionApproved: false,
+    symbols: normalized ? (cache.symbols[normalized] ? 1 : 0) : Object.keys(cache.symbols).length,
+    reportCount: reports.length,
+    reports,
+  };
+}
+
 function selectedValue(
   document: NseXbrlEvidenceDocument,
   concept: string,
