@@ -59,6 +59,16 @@ check(
 );
 
 check(
+  'Candidate reports survive app reload from persistent cache',
+  service.includes('function saveCandidateCache')
+    && service.includes('fs.renameSync(temp, CANDIDATE_CACHE_FILE)')
+    && service.includes('export function getNseFundamentalCandidateReports')
+    && section(service, 'export function getNseFundamentalCandidateReports', 'function selectedValue')
+      .includes('loadCandidateCache()'),
+  'Candidate cache is not atomically persisted and re-read from disk by the candidate API',
+);
+
+check(
   'Candidate reports have a separate read-only API and UI',
   server.includes("app.get('/api/fundamentals/nse-candidates'")
     && ui.includes("fetch('/api/fundamentals/nse-candidates?limit=1000')")
