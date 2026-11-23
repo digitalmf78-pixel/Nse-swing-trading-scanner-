@@ -104,3 +104,13 @@ The shared `statement_comparative_guard.test.ts` now includes issuer-specific as
 - Owner-attributable profit: ₹9,385.02 Cr / ₹4,341.61 Cr.
 - OCF: current ₹10,602.50 Cr matches current PDF; prior Original ₹5,747.34 Cr matches its own PDF; current filing comparative ₹5,869.22 Cr remains separately preserved.
 The OCF regression asserts `RECLASSIFIED_COMPARATIVE_REVIEW_REQUIRED`, difference ₹121.88 Cr, and null comparable prior value. This prevents a silent selection of either comparative base.
+
+
+## PDF page-level evidence and automated bridge gate
+
+- Current official NSE consolidated results PDF (30-Oct-2026), consolidated cash-flow statement, page 20: https://nsearchives.nseindia.in/content/debt/WDM/DEVIKA_30102026143622_UFR.pdf
+- Prior Original official NSE results PDF (31-Oct-2025), consolidated cash-flow statement, page 20: https://nsearchives.nseindia.in/corporate/Himanshugail_31102025142548_BMoutcome.pdf
+- Download, PDF text extraction and page-image inspection workflow: https://github.com/digitalmf78-pixel/Nse-swing-trading-scanner-/actions/runs/45133807986
+- PDF audit artifact: https://github.com/digitalmf78-pixel/Nse-swing-trading-scanner-/actions/runs/45133807986/artifacts/14798672291
+
+The shared comparative guard now requires the changed adjustment lines, changed working-capital lines, both subtotals, operating profit before working capital, cash generated from operations, direct taxes and OCF totals to reconcile before it selects the current filing comparative. Regression tests also corrupt a changed line and a cash-generated subtotal to prove that either mismatch returns to RECLASSIFIED_COMPARATIVE_REVIEW_REQUIRED and withholds the prior base.
