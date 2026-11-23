@@ -50,13 +50,9 @@ function localName(value: string): string {
 }
 
 function isPerShareUnit(measures: string[]): boolean {
-  const normalized = measures.map(value => value.trim().toLowerCase());
-  const hasInr = normalized.some(value => value === 'iso4217:inr' || value === 'inr' || value.includes('inrpershare'));
-  const hasShares = normalized.some(value => value === 'xbrli:shares' || value === 'shares');
-  const combinedPerShare = normalized.some(value =>
-    (value.includes('inr') && value.includes('share')) || value.includes('pershare')
-  );
-  return (hasInr && hasShares) || combinedPerShare;
+  if (measures.length !== 2) return false;
+  const normalized = measures.map(value => value.trim().toLowerCase()).sort();
+  return normalized[0] === 'iso4217:inr' && normalized[1] === 'xbrli:shares';
 }
 
 export function selectNseBasicEpsFact(
