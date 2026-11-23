@@ -123,7 +123,6 @@ class NsePipelineEngine {
     // Legacy CSV/free-source/Yahoo caches are intentionally not loaded as fundamentals.
     // Only explicitly validated official NSE metric patches may populate scanner profiles.
     this.mergeNseValidatedFundamentals(root);
-    this.mergeScreenerShareholding(root);
     this.loadXbrlFilings(root);
     this.loadBhavcopiesAndBuildScreener(root, streakMap);
     this.loadRawSignals(root);
@@ -502,61 +501,6 @@ class NsePipelineEngine {
     this.fundamentalsBySymbol.clear();
     for (const [symbol, profile] of merged) {
       this.fundamentalsBySymbol.set(symbol, this.recomputeChecks(profile));
-    }
-  }
-
-  private mergeScreenerShareholding(root: string): void {
-    const file = path.join(root, 'data', 'research', 'bot_screener_cache.json');
-    if (fs.existsSync(file)) {
-      try {
-        const parsed = JSON.parse(fs.readFileSync(file, 'utf-8')) as Record<
-          string,
-          {
-            latestPromoterPct?: number | null;
-            latestFiiPct?: number | null;
-            latestDiiPct?: number | null;
-          }
-        >;
-        if (parsed && typeof parsed === 'object') {
-          for (const [rawSym, rec] of Object.entries(parsed)) {
-            const sym = rawSym.trim().toUpperCase();
-            const prof = this.fundamentalsBySymbol.get(sym);
-            if (!prof || !rec) continue;
-            if (typeof rec.latestFiiPct === 'number' && Number.isFinite(rec.latestFiiPct)) {
-              prof.fiiHoldingPct = prof.fiiHoldingPct ?? rec.latestFiiPct;
-            }
-            if (typeof rec.latestDiiPct === 'number' && Number.isFinite(rec.latestDiiPct)) {
-              prof.diiHoldingPct = prof.diiHoldingPct ?? rec.latestDiiPct;
-            }
-            if (
-              typeof rec.latestPromoterPct === 'number' &&
-              Number.isFinite(rec.latestPromoterPct)
-            ) {
-              const sumWithExisting =
-                (prof.promoterHoldingPct ?? 0) +
-                (prof.fiiHoldingPct ?? 0) +
-                (prof.diiHoldingPct ?? 0) +
-                (prof.publicHoldingPct ?? 0);
-              if (prof.promoterHoldingPct === null || sumWithExisting > 100.5) {
-                prof.promoterHoldingPct = rec.latestPromoterPct;
-              }
-            }
-          }
-        }
-      } catch {
-        // non-fatal cache read failure
-      }
-    }
-
-    // Reconcile total shareholding percentages <= 100%
-    for (const prof of this.fundamentalsBySymbol.values()) {
-      const prom = prof.promoterHoldingPct ?? 0;
-      const fii = prof.fiiHoldingPct ?? 0;
-      const dii = prof.diiHoldingPct ?? 0;
-      const pub = prof.publicHoldingPct;
-      if (pub !== null && prom + fii + dii + pub > 100.5) {
-        prof.publicHoldingPct = Number(Math.max(0, 100 - prom - fii - dii).toFixed(2));
-      }
     }
   }
 
