@@ -25,99 +25,6 @@ interface MergedBar {
   prior10High: number | null;
 }
 
-interface YahooBar {
-  date: string;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-}
-
-const YAHOO_CHART_CACHE = new Map<string, { fetchedAt: number; bars: YahooBar[] }>();
-const CACHE_TTL_MS = 15 * 60 * 1000;
-
-function toIstIsoDate(unixSeconds: number): string {
-  // Shift by +05:30 to align UTC timestamp to IST trading date
-  const istMs = unixSeconds * 1000 + 330 * 60 * 1000;
-  return new Date(istMs).toISOString().slice(0, 10);
-}
-
-async function fetchYahoo6mHistory(symbol: string): Promise<YahooBar[]> {
-  const sym = symbol.trim().toUpperCase();
-  const cached = YAHOO_CHART_CACHE.get(sym);
-  if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
-    return cached.bars;
-  }
-
-  try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}.NS?range=3y&interval=1d`;
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        Accept: 'application/json',
-      },
-      signal: AbortSignal.timeout(9000),
-    });
-    if (!res.ok) return [];
-    const json = (await res.json()) as {
-      chart?: {
-        result?: Array<{
-          timestamp?: number[];
-          indicators?: {
-            quote?: Array<{
-              open?: Array<number | null>;
-              high?: Array<number | null>;
-              low?: Array<number | null>;
-              close?: Array<number | null>;
-              volume?: Array<number | null>;
-            }>;
-          };
-        }>;
-      };
-    };
-
-    const result = json.chart?.result?.[0];
-    const ts = result?.timestamp ?? [];
-    const quote = result?.indicators?.quote?.[0];
-    if (!quote || ts.length === 0) return [];
-
-    const byDate = new Map<string, YahooBar>();
-    for (let i = 0; i < ts.length; i++) {
-      const o = quote.open?.[i];
-      const h = quote.high?.[i];
-      const l = quote.low?.[i];
-      const c = quote.close?.[i];
-      const v = quote.volume?.[i] ?? 0;
-      if (
-        typeof o !== 'number' ||
-        typeof h !== 'number' ||
-        typeof l !== 'number' ||
-        typeof c !== 'number' ||
-        !Number.isFinite(c) ||
-        c <= 0
-      ) {
-        continue;
-      }
-      const date = toIstIsoDate(ts[i]);
-      byDate.set(date, {
-        date,
-        open: o,
-        high: h,
-        low: l,
-        close: c,
-        volume: typeof v === 'number' && Number.isFinite(v) ? v : 0,
-      });
-    }
-
-    const bars = Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
-    YAHOO_CHART_CACHE.set(sym, { fetchedAt: Date.now(), bars });
-    return bars;
-  } catch {
-    return [];
-  }
-}
-
 function computeEma21(closes: number[]): Array<number | null> {
   const out: Array<number | null> = new Array(closes.length).fill(null);
   if (closes.length < 21) return out;
@@ -227,45 +134,25 @@ export async function runStockDeliveryBacktest(
     }
   }
 
-  const yahooBars = await fetchYahoo6mHistory(sym);
-  const mergedMap = new Map<
-    string,
-    {
-      date: string;
-      open: number;
-      high: number;
-      low: number;
-      close: number;
-      volume: number;
-      delivPer: number | null;
-      delivQty: number | null;
-    }
-  >();
+  // Backtests use only exact NSE Bhavcopy OHLCV and delivery data.
+  // Missing Bhavcopy sessions are not filled from a non-NSE price provider.
+  const rawBars = Array.from(localBhavMap.values())
+    .filter((row) => row.close !== null)
+    .map((row) => {
+      const close = row.close as number;
+      return {
+        date: row.date,
+        open: row.open ?? close,
+        high: row.high ?? close,
+        low: row.low ?? close,
+        close,
+        volume: row.volume,
+        delivPer: row.delivPer,
+        delivQty: row.delivQty,
+      };
+    })
+    .sort((a, b) => a.date.localeCompare(b.date));
 
-  for (const yb of yahooBars) {
-    mergedMap.set(yb.date, {
-      ...yb,
-      delivPer: null,
-      delivQty: null,
-    });
-  }
-
-  // Overlay exact NSE Bhavcopy values wherever cached
-  for (const [date, nb] of localBhavMap.entries()) {
-    const close = nb.close!;
-    mergedMap.set(date, {
-      date,
-      open: nb.open ?? close,
-      high: nb.high ?? close,
-      low: nb.low ?? close,
-      close,
-      volume: nb.volume,
-      delivPer: nb.delivPer,
-      delivQty: nb.delivQty,
-    });
-  }
-
-  const rawBars = Array.from(mergedMap.values()).sort((a, b) => a.date.localeCompare(b.date));
   const closes = rawBars.map((b) => b.close);
   const ema21Arr = computeEma21(closes);
   const atr14Arr = computeAtr14Series(rawBars);
@@ -513,10 +400,7 @@ export async function runStockDeliveryBacktest(
       toDate: latestDate,
       totalTradingSessions: evalBars.length,
       nseDeliverySessions,
-      sourceLabel:
-        yahooBars.length > 0
-          ? `Yahoo 6M OHLCV (${evalBars.length}d) + NSE Bhavcopy Delivery (${nseDeliverySessions}d)`
-          : `NSE Bhavcopy Cached (${nseDeliverySessions}d)`,
+      sourceLabel: `NSE Bhavcopy Cached only (${nseDeliverySessions} delivery sessions)`,
     },
     metrics: {
       totalSignals: trades.length,
