@@ -91,8 +91,6 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
   const [universeLoading, setUniverseLoading] = useState(false);
   const [universeError, setUniverseError] = useState<string | null>(null);
 
-  const [verifyingSymbol, setVerifyingSymbol] = useState<string | null>(null);
-  const [savingAllCache, setSavingAllCache] = useState(false);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [syncingNseFilingHistory, setSyncingNseFilingHistory] = useState(false);
 
@@ -191,29 +189,6 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
   const displayedRows = scope === 'UNIVERSE' ? universeRows : filteredPeers;
   const activeCounts = scope === 'UNIVERSE' && universeCounts ? universeCounts : peerCounts;
 
-  const handleSaveAllMissingToCache = async () => {
-    setSavingAllCache(true);
-    setActionNotice(null);
-    try {
-      const res = await fetch('/api/fundamentals/save-to-cache', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ saveAll: true, scope: 'MISSING_OR_OLD' }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
-      setActionNotice(
-        json.started
-          ? `Saving all ${json.total} missing/old NSE symbols to cache automatically in background.`
-          : json.message || 'All NSE fundamentals are already saved to cache.'
-      );
-    } catch (err) {
-      setActionNotice(`Save-to-cache error: ${(err as Error).message}`);
-    } finally {
-      setSavingAllCache(false);
-    }
-  };
-
   const handleSyncBhavcopyNseFilingHistory = async () => {
     setSyncingNseFilingHistory(true);
     setActionNotice('Starting official NSE filing-history sync for symbols in the latest Bhavcopy...');
@@ -263,37 +238,6 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
       window.clearInterval(timer);
     };
   }, [syncingNseFilingHistory]);
-
-  const handleVerifyBothExchanges = async (sym: string) => {
-    setVerifyingSymbol(sym);
-    setActionNotice(null);
-    try {
-      const res = await fetch('/api/fundamentals/save-to-cache', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol: sym, force: true }),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        throw new Error(json.error || `HTTP ${res.status}`);
-      }
-      if (!json.saved) {
-        setActionNotice(`Verify failed for ${sym}: ${json.error || 'Unavailable'}`);
-      } else {
-        setActionNotice(
-          `Saved & verified ${sym} across NSE (.NS / XBRL) & BSE (.BO) · Total cached: ${json.totalSavedCount}.`
-        );
-        await onStockRefreshed();
-        if (scope === 'UNIVERSE') {
-          await fetchUniverseAudit();
-        }
-      }
-    } catch (err) {
-      setActionNotice(`Verify error for ${sym}: ${(err as Error).message}`);
-    } finally {
-      setVerifyingSymbol(null);
-    }
-  };
 
   const handleDownloadCsv = () => {
     if (displayedRows.length === 0) return;
@@ -470,12 +414,12 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
 
           <button
             type="button"
-            onClick={handleSaveAllMissingToCache}
-            disabled={savingAllCache}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-700 hover:bg-blue-800 disabled:opacity-50 text-xs font-medium text-white whitespace-nowrap transition-colors"
+            disabled
+            title="NSE official metric validation and main-cache writing are still being completed"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-200 bg-slate-100 text-xs font-medium text-slate-500 whitespace-nowrap cursor-not-allowed"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${savingAllCache ? 'animate-spin' : ''}`} />
-            {savingAllCache ? 'Starting...' : 'Save All NSE to Cache'}
+            <Database className="w-3.5 h-3.5" />
+            NSE Metrics Pending
           </button>
 
           <button
@@ -636,7 +580,7 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
               <th className="py-2.5 px-3">BSE Exchange Data</th>
               <th className="py-2.5 px-3">Last Update Timestamp</th>
               <th className="py-2.5 px-3">Freshness</th>
-              <th className="py-2.5 px-4 text-right">Verify</th>
+              <th className="py-2.5 px-4 text-right">NSE Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -655,7 +599,6 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
             ) : (
               displayedRows.map((entry) => {
                 const isActive = entry.symbol === activeSymbol;
-                const isVerifying = verifyingSymbol === entry.symbol;
                 const { ageDays, tier } = getRowAgeAndTier(entry);
                 const hasNseYahoo = entry.sources.includes('YFinance (.NS)');
 
@@ -696,7 +639,7 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
                         </span>
                         {hasNseYahoo && (
                           <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-mono">
-                            YF .NS
+                            Legacy YF
                           </span>
                         )}
                         {entry.nseXbrlCount > 0 && (
@@ -722,7 +665,7 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
                         </span>
                         {entry.bseMapped ? (
                           <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-medium whitespace-nowrap">
-                            BSE Verified
+                            BSE Mapping
                           </span>
                         ) : (
                           <span className="text-[11px] text-slate-400">Standby</span>
@@ -730,8 +673,8 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
                       </div>
                       <div className="text-[11px] text-slate-500 mt-0.5 truncate max-w-[180px]">
                         {entry.bseMapped
-                          ? 'Yahoo BSE (.BO) active'
-                          : 'Click Verify to probe .BO'}
+                          ? 'Legacy BSE data · not refreshed'
+                          : 'No legacy BSE cache'}
                       </div>
                     </td>
 
@@ -754,17 +697,12 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
 
                     {/* Action */}
                     <td className="py-2.5 px-4 text-right align-top">
-                      <button
-                        type="button"
-                        onClick={() => void handleVerifyBothExchanges(entry.symbol)}
-                        disabled={verifyingSymbol !== null}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 text-[11px] font-medium text-slate-700 whitespace-nowrap transition-colors"
+                      <span
+                        title="Automatic fundamental verification is disabled until the NSE-only service is production-ready"
+                        className="inline-flex items-center rounded border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-500"
                       >
-                        <RefreshCw
-                          className={`w-3 h-3 ${isVerifying ? 'animate-spin text-blue-600' : ''}`}
-                        />
-                        {isVerifying ? 'Verifying...' : 'Verify NSE/BSE'}
-                      </button>
+                        Pending
+                      </span>
                     </td>
                   </tr>
                 );
