@@ -66,10 +66,12 @@ export interface NseFundamentalResearchResult {
   isinVerified?: boolean;
   industryClassification?: NseIssuerIndustryRecord | null;
   xbrlEntityIdentity?: {
-    entityScheme: string;
-    entityIdentifier: string;
+    entityScheme: string | null;
+    entityIdentifier: string | null;
     documentsChecked: number;
-    matchesOfficialNseIsin: true;
+    matchesOfficialNseIsin: boolean;
+    valid: boolean;
+    issues: string[];
   };
   scannerEligible: false;
   productionApproved: false;
@@ -527,11 +529,20 @@ async function processIssuer(
   const identityAudit = auditXbrlIssuerIdentity(
     docs.map(doc => doc.extraction), isin,
   );
+  const identityEvidence: NonNullable<NseFundamentalResearchResult['xbrlEntityIdentity']> = {
+    entityScheme: identityAudit.entityScheme,
+    entityIdentifier: identityAudit.entityIdentifier,
+    documentsChecked: identityAudit.documentsChecked,
+    matchesOfficialNseIsin: Boolean(identityAudit.entityIdentifier && identityAudit.entityIdentifier === isin),
+    valid: identityAudit.valid,
+    issues: [...identityAudit.issues],
+  };
   if (!identityAudit.valid) {
-    return {
-      report: blocked(symbol, sector, 'XBRL issuer identity validation failed: ' + identityAudit.issues.join('; ')),
-      xbrlSaved: download.saved,
-    };
+    const report = blocked(symbol, sector, 'XBRL issuer identity validation failed: ' + identityAudit.issues.join('; '));
+    report.isin = isin;
+    report.isinVerified = true;
+    report.xbrlEntityIdentity = identityEvidence;
+    return { report, xbrlSaved: download.saved };
   }
 
   const basis = pair.basis === 'Standalone' ? 'STANDALONE' : 'CONSOLIDATED';
@@ -645,14 +656,7 @@ async function processIssuer(
     symbol, status, sector, isin: isin ?? undefined, isinVerified: Boolean(isin),
     basis, currentPeriodEnd: pair.currentPeriodEnd,
     priorPeriodEnd: pair.priorPeriodEnd, candidateReport, epsCandidate, revisionAudit,
-    xbrlEntityIdentity: identityAudit.entityScheme && identityAudit.entityIdentifier
-      ? {
-          entityScheme: identityAudit.entityScheme,
-          entityIdentifier: identityAudit.entityIdentifier,
-          documentsChecked: identityAudit.documentsChecked,
-          matchesOfficialNseIsin: true,
-        }
-      : undefined,
+    xbrlEntityIdentity: identityEvidence,
     scannerEligible: false, productionApproved: false, warnings,
   };
   return { report, xbrlSaved: download.saved };
