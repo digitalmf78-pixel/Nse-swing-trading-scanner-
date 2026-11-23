@@ -122,6 +122,7 @@ class NsePipelineEngine {
     this.loadFundamentals(root);
     this.mergeFreeSourceCache(root);
     this.mergeLiveOverrides();
+    this.mergeNseValidatedFundamentals(root);
     this.mergeScreenerShareholding(root);
     this.loadXbrlFilings(root);
     this.loadBhavcopiesAndBuildScreener(root, streakMap);
