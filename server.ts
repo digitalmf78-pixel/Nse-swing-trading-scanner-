@@ -462,7 +462,7 @@ async function startServer() {
     }
   });
 
-  // Live Fundamental Fetcher (Single Symbol or Batch Missing Liquidity-Qualified)
+  // Legacy Yahoo fundamental refresh endpoint is fail-closed until NSE production service is ready.
   app.post('/api/refresh/fundamentals', async (_req, res) => {
     return res.status(503).json({
       code: 'NSE_FUNDAMENTAL_SERVICE_NOT_READY',
@@ -470,44 +470,6 @@ async function startServer() {
     });
   });
 
-  /* Legacy implementation retained only in git history; scanner triggers must not call Yahoo fundamentals.
-  app.post('/api/refresh/fundamentals', async (req, res) => {
-    try {
-      const symbol = typeof req.body?.symbol === 'string' ? req.body.symbol.trim().toUpperCase() : '';
-      const batchMissing = Boolean(req.body?.batchMissing);
-      const limit = Math.min(50, Math.max(1, Number(req.body?.limit ?? 25)));
-
-      let targets: string[] = [];
-      if (symbol) {
-        targets = [symbol];
-      } else if (batchMissing) {
-        targets = nsePipeline.getMissingFundamentalCandidates(limit);
-      } else {
-        return res.status(400).json({ error: 'Provide either symbol or batchMissing: true.' });
-      }
-
-      if (targets.length === 0) {
-        return res.json({
-          succeeded: [],
-          failed: [],
-          message: 'All liquidity-qualified candidates already have complete fundamentals.',
-        });
-      }
-
-      const forceBse = Boolean(req.body?.forceBse);
-      const result = await refreshFundamentalsBatch(targets, nsePipeline.getXbrlBySymbolMap(), forceBse);
-      if (result.succeeded.length > 0) {
-        nsePipeline.reload();
-      }
-      return res.json({
-        ...result,
-        message: `Collected & saved NSE XBRL + YFinance (.NS/.BO) fundamentals for ${result.succeeded.length}/${targets.length} symbol(s).`,
-      });
-    } catch (err) {
-      return res.status(500).json({ error: (err as Error).message });
-    }
-  });
-  */
 
   // Fundamental Audit Universe Query (NSE/BSE Mapping & Freshness Tiers)
   app.get('/api/fundamentals/audit', (req, res) => {
@@ -526,43 +488,24 @@ async function startServer() {
     }
   });
 
-  // Bhavcopy-Universe Fundamental Collection (only symbols present in the latest Bhavcopy when scope=BHAVCOPY)
+  // Bhavcopy-Universe NSE filing evidence collection (no metric values written to the main cache yet).
   app.post('/api/fundamentals/collect-all', async (req, res) => {
     try {
       const rawScope = typeof req.body?.scope === 'string' ? req.body.scope.toUpperCase() : 'MISSING_OR_OLD';
-      const scope: 'MISSING_OR_OLD' | 'NOT_AVAILABLE' | 'LIQUID' | 'ALL' | 'BHAVCOPY' =
-        rawScope === 'NOT_AVAILABLE' || rawScope === 'LIQUID' || rawScope === 'ALL' || rawScope === 'BHAVCOPY'
-          ? rawScope
-          : 'MISSING_OR_OLD';
-      const limitNum = Number(req.body?.limit);
-      const limit = Number.isFinite(limitNum) && limitNum > 0 ? Math.min(3000, limitNum) : undefined;
-
-      if (scope !== 'BHAVCOPY') {
+      if (rawScope !== 'BHAVCOPY') {
         return res.status(503).json({
           code: 'NSE_FUNDAMENTAL_SERVICE_NOT_READY',
           error: 'Legacy Yahoo fundamental collection is disabled. Only Bhavcopy-scoped NSE filing evidence sync is currently available.',
         });
       }
-
-      const targets = nsePipeline.getAuditCollectionTargets(scope, limit);
-      if (scope === 'BHAVCOPY') {
-        const status = startNseFilingHistoryCollection(targets);
-        return res.json({
-          mode: 'NSE_OFFICIAL_FILING_HISTORY_ONLY',
-          ...status,
-          note: 'Official NSE filing metadata is staged separately; no Yahoo fundamental values are written to the main cache.',
-        });
-      }
-      if (targets.length === 0) {
-        return res.json({
-          ...getCollectionJobStatus(),
-          message: 'All Bhavcopy symbols in the selected scope already have latest fundamentals.',
-        });
-      }
-
-      return res.status(503).json({
-        code: 'NSE_FUNDAMENTAL_SERVICE_NOT_READY',
-        error: 'No non-Bhavcopy fundamental collection path is enabled.',
+      const limitNum = Number(req.body?.limit);
+      const limit = Number.isFinite(limitNum) && limitNum > 0 ? Math.min(3000, limitNum) : undefined;
+      const targets = nsePipeline.getAuditCollectionTargets('BHAVCOPY', limit);
+      const status = startNseFilingHistoryCollection(targets);
+      return res.json({
+        mode: 'NSE_OFFICIAL_FILING_HISTORY_ONLY',
+        ...status,
+        note: 'Official NSE filing metadata is staged separately; no fundamental metric values are yet approved or written to the main cache.',
       });
     } catch (err) {
       return res.status(500).json({ error: (err as Error).message });
