@@ -36,6 +36,31 @@ interface AuditCounts {
   bseMapped: number;
 }
 
+interface NseCandidateRow {
+  reportHash: string;
+  savedAtUtc: string;
+  report: {
+    symbol: string;
+    status: string;
+    sector: string;
+    basis?: string;
+    currentPeriodEnd?: string;
+    priorPeriodEnd?: string;
+    candidateReport?: {
+      candidateReport?: {
+        candidates?: {
+          revenueGrowth?: { status: string; growthPercent: number | null } | null;
+          profitGrowth?: { status: string; growthPercent: number | null } | null;
+          operatingCashFlow?: { status: string; currentValue: number | null; percentageChange: number | null } | null;
+        };
+      };
+    };
+    epsCandidate?: { status: string; currentValue: number | null; unit: string | null } | null;
+    warnings?: string[];
+  };
+}
+
+
 function classifyAge(ageDays: number | null): AuditFreshnessTier {
   if (ageDays === null) return 'UNVERIFIED';
   if (ageDays < 30) return 'UNDER_1M';
@@ -92,6 +117,10 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
 
   const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [syncingNseFilingHistory, setSyncingNseFilingHistory] = useState(false);
+  const [showNseCandidates, setShowNseCandidates] = useState(false);
+  const [loadingNseCandidates, setLoadingNseCandidates] = useState(false);
+  const [nseCandidateRows, setNseCandidateRows] = useState<NseCandidateRow[]>([]);
+  const [nseCandidateError, setNseCandidateError] = useState<string | null>(null);
 
   const fetchUniverseAudit = useCallback(async () => {
     setUniverseLoading(true);
@@ -188,6 +217,31 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
   const displayedRows = scope === 'UNIVERSE' ? universeRows : filteredPeers;
   const activeCounts = scope === 'UNIVERSE' && universeCounts ? universeCounts : peerCounts;
 
+  const loadNseCandidates = useCallback(async () => {
+    setLoadingNseCandidates(true);
+    setNseCandidateError(null);
+    try {
+      const res = await fetch('/api/fundamentals/nse-candidates?limit=1000');
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+      const latestBySymbol = new Map<string, NseCandidateRow>();
+      for (const item of (json.reports || []) as NseCandidateRow[]) {
+        if (!latestBySymbol.has(item.report.symbol)) latestBySymbol.set(item.report.symbol, item);
+      }
+      setNseCandidateRows([...latestBySymbol.values()]);
+      setShowNseCandidates(true);
+    } catch (err) {
+      setNseCandidateError((err as Error).message);
+    } finally {
+      setLoadingNseCandidates(false);
+    }
+  }, []);
+
+  const formatCandidateValue = (value: number | null | undefined, suffix = ''): string => {
+    if (value === null || value === undefined || !Number.isFinite(value)) return 'MISSING';
+    return `${value.toFixed(2)}${suffix}`;
+  };
+
   const handleSyncBhavcopyNseFilingHistory = async () => {
     setSyncingNseFilingHistory(true);
     setActionNotice('Starting NSE fundamental fetch, XBRL revision comparison and candidate validation for latest Bhavcopy symbols...');
@@ -225,7 +279,10 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
             ? `NSE ${status.filingHistoryProcessed < status.total ? 'filings' : 'XBRL validation'}: ${status.filingHistoryProcessed < status.total ? status.filingHistoryProcessed : status.processed}/${status.total} · XBRL saved ${status.xbrlDocumentsSaved} · candidates ${status.candidateReady} · revision review ${status.revisionReviewRequired} · blocked ${status.failed} · current ${status.currentSymbol || 'finishing'}`
             : `NSE fundamental research finished: ${status.candidateReady} candidate-ready · ${status.revisionReviewRequired} revision-review · ${status.failed} blocked · ${status.xbrlDocumentsSaved} XBRL documents saved.${status.lastError ? ' Last error: ' + status.lastError : ''} Candidate values are stored separately for review; production scanner cache remains unchanged until formal validation is approved.`
         );
-        if (!status.running) setSyncingNseFilingHistory(false);
+        if (!status.running) {
+          setSyncingNseFilingHistory(false);
+          await loadNseCandidates();
+        }
       } catch {
         // A temporary status-poll failure must not interrupt the background sync.
       }
@@ -236,7 +293,7 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [syncingNseFilingHistory]);
+  }, [loadNseCandidates, syncingNseFilingHistory]);
 
   const handleDownloadCsv = () => {
     if (displayedRows.length === 0) return;
@@ -424,6 +481,17 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
 
           <button
             type="button"
+            onClick={() => void loadNseCandidates()}
+            disabled={loadingNseCandidates}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 text-xs font-medium text-slate-700 whitespace-nowrap transition-colors"
+            title="Load the latest stored NSE XBRL research candidates; these are not production-approved metrics"
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
+            {loadingNseCandidates ? 'Loading Candidates...' : 'View NSE Candidates'}
+          </button>
+
+          <button
+            type="button"
             onClick={handleDownloadCsv}
             disabled={displayedRows.length === 0 || (scope === 'UNIVERSE' && universeLoading)}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 text-xs font-medium text-slate-700 whitespace-nowrap transition-colors"
@@ -550,6 +618,85 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
           >
             Dismiss
           </button>
+        </div>
+      )}
+
+      {showNseCandidates && (
+        <div className="border-b border-slate-200 bg-slate-50/60">
+          <div className="px-5 py-3 flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs font-semibold text-slate-900">NSE XBRL Research Candidates</div>
+              <div className="text-[11px] text-slate-500">Research-only values from official NSE filings. Nothing in this table is written to scanner production metrics.</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-slate-500 tabular-nums">{nseCandidateRows.length} latest symbols</span>
+              <button type="button" onClick={() => void loadNseCandidates()} disabled={loadingNseCandidates} className="px-2.5 py-1 rounded border border-slate-200 bg-white text-[11px] font-medium text-slate-700 disabled:opacity-50">Refresh</button>
+              <button type="button" onClick={() => setShowNseCandidates(false)} className="px-2.5 py-1 rounded border border-slate-200 bg-white text-[11px] text-slate-600">Hide</button>
+            </div>
+          </div>
+          {nseCandidateError && <div className="px-5 pb-2 text-xs text-rose-700">Candidate load error: {nseCandidateError}</div>}
+          {loadingNseCandidates ? (
+            <div className="px-5 py-5 text-center text-xs text-slate-500">Loading NSE candidate cache...</div>
+          ) : nseCandidateRows.length === 0 ? (
+            <div className="px-5 py-5 text-center text-xs text-slate-500">No NSE candidate reports are stored yet. Run Fetch NSE Fundamentals first.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-[11px]">
+                <thead>
+                  <tr className="bg-white border-y border-slate-200 text-slate-600">
+                    <th className="py-2 px-4">Symbol / Period</th>
+                    <th className="py-2 px-2">Research Status</th>
+                    <th className="py-2 px-2 text-right">Revenue Growth</th>
+                    <th className="py-2 px-2 text-right">Profit Growth</th>
+                    <th className="py-2 px-2 text-right">OCF (₹)</th>
+                    <th className="py-2 px-2 text-right">Basic EPS (₹)</th>
+                    <th className="py-2 px-4">Validation Notes</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {nseCandidateRows.map((item) => {
+                    const report = item.report;
+                    const candidates = report.candidateReport?.candidateReport?.candidates;
+                    const revenue = candidates?.revenueGrowth;
+                    const profit = candidates?.profitGrowth;
+                    const ocf = candidates?.operatingCashFlow;
+                    const eps = report.epsCandidate;
+                    return (
+                      <tr key={item.reportHash} className="bg-white align-top">
+                        <td className="py-2 px-4">
+                          <button type="button" onClick={() => onSelectSymbol(report.symbol)} className="font-mono font-semibold text-blue-700 hover:underline">{report.symbol}</button>
+                          <div className="text-slate-500">{report.basis || 'Basis missing'} · {report.currentPeriodEnd || 'Period missing'}</div>
+                        </td>
+                        <td className="py-2 px-2">
+                          <div className="font-medium text-slate-800">{report.status}</div>
+                          <div className="text-slate-500">{report.sector}</div>
+                        </td>
+                        <td className="py-2 px-2 text-right font-mono tabular-nums">
+                          {formatCandidateValue(revenue?.growthPercent, '%')}
+                          <div className="text-slate-500">{revenue?.status || 'MISSING'}</div>
+                        </td>
+                        <td className="py-2 px-2 text-right font-mono tabular-nums">
+                          {formatCandidateValue(profit?.growthPercent, '%')}
+                          <div className="text-slate-500">{profit?.status || 'MISSING'}</div>
+                        </td>
+                        <td className="py-2 px-2 text-right font-mono tabular-nums">
+                          {formatCandidateValue(ocf?.currentValue)}
+                          <div className="text-slate-500">{ocf?.status || 'MISSING'}</div>
+                        </td>
+                        <td className="py-2 px-2 text-right font-mono tabular-nums">
+                          {formatCandidateValue(eps?.currentValue)}
+                          <div className="text-slate-500">{eps?.status || 'MISSING'}</div>
+                        </td>
+                        <td className="py-2 px-4 max-w-[360px] text-slate-600">
+                          {(report.warnings || []).slice(0, 3).join(' · ') || 'No additional notes'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
