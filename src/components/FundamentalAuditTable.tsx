@@ -4,7 +4,6 @@ import {
   ChevronRight,
   Database,
   Download,
-  RefreshCw,
   Search,
   ShieldCheck,
 } from 'lucide-react';
@@ -36,6 +35,49 @@ interface AuditCounts {
   nseMapped: number;
   bseMapped: number;
 }
+
+interface NseCandidateRow {
+  reportHash: string;
+  savedAtUtc: string;
+  report: {
+    symbol: string;
+    status: string;
+    sector: string;
+    basis?: string;
+    currentPeriodEnd?: string;
+    priorPeriodEnd?: string;
+    candidateReport?: {
+      currentPeriod?: { periodType?: string };
+      candidateReport?: {
+        candidates?: {
+          revenueGrowth?: { status: string; growthPercent: number | null } | null;
+          profitGrowth?: { status: string; growthPercent: number | null } | null;
+          operatingCashFlow?: { status: string; currentValue: number | null; percentageChange: number | null } | null;
+        };
+        auditMatrix?: {
+          metrics?: Record<string, {
+            sourceDataStatus: string;
+            definitionReadiness: string;
+            decision: string;
+            explanation: string;
+          }>;
+          readyForProduction?: boolean;
+          productionApproved?: boolean;
+        };
+      };
+    };
+    epsCandidate?: { status: string; currentValue: number | null; unit: string | null; periodType?: string } | null;
+    xbrlEntityIdentity?: { entityIdentifier: string | null; entityScheme: string | null; valid: boolean; matchesOfficialNseIsin: boolean };
+    filingEvidence?: {
+      currentOriginal: { sequenceId: string; audited: string | null; xbrlUrl: string; ixbrlUrl: string };
+      currentRevisions: Array<{ sequenceId: string; audited: string | null; xbrlUrl: string; ixbrlUrl: string }>;
+      priorOriginal: { sequenceId: string; audited: string | null; xbrlUrl: string; ixbrlUrl: string };
+      priorRevisions: Array<{ sequenceId: string; audited: string | null; xbrlUrl: string; ixbrlUrl: string }>;
+    };
+    warnings?: string[];
+  };
+}
+
 
 function classifyAge(ageDays: number | null): AuditFreshnessTier {
   if (ageDays === null) return 'UNVERIFIED';
@@ -91,9 +133,12 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
   const [universeLoading, setUniverseLoading] = useState(false);
   const [universeError, setUniverseError] = useState<string | null>(null);
 
-  const [verifyingSymbol, setVerifyingSymbol] = useState<string | null>(null);
-  const [savingAllCache, setSavingAllCache] = useState(false);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
+  const [syncingNseFilingHistory, setSyncingNseFilingHistory] = useState(false);
+  const [showNseCandidates, setShowNseCandidates] = useState(false);
+  const [loadingNseCandidates, setLoadingNseCandidates] = useState(false);
+  const [nseCandidateRows, setNseCandidateRows] = useState<NseCandidateRow[]>([]);
+  const [nseCandidateError, setNseCandidateError] = useState<string | null>(null);
 
   const fetchUniverseAudit = useCallback(async () => {
     setUniverseLoading(true);
@@ -190,59 +235,84 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
   const displayedRows = scope === 'UNIVERSE' ? universeRows : filteredPeers;
   const activeCounts = scope === 'UNIVERSE' && universeCounts ? universeCounts : peerCounts;
 
-  const handleSaveAllMissingToCache = async () => {
-    setSavingAllCache(true);
-    setActionNotice(null);
+  const loadNseCandidates = useCallback(async () => {
+    setShowNseCandidates(true);
+    setLoadingNseCandidates(true);
+    setNseCandidateError(null);
     try {
-      const res = await fetch('/api/fundamentals/save-to-cache', {
+      const res = await fetch('/api/fundamentals/nse-candidates?limit=1000');
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+      const latestBySymbol = new Map<string, NseCandidateRow>();
+      for (const item of (json.reports || []) as NseCandidateRow[]) {
+        if (!latestBySymbol.has(item.report.symbol)) latestBySymbol.set(item.report.symbol, item);
+      }
+      setNseCandidateRows([...latestBySymbol.values()]);
+      setShowNseCandidates(true);
+    } catch (err) {
+      setNseCandidateError((err as Error).message);
+    } finally {
+      setLoadingNseCandidates(false);
+    }
+  }, []);
+
+  const formatCandidateValue = (value: number | null | undefined, suffix = ''): string => {
+    if (value === null || value === undefined || !Number.isFinite(value)) return 'MISSING';
+    return `${value.toFixed(2)}${suffix}`;
+  };
+
+  const handleSyncBhavcopyNseFilingHistory = async () => {
+    setSyncingNseFilingHistory(true);
+    setActionNotice('Starting NSE fundamental fetch, XBRL revision comparison and candidate validation for latest Bhavcopy symbols...');
+    try {
+      const res = await fetch('/api/refresh/fundamentals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ saveAll: true, scope: 'MISSING_OR_OLD' }),
+        body: JSON.stringify({ scope: 'BHAVCOPY' }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
-      setActionNotice(
-        json.started
-          ? `Saving all ${json.total} missing/old NSE symbols to cache automatically in background.`
-          : json.message || 'All NSE fundamentals are already saved to cache.'
-      );
+      if (!json.running) {
+        setSyncingNseFilingHistory(false);
+        setActionNotice(json.note || 'NSE fundamental research did not start.');
+        return;
+      }
+      setActionNotice(`NSE XBRL fundamental research started: ${json.total} Bhavcopy symbols. Current/prior filings and revisions will be checked; results are staged for research and do not change scanner metrics.`);
     } catch (err) {
-      setActionNotice(`Save-to-cache error: ${(err as Error).message}`);
-    } finally {
-      setSavingAllCache(false);
+      setSyncingNseFilingHistory(false);
+      setActionNotice(`NSE fundamental fetch error: ${(err as Error).message}`);
     }
   };
 
-  const handleVerifyBothExchanges = async (sym: string) => {
-    setVerifyingSymbol(sym);
-    setActionNotice(null);
-    try {
-      const res = await fetch('/api/fundamentals/save-to-cache', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol: sym, force: true }),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        throw new Error(json.error || `HTTP ${res.status}`);
-      }
-      if (!json.saved) {
-        setActionNotice(`Verify failed for ${sym}: ${json.error || 'Unavailable'}`);
-      } else {
+  useEffect(() => {
+    if (!syncingNseFilingHistory) return;
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const res = await fetch('/api/fundamentals/collect-status');
+        if (!res.ok) return;
+        const status = await res.json();
+        if (cancelled) return;
         setActionNotice(
-          `Saved & verified ${sym} across NSE (.NS / XBRL) & BSE (.BO) · Total cached: ${json.totalSavedCount}.`
+          status.running
+            ? `NSE ${status.filingHistoryProcessed < status.total ? 'filings' : 'XBRL validation'}: ${status.filingHistoryProcessed < status.total ? status.filingHistoryProcessed : status.processed}/${status.total} · XBRL saved ${status.xbrlDocumentsSaved} · candidates ${status.candidateReady} · revision review ${status.revisionReviewRequired} · blocked ${status.failed} · current ${status.currentSymbol || 'finishing'}`
+            : `NSE fundamental research finished: ${status.candidateReady} candidate-ready · ${status.revisionReviewRequired} revision-review · ${status.failed} blocked · ${status.xbrlDocumentsSaved} XBRL documents saved.${status.lastError ? ' Last error: ' + status.lastError : ''} Candidate values are stored separately for review; production scanner cache remains unchanged until formal validation is approved.`
         );
-        await onStockRefreshed();
-        if (scope === 'UNIVERSE') {
-          await fetchUniverseAudit();
+        if (!status.running) {
+          setSyncingNseFilingHistory(false);
+          await loadNseCandidates();
         }
+      } catch {
+        // A temporary status-poll failure must not interrupt the background sync.
       }
-    } catch (err) {
-      setActionNotice(`Verify error for ${sym}: ${(err as Error).message}`);
-    } finally {
-      setVerifyingSymbol(null);
-    }
-  };
+    };
+    void poll();
+    const timer = window.setInterval(() => void poll(), 2500);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [loadNseCandidates, syncingNseFilingHistory]);
 
   const handleDownloadCsv = () => {
     if (displayedRows.length === 0) return;
@@ -251,7 +321,7 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
       'Series',
       'Sector',
       'NSE Ticker',
-      'NSE YFinance Verified',
+      'NSE XBRL Verified',
       'NSE XBRL Filings',
       'NSE Latest Filing Date',
       'BSE Ticker',
@@ -268,13 +338,13 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
     const lines = [headers.map(escapeCsvCell).join(',')];
     for (const entry of displayedRows) {
       const { ageDays, tier } = getRowAgeAndTier(entry);
-      const hasNseYahoo = entry.sources.includes('YFinance (.NS)');
+      const hasNseXbrl = entry.sources.some(source => /NSE Official XBRL/i.test(source));
       const rowValues = [
         entry.symbol,
         entry.series,
         entry.sector,
         entry.nseTicker,
-        hasNseYahoo ? 'Yes' : 'No',
+        hasNseXbrl ? 'Yes' : 'No',
         entry.nseXbrlCount,
         entry.nseLatestFilingDate,
         entry.bseTicker,
@@ -356,8 +426,8 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
             </h3>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Maps symbols to NSE (.NS + XBRL) and BSE (.BO) records, last verified UTC timestamp,
-            and freshness tier (Green &lt; 1M · Yellow 1–3M · Red &gt; 3M / Unverified).
+            Shows exchange mapping and filing freshness. Scanner fundamentals use official NSE filings only;
+            Yahoo Finance is reserved for live prices, while legacy BSE/Yahoo mappings are informational only.
           </p>
         </div>
 
@@ -419,12 +489,24 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
 
           <button
             type="button"
-            onClick={handleSaveAllMissingToCache}
-            disabled={savingAllCache}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-700 hover:bg-blue-800 disabled:opacity-50 text-xs font-medium text-white whitespace-nowrap transition-colors"
+            onClick={handleSyncBhavcopyNseFilingHistory}
+            disabled={syncingNseFilingHistory}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-50 text-xs font-medium text-indigo-800 whitespace-nowrap transition-colors"
+            title="Fetch NSE filing history, current/prior XBRL and revisions; calculate research candidates without changing the production scanner cache"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${savingAllCache ? 'animate-spin' : ''}`} />
-            {savingAllCache ? 'Starting...' : 'Save All NSE to Cache'}
+            <Database className={`w-3.5 h-3.5 ${syncingNseFilingHistory ? 'animate-pulse' : ''}`} />
+            {syncingNseFilingHistory ? 'Fetching NSE Fundamentals...' : 'Fetch NSE Fundamentals'}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => void loadNseCandidates()}
+            disabled={loadingNseCandidates}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 text-xs font-medium text-slate-700 whitespace-nowrap transition-colors"
+            title="Load the latest stored NSE XBRL research candidates; these are not production-approved metrics"
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
+            {loadingNseCandidates ? 'Loading Candidates...' : 'View NSE Candidates'}
           </button>
 
           <button
@@ -558,6 +640,122 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
         </div>
       )}
 
+      {showNseCandidates && (
+        <div className="border-b border-slate-200 bg-slate-50/60">
+          <div className="px-5 py-3 flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs font-semibold text-slate-900">NSE XBRL Research Candidates</div>
+              <div className="text-[11px] text-slate-500">Research-only values from official NSE filings. Nothing in this table is written to scanner production metrics.</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-slate-500 tabular-nums">{nseCandidateRows.length} latest symbols</span>
+              <button type="button" onClick={() => void loadNseCandidates()} disabled={loadingNseCandidates} className="px-2.5 py-1 rounded border border-slate-200 bg-white text-[11px] font-medium text-slate-700 disabled:opacity-50">Refresh</button>
+              <button type="button" onClick={() => setShowNseCandidates(false)} className="px-2.5 py-1 rounded border border-slate-200 bg-white text-[11px] text-slate-600">Hide</button>
+            </div>
+          </div>
+          {nseCandidateError && <div className="px-5 pb-2 text-xs text-rose-700">Candidate load error: {nseCandidateError}</div>}
+          {loadingNseCandidates ? (
+            <div className="px-5 py-5 text-center text-xs text-slate-500">Loading NSE candidate cache...</div>
+          ) : nseCandidateRows.length === 0 ? (
+            <div className="px-5 py-5 text-center text-xs text-slate-500">No NSE candidate reports are stored yet. Run Fetch NSE Fundamentals first.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-[11px]">
+                <thead>
+                  <tr className="bg-white border-y border-slate-200 text-slate-600">
+                    <th className="py-2 px-4">Symbol / Period</th>
+                    <th className="py-2 px-2">Research Status</th>
+                    <th className="py-2 px-2 text-right">Revenue Growth</th>
+                    <th className="py-2 px-2 text-right">Profit Growth</th>
+                    <th className="py-2 px-2 text-right">OCF (₹)</th>
+                    <th className="py-2 px-2 text-right">Basic EPS (₹)</th>
+                    <th className="py-2 px-4">Validation Notes</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {nseCandidateRows.map((item) => {
+                    const report = item.report;
+                    const candidates = report.candidateReport?.candidateReport?.candidates;
+                    const revenue = candidates?.revenueGrowth;
+                    const profit = candidates?.profitGrowth;
+                    const ocf = candidates?.operatingCashFlow;
+                    const eps = report.epsCandidate;
+                    const metricChecks = report.candidateReport?.candidateReport?.auditMatrix?.metrics;
+                    return (
+                      <tr key={item.reportHash} className="bg-white align-top">
+                        <td className="py-2 px-4">
+                          <button type="button" onClick={() => onSelectSymbol(report.symbol)} className="font-mono font-semibold text-blue-700 hover:underline">{report.symbol}</button>
+                          <div className="text-slate-500">{report.basis || 'Basis missing'} · {report.candidateReport?.currentPeriod?.periodType || 'Period type missing'} · {report.currentPeriodEnd || 'Period missing'}</div>
+                        </td>
+                        <td className="py-2 px-2">
+                          <div className="font-medium text-slate-800">{report.status}</div>
+                          <div className="text-slate-500">{report.sector}</div>
+                        </td>
+                        <td className="py-2 px-2 text-right font-mono tabular-nums">
+                          {formatCandidateValue(revenue?.growthPercent, '%')}
+                          <div className="text-slate-500">{revenue?.status || 'MISSING'}</div>
+                        </td>
+                        <td className="py-2 px-2 text-right font-mono tabular-nums">
+                          {formatCandidateValue(profit?.growthPercent, '%')}
+                          <div className="text-slate-500">{profit?.status || 'MISSING'}</div>
+                        </td>
+                        <td className="py-2 px-2 text-right font-mono tabular-nums">
+                          {formatCandidateValue(ocf?.currentValue)}
+                          <div className="text-slate-500">{ocf?.status || 'MISSING'}</div>
+                        </td>
+                        <td className="py-2 px-2 text-right font-mono tabular-nums">
+                          {formatCandidateValue(eps?.currentValue)}
+                          <div className="text-slate-500">{eps?.status || 'MISSING'}{eps?.periodType ? ' · ' + eps.periodType : ''}</div>
+                        </td>
+                        <td className="py-2 px-4 max-w-[360px] text-slate-600">
+                          {(report.warnings || []).slice(0, 3).join(' · ') || 'No additional notes'}
+                          {metricChecks && (
+                            <details className="mt-1 text-[10px]">
+                              <summary className="cursor-pointer font-medium text-blue-700">View all 7 metric checks</summary>
+                              <div className="mt-1 space-y-1">
+                                {Object.entries(metricChecks).map(([metric, check]) => (
+                                  <div key={metric}>
+                                    <span className="font-medium">{metric.replaceAll('_', ' ')}</span>
+                                    {' · '}Data: {check.sourceDataStatus}
+                                    {' · '}Formula: {check.definitionReadiness}
+                                    <div className="text-slate-500">{check.explanation}</div>
+                                  </div>
+                                ))}
+                                <div className="font-semibold text-rose-700">Production approved: NO · Scanner eligible: NO</div>
+                              </div>
+                            </details>
+                          )}
+                          {(report.filingEvidence || report.xbrlEntityIdentity) && (
+                            <details className="mt-1 text-[10px]">
+                              <summary className="cursor-pointer font-medium text-blue-700">View NSE filing evidence</summary>
+                              <div className="mt-1 space-y-1">
+                                <div>Entity: {report.xbrlEntityIdentity?.entityIdentifier || 'MISSING'} · {report.xbrlEntityIdentity?.valid ? 'ISIN verified' : 'identity blocked'}</div>
+                                {report.filingEvidence && (
+                                  <>
+                                    <div>Current Original #{report.filingEvidence.currentOriginal.sequenceId} · {report.filingEvidence.currentOriginal.audited || 'Audit status unknown'} · <a className="text-blue-700 underline" href={report.filingEvidence.currentOriginal.xbrlUrl} target="_blank" rel="noreferrer">XBRL</a> · <a className="text-blue-700 underline" href={report.filingEvidence.currentOriginal.ixbrlUrl} target="_blank" rel="noreferrer">iXBRL</a></div>
+                                    {report.filingEvidence.currentRevisions.map((filing) => (
+                                      <div key={`current-${filing.sequenceId}`}>Current Revision #{filing.sequenceId} · {filing.audited || 'Audit status unknown'} · <a className="text-blue-700 underline" href={filing.xbrlUrl} target="_blank" rel="noreferrer">XBRL</a></div>
+                                    ))}
+                                    <div>Prior Original #{report.filingEvidence.priorOriginal.sequenceId} · {report.filingEvidence.priorOriginal.audited || 'Audit status unknown'} · <a className="text-blue-700 underline" href={report.filingEvidence.priorOriginal.xbrlUrl} target="_blank" rel="noreferrer">XBRL</a></div>
+                                    {report.filingEvidence.priorRevisions.map((filing) => (
+                                      <div key={`prior-${filing.sequenceId}`}>Prior Revision #{filing.sequenceId} · {filing.audited || 'Audit status unknown'} · <a className="text-blue-700 underline" href={filing.xbrlUrl} target="_blank" rel="noreferrer">XBRL</a></div>
+                                    ))}
+                                  </>
+                                )}
+                              </div>
+                            </details>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {universeError && scope === 'UNIVERSE' && (
         <div className="px-5 py-2.5 bg-rose-50 border-b border-rose-200 text-xs text-rose-800">
           Audit load error: {universeError}
@@ -574,7 +772,7 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
               <th className="py-2.5 px-3">BSE Exchange Data</th>
               <th className="py-2.5 px-3">Last Update Timestamp</th>
               <th className="py-2.5 px-3">Freshness</th>
-              <th className="py-2.5 px-4 text-right">Verify</th>
+              <th className="py-2.5 px-4 text-right">NSE Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -593,7 +791,6 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
             ) : (
               displayedRows.map((entry) => {
                 const isActive = entry.symbol === activeSymbol;
-                const isVerifying = verifyingSymbol === entry.symbol;
                 const { ageDays, tier } = getRowAgeAndTier(entry);
                 const hasNseYahoo = entry.sources.includes('YFinance (.NS)');
 
@@ -634,7 +831,7 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
                         </span>
                         {hasNseYahoo && (
                           <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-mono">
-                            YF .NS
+                            Legacy YF
                           </span>
                         )}
                         {entry.nseXbrlCount > 0 && (
@@ -660,7 +857,7 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
                         </span>
                         {entry.bseMapped ? (
                           <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-medium whitespace-nowrap">
-                            BSE Verified
+                            BSE Mapping
                           </span>
                         ) : (
                           <span className="text-[11px] text-slate-400">Standby</span>
@@ -668,8 +865,8 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
                       </div>
                       <div className="text-[11px] text-slate-500 mt-0.5 truncate max-w-[180px]">
                         {entry.bseMapped
-                          ? 'Yahoo BSE (.BO) active'
-                          : 'Click Verify to probe .BO'}
+                          ? 'Legacy BSE data · not refreshed'
+                          : 'No legacy BSE cache'}
                       </div>
                     </td>
 
@@ -692,17 +889,12 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
 
                     {/* Action */}
                     <td className="py-2.5 px-4 text-right align-top">
-                      <button
-                        type="button"
-                        onClick={() => void handleVerifyBothExchanges(entry.symbol)}
-                        disabled={verifyingSymbol !== null}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 text-[11px] font-medium text-slate-700 whitespace-nowrap transition-colors"
+                      <span
+                        title="Automatic fundamental verification is disabled until the NSE-only service is production-ready"
+                        className="inline-flex items-center rounded border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-500"
                       >
-                        <RefreshCw
-                          className={`w-3 h-3 ${isVerifying ? 'animate-spin text-blue-600' : ''}`}
-                        />
-                        {isVerifying ? 'Verifying...' : 'Verify NSE/BSE'}
-                      </button>
+                        Pending
+                      </span>
                     </td>
                   </tr>
                 );
