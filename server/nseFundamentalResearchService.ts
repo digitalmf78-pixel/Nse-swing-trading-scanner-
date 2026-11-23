@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fetchNseEquityMaster, loadNseEquityMasterCache } from './nseEquityMasterCache.ts';
+import { buildNseIndustryText, loadNseIssuerIndustryCache, NseIssuerIndustryClient, saveNseIssuerIndustryCache, type NseIssuerIndustryCache, type NseIssuerIndustryRecord } from './nseIssuerIndustryCache.ts';
 import { collectNseFilingHistoryForSymbols, loadNseFilingHistoryCache } from './nseFilingHistoryCache.ts';
 import { collectXbrlEvidenceForFilingRows, type NseXbrlEvidenceDocument } from './nseXbrlEvidenceCache.ts';
 import { resolveNseConceptMap } from '../research/fundamental_pilot/nse_concept_map_resolver.ts';
@@ -491,13 +492,23 @@ async function processIssuer(
 
 async function runCollection(
   symbols: string[],
-  sectorBySymbol: Record<string, string>,
   fetchImpl: typeof fetch,
 ): Promise<void> {
   let candidateCache: CandidateCache | null = null;
   let candidateCacheDirty = false;
+  let industryCache: NseIssuerIndustryCache | null = null;
+  let industryCacheDirty = false;
   try {
     candidateCache = loadCandidateCache();
+    industryCache = loadNseIssuerIndustryCache();
+    let quoteClient: NseIssuerIndustryClient | null = null;
+    try {
+      quoteClient = new NseIssuerIndustryClient({ fetchImpl });
+      await quoteClient.initialize();
+    } catch (error) {
+      quoteClient = null;
+      job.lastError = 'NSE official issuer-industry session unavailable: ' + (error as Error).message;
+    }
     let isinBySymbol: Record<string, string> = {};
     try {
       const equityMaster = await fetchNseEquityMaster(fetchImpl);
@@ -531,9 +542,27 @@ async function runCollection(
     for (const symbol of symbols) {
       job.currentSymbol = symbol;
       const cached = filingCache.symbols[symbol]?.rows ?? [];
+      let industryRecord: NseIssuerIndustryRecord | undefined = industryCache.symbols[symbol];
+      let sector = 'UNKNOWN' as IssuerSector;
       try {
+        const industryAge = industryRecord ? Date.now() - Date.parse(industryRecord.fetchedAtUtc) : Number.POSITIVE_INFINITY;
+        if ((!industryRecord || !Number.isFinite(industryAge) || industryAge < 0 || industryAge > 30 * 24 * 60 * 60 * 1000)
+            && quoteClient) {
+          try {
+            industryRecord = await quoteClient.fetchIssuerIndustry(symbol);
+            industryCache.symbols[symbol] = industryRecord;
+            industryCache.updatedAtUtc = new Date().toISOString();
+            industryCacheDirty = true;
+          } catch (error) {
+            industryRecord = undefined;
+            job.lastError = symbol + ': NSE official industry lookup failed: ' + (error as Error).message;
+          }
+        } else if (!industryRecord || !Number.isFinite(industryAge) || industryAge < 0 || industryAge > 30 * 24 * 60 * 60 * 1000) {
+          industryRecord = undefined;
+        }
+        sector = classifyIssuerSector(industryRecord ? buildNseIndustryText(industryRecord) : '');
         if (filingFailures.has(symbol)) {
-          const report = blocked(symbol, classifyIssuerSector(sectorBySymbol[symbol] ?? ''),
+          const report = blocked(symbol, sector,
             'Fresh NSE filing metadata fetch failed; stale cached filing history was not used: ' + filingFailures.get(symbol));
           appendCandidateReport(report, candidateCache!);
         candidateCacheDirty = true;
@@ -562,7 +591,10 @@ async function runCollection(
           else job.revisionReviewRequired += 1;
         }
       } catch (error) {
-        const report = blocked(symbol, classifyIssuerSector(sectorBySymbol[symbol] ?? ''), (error as Error).message);
+        const report = blocked(symbol, sector, (error as Error).message);
+        report.isin = industryRecord?.isin || isinBySymbol[symbol] || undefined;
+        report.isinVerified = Boolean(report.isin);
+        report.industryClassification = industryRecord;
         appendCandidateReport(report, candidateCache!);
           candidateCacheDirty = true;
         job.processed += 1;
@@ -572,6 +604,10 @@ async function runCollection(
       if (candidateCacheDirty && job.processed > 0 && job.processed % 25 === 0) {
         saveCandidateCache(candidateCache!);
         candidateCacheDirty = false;
+      }
+      if (industryCacheDirty && job.processed > 0 && job.processed % 25 === 0) {
+        saveNseIssuerIndustryCache(industryCache!);
+        industryCacheDirty = false;
       }
       await new Promise(resolve => setTimeout(resolve, 150));
     }
@@ -588,6 +624,10 @@ async function runCollection(
       try { saveCandidateCache(candidateCache); }
       catch (error) { job.lastError = 'Candidate cache checkpoint failed: ' + (error as Error).message; }
     }
+    if (industryCache && industryCacheDirty) {
+      try { saveNseIssuerIndustryCache(industryCache); }
+      catch (error) { job.lastError = 'NSE issuer industry cache checkpoint failed: ' + (error as Error).message; }
+    }
     job.running = false;
     job.currentSymbol = '';
     job.finishedAtUtc = new Date().toISOString();
@@ -596,7 +636,6 @@ async function runCollection(
 
 export function startNseFundamentalResearchCollection(
   rawSymbols: string[],
-  sectorBySymbol: Record<string, string> = {},
   fetchImpl: typeof fetch = fetch,
 ): NseFundamentalResearchStatus {
   if (job.running) return getNseFundamentalResearchStatus();
@@ -609,6 +648,6 @@ export function startNseFundamentalResearchCollection(
     currentSymbol: symbols[0] ?? '', startedAtUtc: new Date().toISOString(),
     finishedAtUtc: '', lastError: null, candidateCacheFile: CANDIDATE_CACHE_FILE,
   };
-  void runCollection(symbols, sectorBySymbol, fetchImpl);
+  void runCollection(symbols, fetchImpl);
   return getNseFundamentalResearchStatus();
 }
