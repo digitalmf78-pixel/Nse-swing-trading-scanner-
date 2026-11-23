@@ -67,23 +67,27 @@ export function saveNseIssuerIndustryCache(
 
 export class NseIssuerIndustryClient {
   private readonly fetchImpl: typeof fetch;
-  private readonly baseUrl: string;
-  private initialized = false;
-  private cookieHeader = '';
+  private readonly baseUrls: string[];
+  private readonly cookies = new Map<string, string>();
+  private readonly initializedBases = new Set<string>();
 
   constructor(options: NseQuoteClientOptions = {}) {
     this.fetchImpl = options.fetchImpl ?? fetch;
-    this.baseUrl = options.baseUrl ?? DEFAULT_BASE;
-    const base = new URL(this.baseUrl);
-    if (base.protocol !== 'https:' || !HOSTS.has(base.hostname) || base.port !== ''
-        || base.username !== '' || base.password !== '') {
+    const primary = options.baseUrl ?? DEFAULT_BASE;
+    const primaryUrl = new URL(primary);
+    if (primaryUrl.protocol !== 'https:' || !HOSTS.has(primaryUrl.hostname) || primaryUrl.port !== ''
+        || primaryUrl.username !== '' || primaryUrl.password !== '') {
       throw new Error('NSE quote client base URL must be an official NSE HTTPS host');
     }
+    const fallback = primaryUrl.hostname === 'www.nseindia.com'
+      ? 'https://www.nseindia.in'
+      : 'https://www.nseindia.com';
+    this.baseUrls = [...new Set([primary.replace(/\/$/, ''), fallback])];
   }
 
-  async initialize(): Promise<void> {
-    if (this.initialized) return;
-    const landing = await this.fetchImpl(this.baseUrl + '/', {
+  private async initializeBase(baseUrl: string): Promise<void> {
+    if (this.initializedBases.has(baseUrl)) return;
+    const landing = await this.fetchImpl(baseUrl + '/', {
       method: 'GET',
       headers: {
         Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -95,59 +99,72 @@ export class NseIssuerIndustryClient {
     const setCookies = typeof headers.getSetCookie === 'function'
       ? headers.getSetCookie()
       : [headers.get('set-cookie') ?? ''].filter(Boolean);
-    this.cookieHeader = setCookies.map(cookie => cookie.split(';')[0].trim()).filter(Boolean).join('; ');
-    // NSE sometimes serves a challenge page with a non-200 status but still issues cookies.
-    if (!landing.ok && !this.cookieHeader) {
-      throw new Error('NSE website session bootstrap failed with HTTP ' + landing.status);
+    const cookieHeader = setCookies.map(cookie => cookie.split(';')[0].trim()).filter(Boolean).join('; ');
+    if (!landing.ok && !cookieHeader) {
+      throw new Error('NSE website session bootstrap failed on ' + baseUrl + ' with HTTP ' + landing.status);
     }
-    this.initialized = true;
+    this.cookies.set(baseUrl, cookieHeader);
+    this.initializedBases.add(baseUrl);
+  }
+
+  async initialize(): Promise<void> {
+    await this.initializeBase(this.baseUrls[0]);
   }
 
   async fetchIssuerIndustry(rawSymbol: string): Promise<NseIssuerIndustryRecord> {
-    await this.initialize();
     const symbol = rawSymbol.trim().toUpperCase();
     if (!/^[A-Z0-9&.-]{1,24}$/.test(symbol)) throw new Error('Invalid NSE symbol for industry lookup');
-    const url = new URL('/api/quote-equity', this.baseUrl);
-    url.searchParams.set('symbol', symbol);
-    const headers: Record<string, string> = {
-      Accept: 'application/json, text/plain, */*',
-      Referer: this.baseUrl + '/get-quotes/equity?symbol=' + encodeURIComponent(symbol),
-      Origin: this.baseUrl,
-      'User-Agent': 'Mozilla/5.0 (compatible; NseFundamentalResearch/1.0)',
-    };
-    if (this.cookieHeader) headers.Cookie = this.cookieHeader;
-    const response = await this.fetchImpl(url, {
-      method: 'GET',
-      headers,
-      signal: AbortSignal.timeout(20000),
-    });
-    if (!response.ok) throw new Error('NSE quote-equity returned HTTP ' + response.status);
-    if (response.url) {
-      const finalUrl = new URL(response.url);
-      if (finalUrl.protocol !== 'https:' || !HOSTS.has(finalUrl.hostname)
-          || finalUrl.port !== '' || finalUrl.username !== '' || finalUrl.password !== '') {
-        throw new Error('NSE quote-equity redirected outside official NSE domains');
+    const failures: string[] = [];
+    for (const baseUrl of this.baseUrls) {
+      try {
+        await this.initializeBase(baseUrl);
+        const url = new URL('/api/quote-equity', baseUrl);
+        url.searchParams.set('symbol', symbol);
+        const headers: Record<string, string> = {
+          Accept: 'application/json, text/plain, */*',
+          Referer: baseUrl + '/get-quotes/equity?symbol=' + encodeURIComponent(symbol),
+          Origin: baseUrl,
+          'User-Agent': 'Mozilla/5.0 (compatible; NseFundamentalResearch/1.0)',
+        };
+        const cookie = this.cookies.get(baseUrl) ?? '';
+        if (cookie) headers.Cookie = cookie;
+        const response = await this.fetchImpl(url, {
+          method: 'GET',
+          headers,
+          signal: AbortSignal.timeout(20000),
+        });
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        if (response.url) {
+          const finalUrl = new URL(response.url);
+          if (finalUrl.protocol !== 'https:' || !HOSTS.has(finalUrl.hostname)
+              || finalUrl.port !== '' || finalUrl.username !== '' || finalUrl.password !== '') {
+            throw new Error('quote-equity redirected outside official NSE domains');
+          }
+        }
+        const payload = await response.json() as Record<string, any>;
+        const info = payload?.info && typeof payload.info === 'object' ? payload.info : {};
+        const industryInfo = payload?.industryInfo && typeof payload.industryInfo === 'object'
+          ? payload.industryInfo
+          : {};
+        const record: NseIssuerIndustryRecord = {
+          symbol,
+          isin: clean(info.isin).toUpperCase(),
+          macro: clean(industryInfo.macro),
+          sector: clean(industryInfo.sector),
+          industry: clean(industryInfo.industry),
+          basicIndustry: clean(industryInfo.basicIndustry),
+          source: 'NSE_OFFICIAL_QUOTE_EQUITY',
+          sourceUrl: url.toString(),
+          fetchedAtUtc: new Date().toISOString(),
+        };
+        if (record.isin && !ISIN_RE.test(record.isin)) throw new Error('NSE quote-equity returned invalid ISIN');
+        if (!buildNseIndustryText(record)) throw new Error('NSE quote-equity returned no official industry classification');
+        return record;
+      } catch (error) {
+        failures.push(baseUrl + ': ' + (error as Error).message);
       }
     }
-    const payload = await response.json() as Record<string, any>;
-    const info = payload?.info && typeof payload.info === 'object' ? payload.info : {};
-    const industryInfo = payload?.industryInfo && typeof payload.industryInfo === 'object'
-      ? payload.industryInfo
-      : {};
-    const record: NseIssuerIndustryRecord = {
-      symbol,
-      isin: clean(info.isin).toUpperCase(),
-      macro: clean(industryInfo.macro),
-      sector: clean(industryInfo.sector),
-      industry: clean(industryInfo.industry),
-      basicIndustry: clean(industryInfo.basicIndustry),
-      source: 'NSE_OFFICIAL_QUOTE_EQUITY',
-      sourceUrl: url.toString(),
-      fetchedAtUtc: new Date().toISOString(),
-    };
-    if (record.isin && !ISIN_RE.test(record.isin)) throw new Error('NSE quote-equity returned invalid ISIN for ' + symbol);
-    if (!buildNseIndustryText(record)) throw new Error('NSE quote-equity returned no official industry classification for ' + symbol);
-    return record;
+    throw new Error('NSE official quote-equity lookup failed on all allowed domains: ' + failures.join(' | '));
   }
 }
 
