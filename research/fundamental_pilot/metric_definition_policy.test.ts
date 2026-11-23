@@ -43,3 +43,22 @@ test('unknown sector blocks every formula',()=>{
   assert.equal(getMetricDefinitionPolicy('REVENUE_GROWTH','UNKNOWN').readiness,'BLOCKED_UNKNOWN_SECTOR');
   assert.equal(getMetricDefinitionPolicy('ROE','UNKNOWN').candidateFormula,null);
 });
+
+test('all seven metrics fail closed for every non-industrial sector',()=>{
+  const metrics = [
+    'REVENUE_GROWTH','PROFIT_GROWTH','ROE','ROCE',
+    'DEBT_EQUITY','INTEREST_COVERAGE','OPERATING_CASH_FLOW',
+  ] as const;
+  for(const sector of ['BANK','NBFC','INSURANCE','UNKNOWN'] as const) {
+    for(const metric of metrics) {
+      const policy = getMetricDefinitionPolicy(metric,sector);
+      assert.equal(policy.candidateFormula,null,sector + ' ' + metric + ' must not inherit an industrial formula');
+      if(sector === 'UNKNOWN') assert.equal(policy.readiness,'BLOCKED_UNKNOWN_SECTOR');
+      else if(sector === 'BANK' && ['ROCE','DEBT_EQUITY','INTEREST_COVERAGE'].includes(metric)) {
+        assert.equal(policy.readiness,'NOT_APPLICABLE_GENERIC');
+      } else {
+        assert.equal(policy.readiness,'REQUIRES_SECTOR_SPECIFIC_MAPPING');
+      }
+    }
+  }
+});
