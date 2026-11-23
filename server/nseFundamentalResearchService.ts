@@ -427,6 +427,7 @@ async function runCollection(
       concurrency: 1,
       fetchImpl,
       onIssuerComplete: (symbol, ok, error) => {
+        job.currentSymbol = symbol;
         job.filingHistoryProcessed += 1;
         if (ok) job.filingHistorySucceeded += 1;
         else job.lastError = symbol + ': ' + (error ?? 'NSE filing metadata fetch failed');
