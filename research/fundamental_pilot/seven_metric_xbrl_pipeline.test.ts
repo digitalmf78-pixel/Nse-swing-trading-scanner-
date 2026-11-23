@@ -122,3 +122,24 @@ test('keeps four ratio metrics blocked even when all three selected flows exist'
     assert.equal(report.candidateReport.auditMatrix.metrics[metric].decision,'DATA_BLOCKED');
   }
 });
+
+
+test('ITC owner-attributable fact is selected, not total PAT',()=>{
+  const currentExtraction=extraction('2026-04-01','2026-09-30',{revenue:60101.70,profit:8562.53,ocf:8362.97});
+  currentExtraction.facts.push({
+    concept:'in-capmkt:ProfitLossForPeriod',contextRef:'duration',unitRef:'INR',
+    rawValue:'87381200000',numericValue:87381200000,decimals:'-3',scale:null,sign:null,
+    format:null,continuedAt:null,isNil:false,isInline:false,
+  });
+  const priorExtraction=extraction('2025-04-01','2025-09-30',{revenue:44385.21,profit:10370.31,ocf:6162.60});
+  priorExtraction.facts.push({
+    concept:'in-capmkt:ProfitLossForPeriod',contextRef:'duration',unitRef:'INR',
+    rawValue:'105299600000',numericValue:105299600000,decimals:'-3',scale:null,sign:null,
+    format:null,continuedAt:null,isNil:false,isInline:false,
+  });
+  const report=buildSevenMetricXbrlPipeline('NON_FINANCIAL',
+    {...current,extraction:currentExtraction},{...prior,extraction:priorExtraction},concepts);
+  assert.equal(report.currentSelections.profit.fact?.numericValue,8562.53);
+  assert.equal(report.priorSelections.profit.fact?.numericValue,10370.31);
+  assert.equal(report.candidateReport.candidates.profitGrowth?.growthPercent,-17.432265766404274);
+});
