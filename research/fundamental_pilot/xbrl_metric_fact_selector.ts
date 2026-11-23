@@ -118,3 +118,47 @@ export function selectXbrlMetricFact(
     explanation:'One exact-period, undimensioned group fact with an explicit currency unit selected. This confirms context and unit type only, not accounting concept suitability.',
   };
 }
+
+
+export interface XbrlMetricFactBundleSelection {
+  status:'SELECTED_ALL_FACTS'|'BLOCKED_FACT_SELECTION'|'BLOCKED_MIXED_CURRENCY';
+  facts:Record<string,ComparableMetricFact>|null;
+  failedConcepts:string[];
+  currency:string|null;
+  explanation:string;
+}
+
+/** Selects a complete set of duration facts sharing exact dates, basis and currency. */
+export function selectXbrlMetricFactBundle(
+  extraction:XbrlExtraction,
+  request:{concepts:Record<string,string>;periodStart:string;periodEnd:string;periodType:ComparablePeriodType;basis:'STANDALONE'|'CONSOLIDATED';filingBasis:'STANDALONE'|'CONSOLIDATED'|null},
+):XbrlMetricFactBundleSelection {
+  const entries=Object.entries(request.concepts);
+  if(entries.length===0 || entries.some(([key,concept])=>!key.trim() || !concept.trim())) {
+    throw new Error('At least one named duration input and exact XBRL concept are required');
+  }
+  const facts:Record<string,ComparableMetricFact>={};
+  const failed:string[]=[];
+  let currency:string|null=null;
+  for(const [key,concept] of entries) {
+    const result=selectXbrlMetricFact(extraction,{concept,periodStart:request.periodStart,periodEnd:request.periodEnd,
+      periodType:request.periodType,basis:request.basis,filingBasis:request.filingBasis});
+    if(result.status!=='SELECTED_UNIQUE_GROUP_FACT' || !result.fact) {
+      failed.push(key+' ('+concept+'): '+result.status);
+      continue;
+    }
+    const factCurrency=result.fact.unitMeasures[0];
+    if(currency!==null && currency!==factCurrency) return {
+      status:'BLOCKED_MIXED_CURRENCY',facts:null,failedConcepts:[key],currency:null,
+      explanation:'Selected duration facts use different ISO 4217 currencies; no bundle was returned.',
+    };
+    currency=factCurrency;
+    facts[key]=result.fact;
+  }
+  if(failed.length>0) return {
+    status:'BLOCKED_FACT_SELECTION',facts:null,failedConcepts:failed,currency:null,
+    explanation:'One or more exact duration concepts failed unique group-context, period, basis, numeric or unit checks. Partial bundles are withheld.',
+  };
+  return {status:'SELECTED_ALL_FACTS',facts,failedConcepts:[],currency,
+    explanation:'All requested duration facts passed exact-date, undimensioned group, basis, numeric and common-currency checks. Accounting meaning and formula approval remain separate.'};
+}
