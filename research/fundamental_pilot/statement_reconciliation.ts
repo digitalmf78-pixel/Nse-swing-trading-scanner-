@@ -80,7 +80,7 @@ export type EvidenceReconciliationStatus =
   | StatementReconciliationStatus
   | 'BLOCKED_METADATA_MISMATCH';
 
-export interface EvidenceStatementReconciliation extends StatementReconciliation {
+export interface EvidenceStatementReconciliation extends Omit<StatementReconciliation, 'status'> {
   status: EvidenceReconciliationStatus;
   metadataValid: boolean;
   metadataIssues: string[];
