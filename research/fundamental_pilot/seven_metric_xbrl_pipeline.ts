@@ -56,6 +56,7 @@ function statusOf(selection:XbrlMetricFactSelection):MetricDataStatus {
     case 'NO_ELIGIBLE_GROUP_FACT':
     case 'BLOCKED_BASIS_MISMATCH':
     case 'BLOCKED_MISSING_UNIT':
+    case 'BLOCKED_NON_CURRENCY_UNIT':
     case 'BLOCKED_NON_NUMERIC_FACT':
       return 'BLOCKED';
   }
