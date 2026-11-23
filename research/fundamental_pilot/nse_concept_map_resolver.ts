@@ -17,7 +17,7 @@ export interface ConceptMapMetricResult {
 }
 
 export interface NseConceptMapResolution {
-  status: 'MAPPED' | 'BLOCKED';
+  status: 'MAPPED' | 'PARTIAL' | 'BLOCKED';
   conceptMap: IssuerMetricConceptMap | null;
   metrics: Record<ConceptMapMetric, ConceptMapMetricResult>;
   productionApproved: false;
@@ -101,15 +101,16 @@ export function resolveNseConceptMap(
     }
     return { status: 'BLOCKED', conceptMap: null, metrics, productionApproved: false };
   }
-  const allMapped = Object.values(metrics).every(result => result.status === 'MAPPED');
-  if (!allMapped) return { status: 'BLOCKED', conceptMap: null, metrics, productionApproved: false };
+  const growthMapped = metrics.REVENUE.status === 'MAPPED' && metrics.PROFIT.status === 'MAPPED';
+  if (!growthMapped) return { status: 'BLOCKED', conceptMap: null, metrics, productionApproved: false };
+  const allMapped = metrics.OPERATING_CASH_FLOW.status === 'MAPPED';
   return {
-    status: 'MAPPED',
+    status: allMapped ? 'MAPPED' : 'PARTIAL',
     conceptMap: {
       revenue: metrics.REVENUE.concept!,
       profit: metrics.PROFIT.concept!,
       profitAttribution: basis === 'CONSOLIDATED' ? 'OWNERS_OF_PARENT' : 'STANDALONE_ENTITY',
-      operatingCashFlow: metrics.OPERATING_CASH_FLOW.concept!,
+      operatingCashFlow: metrics.OPERATING_CASH_FLOW.concept,
     },
     metrics,
     productionApproved: false,
