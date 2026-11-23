@@ -64,7 +64,9 @@ check(
     && service.includes('fs.renameSync(temp, CANDIDATE_CACHE_FILE)')
     && service.includes('export function getNseFundamentalCandidateReports')
     && section(service, 'export function getNseFundamentalCandidateReports', 'function selectedValue')
-      .includes('loadCandidateCache()'),
+      .includes('loadCandidateCache(filePath)')
+    && section(service, 'export function getNseFundamentalCandidateReports', 'function selectedValue')
+      .includes('filePath = CANDIDATE_CACHE_FILE'),
   'Candidate cache is not atomically persisted and re-read from disk by the candidate API',
 );
 
