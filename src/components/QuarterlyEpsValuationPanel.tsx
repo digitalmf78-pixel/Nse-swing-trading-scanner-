@@ -38,12 +38,16 @@ export const QuarterlyEpsValuationPanel: React.FC<QuarterlyEpsValuationPanelProp
   const close = summary.closePrice;
   const peak = detectedPeakPrice > 0 ? detectedPeakPrice : close;
 
-  const epsPrev = fundamentals?.epsPrev ?? null;
-  const epsCurr = fundamentals?.epsCurr ?? null;
+  const hasApprovedNseSource =
+    verificationEnabled &&
+    summary.fundamentalSources?.some((source) => /NSE Official XBRL \(validated\)/i.test(source)) === true;
+  const epsPrev = hasApprovedNseSource ? fundamentals?.epsPrev ?? null : null;
+  const epsCurr = hasApprovedNseSource ? fundamentals?.epsCurr ?? null : null;
   const epsPrevPeriod = fundamentals?.epsPrevPeriod || 'Prev Qtr (Q-1)';
   const epsCurrPeriod = fundamentals?.epsCurrPeriod || 'Latest Qtr (Q2)';
-  const epsTtmCurr = fundamentals?.epsTtmCurr ?? null;
+  const epsTtmCurr = hasApprovedNseSource ? fundamentals?.epsTtmCurr ?? null : null;
   const trailingPE =
+    hasApprovedNseSource &&
     fundamentals?.trailingPE !== null &&
     fundamentals?.trailingPE !== undefined &&
     fundamentals.trailingPE > 0
@@ -51,9 +55,7 @@ export const QuarterlyEpsValuationPanel: React.FC<QuarterlyEpsValuationPanelProp
       : null;
 
   // Mandatory Fundamental Verification Checks
-  const hasSources =
-    summary.fundamentalSources?.some((source) => /NSE Official XBRL \(validated\)/i.test(source)) === true &&
-    summary.fundamentalCoverage !== 'MISSING';
+  const hasSources = hasApprovedNseSource && summary.fundamentalCoverage !== 'MISSING';
   const isFreshEnough =
     summary.fundamentalFreshness === 'LATEST' || summary.fundamentalFreshness === 'OLD_3M';
   const hasTwoQuartersEps = epsPrev !== null && epsCurr !== null;
