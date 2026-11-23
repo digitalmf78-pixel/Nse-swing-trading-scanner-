@@ -95,7 +95,7 @@ function evidenceMetadataIssues(facts: StatementFactEvidence[]): string[] {
       continue;
     }
     const validDate = (value: string) => {
-      if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(value ?? '')) return false;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value ?? '')) return false;
       const parsed = new Date(value + 'T00:00:00Z');
       return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
     };
@@ -106,8 +106,8 @@ function evidenceMetadataIssues(facts: StatementFactEvidence[]): string[] {
       || !['XBRL', 'RESULTS_PDF', 'OTHER_OFFICIAL'].includes(fact.sourceDocumentType)
       || typeof fact.sourceDocumentSha256 !== 'string'
       || !/^[a-f0-9]{64}$/i.test(fact.sourceDocumentSha256 ?? '')
-      || !/^\d{4}-\d{2}-\d{2}$/.test(fact.periodStart ?? '')
-      || !/^\d{4}-\d{2}-\d{2}$/.test(fact.periodEnd ?? '')
+      || !validDate(fact.periodStart)
+      || !validDate(fact.periodEnd)
       || fact.periodStart >= fact.periodEnd
       || !fact.currency?.trim() || !fact.unit?.trim()
       || !['Standalone', 'Consolidated'].includes(fact.basis)
