@@ -61,7 +61,7 @@ The pipeline result was:
 - Audit matrix: 3 candidate metrics, 4 blocked metrics
 - Production approval: `false`
 
-These are not certified comparable-growth conclusions. The ITC filing disclosures concerning acquisitions and GST/cess changes require comparability qualification. Profit Growth now uses the owners-of-parent allocation concept for consolidated filings; the earlier unallocated `ProfitLossForPeriod` candidate is not accepted. The owner-profit mapping remains candidate-only until official PDF statement-row tie-out. OCF in this run was not independently reconciled to the signed results PDF.
+These are not certified comparable-growth conclusions. The ITC filing disclosures concerning acquisitions and GST/cess changes require comparability qualification. Profit Growth now uses the owners-of-parent allocation concept for consolidated filings; the earlier unallocated `ProfitLossForPeriod` candidate is not accepted. The owner-profit mapping remains candidate-only until official PDF statement-row tie-out. OCF has now been independently reconciled to ITC's official consolidated results PDF: H1 FY27 ₹8,362.97 Cr and H1 FY26 ₹6,162.60 Cr both match the XBRL values exactly. The PDF also confirms owners' profit is ₹8,562.53 Cr (current) and ₹10,370.31 Cr (prior), not the total PAT values ₹8,738.12 Cr and ₹10,529.96 Cr previously attributed to owners in this pilot. The percentage remains approximately -17.43% by coincidence, but the earlier selected values are not owner-attributable facts; Profit Growth is blocked until the pipeline's selected QName/value is re-extracted and independently asserted against the owner-allocation rows.
 
 ## Definition and production gates still open
 
@@ -79,3 +79,22 @@ The new TypeScript pipeline successfully completed this real-issuer sequence:
 `official NSE metadata → exact Original/revision history gate → official XBRL parse → exact concept/context/unit selection → current/prior period guard → three candidate calculations → seven-metric audit matrix`
 
 This proves the pipeline works on this selected ITC consolidated H1 pair. It does not prove universal taxonomy coverage, and it does not authorize production integration. Continue with another non-financial issuer and then expand sector-specific mapping. Keep the scanner runtime disconnected until the remaining gates are resolved.
+
+
+## Follow-up official PDF reconciliation — 23-Nov-2026
+
+Official ITC consolidated results PDF:
+https://itcportal.com/content/dam/itc-corporate/pdfs/financial-result/quarterly-results-2026-2027/september-2026/ITC-Financial-Result-Q2-FY2027-cfs.pdf
+
+The PDF's consolidated statement of cash flows reports:
+- H1 FY27 net cash from operating activities: ₹8,362.97 Cr.
+- H1 FY26 net cash from operating activities: ₹6,162.60 Cr.
+Both values match the current/prior XBRL candidates exactly. The H1 OCF candidate therefore passes numeric statement-row tie-out for this filing pair. The PDF also states previous-period figures may be rearranged where necessary; this does not alter the exact OCF totals in this pair.
+
+**Critical profit-attribution correction:** the same official consolidated PDF separates total PAT from allocation to owners and NCI:
+- H1 FY27 total profit for period: ₹8,738.12 Cr; owners of parent: ₹8,562.53 Cr; NCI: ₹175.59 Cr.
+- H1 FY26 total profit for period: ₹10,529.96 Cr; owners of parent: ₹10,370.31 Cr; NCI: ₹159.65 Cr.
+
+The official NSE iXBRL filing page independently confirms the same current H1 values in ₹ lakh: total profit ₹8,73,812; owners ₹8,56,253; NCI ₹17,559. Thus the earlier pilot's ₹8,738.12 Cr / ₹10,529.96 Cr pair was total PAT, not owner-attributable profit. The ratio happens to produce almost the same percentage (-17.43%) as the correctly attributed owner values, but this arithmetic coincidence does not validate the old fact mapping.
+
+**Decision:** OCF = PDF_MATCHED / candidate-only. Profit Growth = BLOCKED pending re-extraction and regression tests that assert the selected owner-attributable QName values are ₹8,562.53 Cr and ₹10,370.31 Cr, and reject total PAT as a substitute. Revenue remains PDF matched but comparability is qualified due Sproutlife and Century Pulp & Paper acquisitions and the filing's excise-duty comparability note. No metric is production-approved.
