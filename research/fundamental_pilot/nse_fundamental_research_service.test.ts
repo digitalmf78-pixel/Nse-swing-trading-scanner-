@@ -1,7 +1,13 @@
 import test from 'node:test';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import assert from 'node:assert/strict';
 import {
+  appendCandidateReport,
   auditXbrlIssuerIdentity,
+  loadCandidateCache,
+  saveCandidateCache,
   classifyIssuerSector,
   classifyNsePeriodType,
   inferExactPeriodStart,
@@ -218,4 +224,54 @@ test('XBRL issuer identity blocks missing entity identifiers and absent official
   );
   assert.equal(missingIsin.valid, false);
   assert.match(missingIsin.issues.join(' '), /Official NSE ISIN is missing or invalid/);
+});
+
+
+test('candidate cache survives a fresh read after process-style restart', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nse-candidate-cache-'));
+  const file = path.join(dir, 'nse_fundamental_candidate_cache.json');
+  try {
+    const cache = { schemaVersion: 1 as const, updatedAtUtc: '', symbols: {} as Record<string, { symbol: string; reports: import('../../server/nseFundamentalResearchService.ts').CandidateCacheEntry[] }> };
+    const report = {
+      symbol: 'ABC', status: 'BLOCKED' as const, sector: 'UNKNOWN' as const,
+      scannerEligible: false as const, productionApproved: false as const,
+      warnings: ['Official NSE evidence unavailable; no value inferred.'],
+    };
+    appendCandidateReport(report, cache);
+    saveCandidateCache(cache, file);
+
+    // A second load is deliberately independent of the first in-memory object.
+    const restartedCache = loadCandidateCache(file);
+    assert.equal(Object.keys(restartedCache.symbols).length, 1);
+    assert.equal(restartedCache.symbols.ABC.reports.length, 1);
+    assert.equal(restartedCache.symbols.ABC.reports[0].report.symbol, 'ABC');
+    assert.equal(restartedCache.symbols.ABC.reports[0].report.warnings[0],
+      'Official NSE evidence unavailable; no value inferred.');
+    assert.equal(restartedCache.symbols.ABC.reports[0].report.productionApproved, false);
+    assert.deepEqual(fs.readdirSync(dir), ['nse_fundamental_candidate_cache.json']);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('candidate cache refuses tampered report hashes and invalid schema', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nse-candidate-cache-invalid-'));
+  const file = path.join(dir, 'cache.json');
+  try {
+    const cache = { schemaVersion: 1 as const, updatedAtUtc: '', symbols: {} as Record<string, { symbol: string; reports: import('../../server/nseFundamentalResearchService.ts').CandidateCacheEntry[] }> };
+    appendCandidateReport({
+      symbol: 'ABC', status: 'BLOCKED', sector: 'UNKNOWN',
+      scannerEligible: false, productionApproved: false, warnings: ['blocked'],
+    }, cache);
+    saveCandidateCache(cache, file);
+    const tampered = JSON.parse(fs.readFileSync(file, 'utf8'));
+    tampered.symbols.ABC.reports[0].report.warnings[0] = 'tampered';
+    fs.writeFileSync(file, JSON.stringify(tampered));
+    assert.throws(() => loadCandidateCache(file), /integrity failed/);
+
+    fs.writeFileSync(file, JSON.stringify({ schemaVersion: 99, symbols: {} }));
+    assert.throws(() => loadCandidateCache(file), /schema invalid/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
