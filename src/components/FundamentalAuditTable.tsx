@@ -204,7 +204,7 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
         setActionNotice(json.note || 'NSE fundamental research did not start.');
         return;
       }
-      setActionNotice(`NSE XBRL fundamental research started: ${json.total} Bhavcopy symbols. Current/prior filings and revisions will be checked; production scanner values remain unchanged.`);
+      setActionNotice(`NSE XBRL fundamental research started: ${json.total} Bhavcopy symbols. Current/prior filings and revisions will be checked; only fully validated Revenue/Profit Growth can be released.`);
     } catch (err) {
       setSyncingNseFilingHistory(false);
       setActionNotice(`NSE fundamental fetch error: ${(err as Error).message}`);
@@ -223,7 +223,7 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
         setActionNotice(
           status.running
             ? `NSE ${status.filingHistoryProcessed < status.total ? 'filings' : 'XBRL validation'}: ${status.filingHistoryProcessed < status.total ? status.filingHistoryProcessed : status.processed}/${status.total} · XBRL saved ${status.xbrlDocumentsSaved} · candidates ${status.candidateReady} · partial releases ${status.partialReleased} · revision review ${status.revisionReviewRequired} · blocked ${status.failed} · current ${status.currentSymbol || 'finishing'}`
-            : `NSE fundamental research finished: ${status.candidateReady} candidate-ready · ${status.partialReleased} partial releases · ${status.revisionReviewRequired} revision-review · ${status.failed} blocked · ${status.xbrlDocumentsSaved} XBRL documents saved. No unapproved values were written to the scanner cache.`
+            : `NSE fundamental research finished: ${status.candidateReady} candidate-ready · ${status.partialReleased} partial releases · ${status.revisionReviewRequired} revision-review · ${status.failed} blocked · ${status.xbrlDocumentsSaved} XBRL documents saved. Only approved Revenue/Profit Growth values may enter the scanner cache; all other unvalidated metrics remain blocked.`
         );
         if (!status.running) setSyncingNseFilingHistory(false);
       } catch {
