@@ -195,7 +195,7 @@ test('XBRL issuer identity must match official NSE ISIN across Original and Revi
   );
   assert.equal(mismatch.valid, false);
   assert.match(mismatch.issues.join(' '), /differs across Original\/Revision/);
-  assert.match(mismatch.issues.join(' '), /differs across Original\/Revision/);
+  assert.equal(mismatch.documentsChecked, 2);
   const wrongIssuer = auditXbrlIssuerIdentity(
     [entityExtraction('INE0XYZ01010'), entityExtraction('INE0XYZ01010')],
     'INE0ABC01010',
