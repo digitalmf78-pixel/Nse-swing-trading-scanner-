@@ -45,6 +45,9 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
+      - name: NSE XBRL fundamental pilot tests
+        run: npm run test:fundamental-pilot
+
       - name: TypeScript validation
         id: typecheck
         run: npm run lint
