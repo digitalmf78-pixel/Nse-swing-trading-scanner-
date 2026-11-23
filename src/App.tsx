@@ -97,11 +97,8 @@ export default function App() {
     [watchlistData.symbols]
   );
 
-  // Periodic background monitor state for selectedSymbol stale/unverified auto save-to-cache
+  // Stock detail refresh is user/UI driven; no automatic legacy fundamental fetch.
   const [stockRefreshSeq, setStockRefreshSeq] = useState(0);
-  const [cacheSyncNotice, setCacheSyncNotice] = useState<string | null>(null);
-  const syncInFlightRef = useRef<boolean>(false);
-  const lastSyncAttemptRef = useRef<Map<string, number>>(new Map());
 
   // 1-click Full Scanner Reload state
   const [scannerReloading, setScannerReloading] = useState(false);
@@ -234,10 +231,6 @@ export default function App() {
   const handleGlobalRetry = async () => {
     setOverviewError(null);
     setScannerNotice(null);
-    setCacheSyncNotice(null);
-    syncInFlightRef.current = false;
-    lastSyncAttemptRef.current.clear();
-
     setScreenerSector('ALL');
     setScreenerFreshness('ALL');
 
@@ -247,78 +240,6 @@ export default function App() {
 
     await Promise.all([fetchOverview(true), fetchWatchlist()]);
   };
-
-  // Periodic background monitor: checks selectedSymbol fundamental state & triggers save-to-cache when stale or unverified
-  useEffect(() => {
-    if (!selectedSymbol) return;
-    let cancelled = false;
-
-    const verifyAndAutoCacheSelectedSymbol = async () => {
-      const sym = selectedSymbol.trim().toUpperCase();
-      if (!sym || syncInFlightRef.current) return;
-
-      const lastTry = lastSyncAttemptRef.current.get(sym) ?? 0;
-      if (Date.now() - lastTry < 5 * 60 * 1000) return;
-
-      try {
-        const res = await fetch(`/api/stock/${encodeURIComponent(sym)}`);
-        if (!res.ok || cancelled) return;
-        const detail = (await res.json()) as StockDetailData;
-
-        const auditTier = detail.fundamentalAuditRows?.[0]?.freshnessTier;
-        const freshness = detail.summary?.fundamentalFreshness;
-        const isStaleOrUnverified =
-          auditTier === 'UNVERIFIED' ||
-          auditTier === 'OVER_3M' ||
-          freshness === 'NOT_AVAILABLE' ||
-          freshness === 'STALE';
-
-        if (!isStaleOrUnverified || cancelled) return;
-
-        syncInFlightRef.current = true;
-        lastSyncAttemptRef.current.set(sym, Date.now());
-        setCacheSyncNotice(`Auto-saving ${sym} fundamentals...`);
-
-        const saveRes = await fetch('/api/fundamentals/save-to-cache', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ symbol: sym }),
-        });
-
-        if (saveRes.ok && !cancelled) {
-          const saveJson = (await saveRes.json()) as { saved?: boolean; totalSavedCount?: number };
-          if (saveJson.saved) {
-            setStockRefreshSeq((n) => n + 1);
-            setCacheSyncNotice(`Cached ${sym} (${saveJson.totalSavedCount ?? ''} total)`);
-            void fetchOverview(false);
-            window.setTimeout(() => {
-              if (!cancelled) setCacheSyncNotice(null);
-            }, 6000);
-          } else {
-            setCacheSyncNotice(null);
-          }
-        }
-      } catch {
-        // Ignore transient network errors during background monitor tick
-      } finally {
-        syncInFlightRef.current = false;
-      }
-    };
-
-    const initialTimer = window.setTimeout(() => {
-      void verifyAndAutoCacheSelectedSymbol();
-    }, 1200);
-
-    const intervalId = window.setInterval(() => {
-      void verifyAndAutoCacheSelectedSymbol();
-    }, 30_000);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(initialTimer);
-      window.clearInterval(intervalId);
-    };
-  }, [selectedSymbol]);
 
   const navigateTo = (nextTab: TabKey, nextSymbol?: string) => {
     const cleanedSymbol = nextSymbol ? nextSymbol.toUpperCase() : selectedSymbol;
@@ -601,12 +522,6 @@ export default function App() {
                 <span className="mx-2 text-slate-300">/</span>
                 <span className="font-medium text-slate-900">{tabTitles[activeTab]}</span>
               </span>
-              {cacheSyncNotice && (
-                <span className="hidden md:inline">
-                  <span className="mx-2 text-slate-300">·</span>
-                  <span className="font-mono text-[11px] text-blue-700">{cacheSyncNotice}</span>
-                </span>
-              )}
             </div>
           </div>
 
