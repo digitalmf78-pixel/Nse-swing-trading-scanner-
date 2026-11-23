@@ -88,8 +88,6 @@ export function applyNseValidatedFundamentalPatches(
   const output = new Map<string, ScannerFundamentalProfile>();
   for (const [rawSymbol, profile] of existing) {
     const symbol = rawSymbol.trim().toUpperCase();
-    const sourceText = [profile.source, ...(profile.fundamentalSources || [])].filter(Boolean).join(' ');
-    const hasLegacyYahooFundamentals = /yahoo|yfinance|\.ns|\.bo|bse/i.test(sourceText);
     output.set(symbol, {
       ...profile,
       revenueGrowthPct: null,
@@ -99,19 +97,20 @@ export function applyNseValidatedFundamentalPatches(
       debtToEquity: null,
       interestCoverage: null,
       operatingCashFlowInr: null,
-      trailingPE: hasLegacyYahooFundamentals ? null : profile.trailingPE,
-      epsPrev: hasLegacyYahooFundamentals ? null : profile.epsPrev,
-      epsCurr: hasLegacyYahooFundamentals ? null : profile.epsCurr,
-      epsTtmPrev: hasLegacyYahooFundamentals ? null : profile.epsTtmPrev,
-      epsTtmCurr: hasLegacyYahooFundamentals ? null : profile.epsTtmCurr,
-      epsPrevPeriod: hasLegacyYahooFundamentals ? '' : profile.epsPrevPeriod,
-      epsCurrPeriod: hasLegacyYahooFundamentals ? '' : profile.epsCurrPeriod,
-      fundamentalSources: (profile.fundamentalSources || []).filter(source =>
-        !/yahoo|yfinance|\.ns|\.bo|bse|free source|csv baseline/i.test(source)
-      ),
-      fundamentalRemark: hasLegacyYahooFundamentals
-        ? 'Legacy Yahoo/BSE fundamentals, EPS and valuation withheld; validated NSE values required'
-        : 'Unvalidated EPS, FCF and valuation metrics withheld; validated NSE values required',
+      freeCashFlowInr: null,
+      trailingPE: null,
+      priceToBook: null,
+      dividendYieldPct: null,
+      epsPrev: null,
+      epsCurr: null,
+      epsTtmPrev: null,
+      epsTtmCurr: null,
+      epsPrevPeriod: '',
+      epsCurrPeriod: '',
+      earningsQualityStatus: 'BLOCKED',
+      valuationStatus: 'BLOCKED',
+      fundamentalSources: [],
+      fundamentalRemark: 'Unvalidated fundamentals, EPS, FCF and valuation metrics withheld; validated NSE values required',
     });
   }
   for (const [rawSymbol, patch] of patches) {
@@ -134,7 +133,7 @@ export function applyNseValidatedFundamentalPatches(
       fundamentalSources: patch.conflict ? [] : patch.fundamentalSources,
       fundamentalRemark: patch.conflict
         ? 'NSE validated profile conflict — metrics withheld'
-        : 'NSE validated metrics only; unvalidated metrics withheld',
+        : 'NSE validated metrics only; all unvalidated metrics withheld',
     });
   }
   return output;
