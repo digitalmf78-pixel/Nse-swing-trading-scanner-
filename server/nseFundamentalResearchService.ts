@@ -760,8 +760,12 @@ async function runCollection(
           job.lastError = report.warnings[0];
         } else {
           const result = await processIssuer(symbol, sector, cachedRows, fetchImpl, verifiedIsin ?? null);
-          const evidencePair = selectLatestComparableFilingPair(cachedRows, symbol);
-          if (evidencePair) result.report.filingEvidence = buildFilingEvidence(evidencePair);
+          try {
+            const evidencePair = selectLatestComparableFilingPair(cachedRows, symbol);
+            if (evidencePair) result.report.filingEvidence = buildFilingEvidence(evidencePair);
+          } catch (error) {
+            result.report.warnings.push('Filing provenance summary could not be generated: ' + (error as Error).message);
+          }
           result.report.industryClassification = industryRecord;
           job.xbrlDocumentsSaved += result.xbrlSaved;
           appendCandidateReport(result.report, candidateCache);
