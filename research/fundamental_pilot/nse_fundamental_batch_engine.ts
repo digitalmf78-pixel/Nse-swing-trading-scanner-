@@ -67,8 +67,8 @@ export interface NseFundamentalBatchReport {
 
 const NSE_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-function toNsePeriodDate(isoDate: string): string {
-  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(isoDate)) throw new Error(`Invalid ISO period end: ${isoDate}`);
+export function formatNsePeriodDate(isoDate: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) throw new Error(`Invalid ISO period end: ${isoDate}`);
   const date = new Date(`${isoDate}T00:00:00Z`);
   if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== isoDate) {
     throw new Error(`Invalid ISO period end: ${isoDate}`);
@@ -105,7 +105,7 @@ async function fetchOriginal(
   if (!filingHistory.complete) throw new Error(`${symbol}: NSE filing pagination is incomplete`);
   const selection = selectNseIssuerPeriodHistory(filingHistory.rows, {
     symbol: symbol.toUpperCase(),
-    period: toNsePeriodDate(period.periodEnd),
+    period: formatNsePeriodDate(period.periodEnd),
     basis: filingBasis(period.basis),
   });
   if (selection.status === 'ORIGINAL_MISSING') throw new Error(`${symbol}: exact-period Original filing not found for ${period.periodEnd} ${period.basis}`);
