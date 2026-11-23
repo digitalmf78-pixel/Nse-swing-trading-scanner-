@@ -240,3 +240,13 @@ test('Asian Paints H1 FY27 total PAT equals owners profit plus NCI allocation',(
   assert.equal(2093.36+41.92,2135.28);
   assert.equal(2606.88/2093.36>1,true);
 });
+
+
+test('Asian Paints H1 FY27 PBT and adjustment lines reconcile to operating profit before working capital',()=>{
+  const prior=[2900.23,605.80,-83.99,-2.12,88.37,-34.22,107.86,-2.07,-2.39,-0.02,-1.60,-127.58,13.80,-74.62,0,41.77,33.84];
+  const current=[3573.53,617.86,-133.50,-2.05,103.23,15.74,2.39,-2.14,-13.70,-4.17,-1.97,-218.49,20.71,-80.15,21.60,36.41,4.67];
+  const sum=(values:number[])=>Math.round(values.reduce((total,value)=>total+value,0)*100)/100;
+  assert.equal(sum(prior),3463.06);
+  assert.equal(sum(current),3939.97);
+  assert.equal(Math.round((sum(current)-sum(prior))*100)/100,476.91);
+});
