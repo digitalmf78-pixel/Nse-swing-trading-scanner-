@@ -135,41 +135,38 @@ export function selectLatestComparableFilingPair(
     String(row.symbol ?? '').trim().toUpperCase() === symbol
     && row.type === 'Integrated Filing- Financials'
     && (row.type_Sub === 'Original' || row.type_Sub === 'Revision')
+    && (row.consolidated === 'Standalone' || row.consolidated === 'Consolidated')
   );
+  const latestPeriods = [...new Set(rows
+    .map(row => parseNseFinancialPeriodEnd(row.qe_Date))
+    .filter((value): value is string => Boolean(value)))].sort((a, b) => b.localeCompare(a));
+  const latestPeriod = latestPeriods[0];
+  if (!latestPeriod) return null;
+  const priorPeriod = shiftIsoYear(latestPeriod, -1);
+  if (!priorPeriod) return null;
+
   const candidates: NseComparableFilingPair[] = [];
   for (const basis of ['Consolidated', 'Standalone'] as const) {
-    const originals = rows.filter(row => isFinancialOriginal(row, symbol, basis));
-    const byPeriod = new Map<string, NseRevisionRow[]>();
-    for (const row of originals) {
-      const end = parseNseFinancialPeriodEnd(row.qe_Date);
-      if (!end) continue;
-      const group = byPeriod.get(end) ?? [];
-      group.push(row);
-      byPeriod.set(end, group);
-    }
-    const periods = [...byPeriod.keys()].sort((a, b) => b.localeCompare(a));
-    for (const currentEnd of periods) {
-      const priorEnd = shiftIsoYear(currentEnd, -1);
-      if (!priorEnd) continue;
-      const currentOriginals = byPeriod.get(currentEnd) ?? [];
-      const priorOriginals = byPeriod.get(priorEnd) ?? [];
-      if (currentOriginals.length !== 1 || priorOriginals.length !== 1) continue;
-      const rowsFor = (end: string) => rows.filter(row =>
-        row.consolidated === basis
-        && parseNseFinancialPeriodEnd(row.qe_Date) === end
-      );
-      candidates.push({
-        symbol, basis, currentPeriodEnd: currentEnd, priorPeriodEnd: priorEnd,
-        currentOriginal: currentOriginals[0], priorOriginal: priorOriginals[0],
-        currentRows: rowsFor(currentEnd), priorRows: rowsFor(priorEnd),
-      });
-      break;
-    }
+    const currentOriginals = rows.filter(row =>
+      isFinancialOriginal(row, symbol, basis)
+      && parseNseFinancialPeriodEnd(row.qe_Date) === latestPeriod
+    );
+    const priorOriginals = rows.filter(row =>
+      isFinancialOriginal(row, symbol, basis)
+      && parseNseFinancialPeriodEnd(row.qe_Date) === priorPeriod
+    );
+    if (currentOriginals.length !== 1 || priorOriginals.length !== 1) continue;
+    const rowsFor = (end: string) => rows.filter(row =>
+      row.consolidated === basis
+      && parseNseFinancialPeriodEnd(row.qe_Date) === end
+    );
+    candidates.push({
+      symbol, basis, currentPeriodEnd: latestPeriod, priorPeriodEnd: priorPeriod,
+      currentOriginal: currentOriginals[0], priorOriginal: priorOriginals[0],
+      currentRows: rowsFor(latestPeriod), priorRows: rowsFor(priorPeriod),
+    });
   }
-  candidates.sort((a, b) =>
-    b.currentPeriodEnd.localeCompare(a.currentPeriodEnd)
-    || (a.basis === 'Consolidated' ? -1 : 1)
-  );
+  candidates.sort((a, b) => a.basis === 'Consolidated' ? -1 : b.basis === 'Consolidated' ? 1 : 0);
   return candidates[0] ?? null;
 }
 
