@@ -489,18 +489,20 @@ async function startServer() {
       const rawScope = typeof req.body?.scope === 'string' ? req.body.scope.toUpperCase() : 'MISSING_OR_OLD';
       if (rawScope !== 'BHAVCOPY') {
         return res.status(503).json({
-          code: 'NSE_FUNDAMENTAL_SERVICE_NOT_READY',
-          error: 'Legacy Yahoo fundamental collection is disabled. Only Bhavcopy-scoped NSE filing evidence sync is currently available.',
+          code: 'NSE_FUNDAMENTAL_SCOPE_NOT_SUPPORTED',
+          error: 'NSE fundamental research is restricted to symbols present in the latest Bhavcopy universe.',
         });
       }
       const limitNum = Number(req.body?.limit);
       const limit = Number.isFinite(limitNum) && limitNum > 0 ? Math.min(3000, limitNum) : undefined;
+      const rows = nsePipeline.getAllScreenerRows();
+      const sectorBySymbol = Object.fromEntries(rows.map(row => [row.symbol, row.providerSector || '']));
       const targets = nsePipeline.getAuditCollectionTargets('BHAVCOPY', limit);
-      const status = startNseFilingHistoryCollection(targets);
+      const status = startNseFundamentalResearchCollection(targets, sectorBySymbol);
       return res.json({
-        mode: 'NSE_OFFICIAL_FILING_HISTORY_ONLY',
+        mode: 'NSE_OFFICIAL_XBRL_CANDIDATE_RESEARCH',
         ...status,
-        note: 'Official NSE filing metadata is staged separately; no fundamental metric values are yet approved or written to the main cache.',
+        note: 'Official NSE filing metadata, current/prior Original XBRL and all available revisions are fetched and compared. Candidate metrics remain research-only; production scanner cache is unchanged.',
       });
     } catch (err) {
       return res.status(500).json({ error: (err as Error).message });
