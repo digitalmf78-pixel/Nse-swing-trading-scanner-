@@ -46,6 +46,9 @@ test('pipeline adapter clears legacy seven-metric values and never falls back fo
   const legacy = {
     symbol:'ABC', revenueGrowthPct:44, profitGrowthPct:33, roePct:22, rocePct:21,
     debtToEquity:0.2, interestCoverage:8, operatingCashFlowInr:900,
+    trailingPE:28, epsPrev:4.2, epsCurr:3.1, epsTtmPrev:15, epsTtmCurr:12,
+    epsPrevPeriod:'2026-03-31', epsCurrPeriod:'2026-06-30',
+    source:'Yahoo Finance (.NS)',
     fundamentalSources:['Yahoo Finance (.NS)','Free Source Cache'],
   } as unknown as ScannerFundamentalProfile;
   const existing = new Map([['ABC',legacy]]);
@@ -58,6 +61,13 @@ test('pipeline adapter clears legacy seven-metric values and never falls back fo
   assert.equal(applied.debtToEquity,null);
   assert.equal(applied.interestCoverage,null);
   assert.equal(applied.operatingCashFlowInr,null);
+  assert.equal(applied.trailingPE,null);
+  assert.equal(applied.epsPrev,null);
+  assert.equal(applied.epsCurr,null);
+  assert.equal(applied.epsTtmPrev,null);
+  assert.equal(applied.epsTtmCurr,null);
+  assert.equal(applied.epsPrevPeriod,'');
+  assert.equal(applied.epsCurrPeriod,'');
   assert.deepEqual(applied.fundamentalSources,['NSE Official XBRL (validated)']);
 });
 
@@ -65,6 +75,8 @@ test('pipeline adapter clears legacy seven-metric values when no approved NSE pr
   const legacy = {
     symbol:'XYZ', revenueGrowthPct:44, profitGrowthPct:33, roePct:22, rocePct:21,
     debtToEquity:0.2, interestCoverage:8, operatingCashFlowInr:900,
+    trailingPE:31, epsPrev:5, epsCurr:2, epsTtmPrev:17, epsTtmCurr:9,
+    source:'Yahoo Finance (.NS)',
     fundamentalSources:['Yahoo Finance (.NS)'],
   } as unknown as ScannerFundamentalProfile;
   const applied = applyNseValidatedFundamentalPatches(new Map([['XYZ',legacy]]),new Map()).get('XYZ')!;
