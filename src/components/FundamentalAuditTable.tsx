@@ -4,7 +4,6 @@ import {
   ChevronRight,
   Database,
   Download,
-  RefreshCw,
   Search,
   ShieldCheck,
 } from 'lucide-react';
