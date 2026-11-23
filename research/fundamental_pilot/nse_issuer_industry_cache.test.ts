@@ -32,7 +32,7 @@ test('fetches official NSE industry classification and ISIN', async () => {
     }), { status: 200, headers: { 'content-type': 'application/json' } });
   };
   const record = await fetchNseIssuerIndustry('abc', fetchImpl);
-  assert.match(requested, /quote-equity\\?symbol=ABC/);
+  assert.match(requested, /quote-equity\?symbol=ABC/);
   assert.equal(apiCookie, 'nseSession=abc');
   assert.equal(record.symbol, 'ABC');
   assert.equal(record.isin, 'INE123A01016');
