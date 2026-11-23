@@ -90,6 +90,14 @@ export function applyNseValidatedFundamentalPatches(
     const symbol = rawSymbol.trim().toUpperCase();
     output.set(symbol, {
       ...profile,
+      asOfDate: '',
+      source: '',
+      sourceUrl: '',
+      financialPeriodEnd: '',
+      publicationDate: '',
+      officialFilingUrl: '',
+      officialFilingSource: '',
+      lastUpdatedUtc: '',
       revenueGrowthPct: null,
       profitGrowthPct: null,
       roePct: null,
@@ -123,6 +131,8 @@ export function applyNseValidatedFundamentalPatches(
       publicationDate: patch.publicationDate,
       officialFilingUrl: patch.officialFilingUrl,
       officialFilingSource: patch.officialFilingUrl ? 'NSE Official XBRL' : '',
+      source: patch.conflict ? '' : patch.fundamentalSources.length ? 'NSE Official XBRL (validated)' : '',
+      sourceUrl: patch.officialFilingUrl,
       revenueGrowthPct: patch.revenueGrowthPct,
       profitGrowthPct: patch.profitGrowthPct,
       roePct: patch.roePct,

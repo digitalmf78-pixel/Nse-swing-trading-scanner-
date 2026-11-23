@@ -6,6 +6,8 @@ import {
   loadLiveFundamentalOverrides,
   toIstDateIso,
 } from './liveFetcher.ts';
+import { applyNseValidatedFundamentalPatches, selectNseScannerFundamentalPatches } from './nseValidatedFundamentalAdapter.ts';
+import { loadNseValidatedFundamentalCache } from './nseValidatedFundamentalCache.ts';
 import {
   evaluateTurnaroundTopConfirmation,
   evaluateUTurnConfirmation,
@@ -122,6 +124,7 @@ class NsePipelineEngine {
     this.loadFundamentals(root);
     this.mergeFreeSourceCache(root);
     this.mergeLiveOverrides();
+    this.applyNseValidatedFundamentals();
     this.mergeScreenerShareholding(root);
     this.loadXbrlFilings(root);
     this.loadBhavcopiesAndBuildScreener(root, streakMap);
@@ -662,6 +665,16 @@ class NsePipelineEngine {
         companyName: rec.companyName || existing.companyName,
       };
       this.fundamentalsBySymbol.set(sym, this.recomputeChecks(merged));
+    }
+  }
+
+  private applyNseValidatedFundamentals(): void {
+    const validatedCache = loadNseValidatedFundamentalCache();
+    const patches = selectNseScannerFundamentalPatches(validatedCache);
+    const adapted = applyNseValidatedFundamentalPatches(this.fundamentalsBySymbol, patches);
+    this.fundamentalsBySymbol.clear();
+    for (const [symbol, profile] of adapted) {
+      this.fundamentalsBySymbol.set(symbol, this.recomputeChecks(profile));
     }
   }
 
