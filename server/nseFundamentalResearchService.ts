@@ -7,6 +7,7 @@ import { collectXbrlEvidenceForFilingRows, loadNseXbrlEvidenceCache, type NseXbr
 import { resolveNseConceptMap } from '../research/fundamental_pilot/nse_concept_map_resolver.ts';
 import { buildSevenMetricXbrlPipeline } from '../research/fundamental_pilot/seven_metric_xbrl_pipeline.ts';
 import { selectXbrlMetricFact } from '../research/fundamental_pilot/xbrl_metric_fact_selector.ts';
+import { buildNseEpsCandidate, type NseEpsCandidate } from '../research/fundamental_pilot/nse_eps_candidate.ts';
 import type { IssuerSector } from '../research/fundamental_pilot/sector_metric_policy.ts';
 import type { IssuerMetricConceptMap } from '../research/fundamental_pilot/seven_metric_xbrl_pipeline.ts';
 import type { NseRevisionRow } from '../research/fundamental_pilot/nse_revision_pair.ts';
@@ -38,6 +39,7 @@ export interface NseFundamentalResearchResult {
   currentPeriodEnd?: string;
   priorPeriodEnd?: string;
   candidateReport?: ReturnType<typeof buildSevenMetricXbrlPipeline>;
+  epsCandidate?: NseEpsCandidate;
   revisionAudit?: NseRevisionMetricAudit;
   isin?: string;
   isinVerified?: boolean;
@@ -410,6 +412,18 @@ async function processIssuer(
   if ([...currentRevisionDocs, ...priorRevisionDocs].some(doc => doc.extraction.warnings.length > 0)) {
     return { report: blocked(symbol, sector, 'A revision XBRL parser warning is present; revision comparison is incomplete.'), xbrlSaved: download.saved };
   }
+  const epsCandidate = buildNseEpsCandidate(
+    {
+      extraction: currentDoc.extraction, periodStart: currentStart,
+      periodEnd: pair.currentPeriodEnd, periodType: currentType, basis,
+    },
+    {
+      extraction: priorDoc.extraction, periodStart: priorStart,
+      periodEnd: pair.priorPeriodEnd, periodType: priorType, basis,
+    },
+    currentRevisionDocs.map(doc => doc.extraction),
+    priorRevisionDocs.map(doc => doc.extraction),
+  );
   const currentRevisionAudit = auditRevisions(
     currentDoc, currentRevisionDocs, mapping.conceptMap, currentStart,
     pair.currentPeriodEnd, currentType, basis,
@@ -449,6 +463,8 @@ async function processIssuer(
     ...revisionAudit.changedMetrics.map(metric => metric + ' changed in revision history.'),
     ...revisionAudit.issues,
     ...candidateIssues,
+    'NSE Basic EPS candidate: ' + epsCandidate.status + '.',
+    ...epsCandidate.warnings,
     isin ? 'Issuer ISIN matched the official NSE equity master.' : 'Official NSE equity master ISIN is unavailable; issuer identity is not complete.',
     'Research candidates only: no values are written to the production scanner cache.',
     'Production release remains blocked until formula approval and independent statement validation are complete.',
@@ -457,7 +473,7 @@ async function processIssuer(
   const report: NseFundamentalResearchResult = {
     symbol, status, sector, isin: isin ?? undefined, isinVerified: Boolean(isin),
     basis, currentPeriodEnd: pair.currentPeriodEnd,
-    priorPeriodEnd: pair.priorPeriodEnd, candidateReport, revisionAudit,
+    priorPeriodEnd: pair.priorPeriodEnd, candidateReport, epsCandidate, revisionAudit,
     scannerEligible: false, productionApproved: false, warnings,
   };
   return { report, xbrlSaved: download.saved };
