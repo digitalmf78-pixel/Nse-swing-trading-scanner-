@@ -44,6 +44,7 @@ export interface NseFundamentalResearchResult {
   revisionAudit?: NseRevisionMetricAudit;
   isin?: string;
   isinVerified?: boolean;
+  industryClassification?: NseIssuerIndustryRecord | null;
   scannerEligible: false;
   productionApproved: false;
   warnings: string[];
