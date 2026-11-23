@@ -114,3 +114,16 @@ The OCF regression asserts `RECLASSIFIED_COMPARATIVE_REVIEW_REQUIRED`, differenc
 - PDF audit artifact: https://github.com/digitalmf78-pixel/Nse-swing-trading-scanner-/actions/runs/45133807986/artifacts/14798672291
 
 The shared comparative guard now requires the changed adjustment lines, changed working-capital lines, both subtotals, operating profit before working capital, cash generated from operations, direct taxes and OCF totals to reconcile before it selects the current filing comparative. Regression tests also corrupt a changed line and a cash-generated subtotal to prove that either mismatch returns to RECLASSIFIED_COMPARATIVE_REVIEW_REQUIRED and withholds the prior base.
+
+
+## Reconciled XBRL candidate workflow result
+
+The reusable official NSE XBRL candidate workflow was rerun after adding the line-level bridge. It completed successfully and emitted:
+- OCF bridge status: `RECLASSIFICATION_BRIDGE_RECONCILED`.
+- Current XBRL/PDF OCF: ₹10,602.50 Cr.
+- Prior Original XBRL/PDF OCF retained: ₹5,747.34 Cr.
+- Comparable prior value selected from the current FY27 filing: ₹5,869.22 Cr.
+- Candidate OCF change: ₹4,733.28 Cr / **+80.65%**.
+- Candidate matrix: 3 candidate metrics, 4 blocked ratio metrics; production approval remains `false`.
+- Workflow: https://github.com/digitalmf78-pixel/Nse-swing-trading-scanner-/actions/runs/45134241085
+- Artifact: https://github.com/digitalmf78-pixel/Nse-swing-trading-scanner-/actions/runs/45134241085/artifacts/14798658489
