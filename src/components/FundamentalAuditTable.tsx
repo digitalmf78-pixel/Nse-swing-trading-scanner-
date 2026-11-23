@@ -204,7 +204,7 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
         setActionNotice(json.note || 'NSE fundamental research did not start.');
         return;
       }
-      setActionNotice(`NSE XBRL fundamental research started: ${json.total} Bhavcopy symbols. Current/prior filings and revisions will be checked; only fully validated Revenue/Profit Growth can be released.`);
+      setActionNotice(`NSE XBRL fundamental research started: ${json.total} Bhavcopy symbols. Current/prior filings and revisions will be checked; results are staged for research and do not change scanner metrics.`);
     } catch (err) {
       setSyncingNseFilingHistory(false);
       setActionNotice(`NSE fundamental fetch error: ${(err as Error).message}`);
@@ -222,8 +222,8 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
         if (cancelled) return;
         setActionNotice(
           status.running
-            ? `NSE ${status.filingHistoryProcessed < status.total ? 'filings' : 'XBRL validation'}: ${status.filingHistoryProcessed < status.total ? status.filingHistoryProcessed : status.processed}/${status.total} · XBRL saved ${status.xbrlDocumentsSaved} · candidates ${status.candidateReady} · partial releases ${status.partialReleased} · revision review ${status.revisionReviewRequired} · blocked ${status.failed} · current ${status.currentSymbol || 'finishing'}`
-            : `NSE fundamental research finished: ${status.candidateReady} candidate-ready · ${status.partialReleased} partial releases · ${status.revisionReviewRequired} revision-review · ${status.failed} blocked · ${status.xbrlDocumentsSaved} XBRL documents saved. Only approved Revenue/Profit Growth values may enter the scanner cache; all other unvalidated metrics remain blocked.`
+            ? `NSE ${status.filingHistoryProcessed < status.total ? 'filings' : 'XBRL validation'}: ${status.filingHistoryProcessed < status.total ? status.filingHistoryProcessed : status.processed}/${status.total} · XBRL saved ${status.xbrlDocumentsSaved} · candidates ${status.candidateReady} · revision review ${status.revisionReviewRequired} · blocked ${status.failed} · current ${status.currentSymbol || 'finishing'}`
+            : `NSE fundamental research finished: ${status.candidateReady} candidate-ready · ${status.revisionReviewRequired} revision-review · ${status.failed} blocked · ${status.xbrlDocumentsSaved} XBRL documents saved. Candidate values are stored separately for review; production scanner cache remains unchanged until formal validation is approved.`
         );
         if (!status.running) setSyncingNseFilingHistory(false);
       } catch {
