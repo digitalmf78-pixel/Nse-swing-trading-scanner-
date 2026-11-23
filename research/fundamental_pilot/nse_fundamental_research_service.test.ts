@@ -5,6 +5,7 @@ import {
   classifyNsePeriodType,
   inferExactPeriodStart,
   parseNseFinancialPeriodEnd,
+  resolveGrowthResearchStatus,
   selectLatestComparableFilingPair,
 } from '../../server/nseFundamentalResearchService.ts';
 import type { NseRevisionRow } from './nse_revision_pair.ts';
@@ -135,4 +136,26 @@ test('period start inference requires revenue and profit shared undimensioned du
   };
   assert.equal(inferExactPeriodStart(withoutOcf, '2026-09-30', concepts), '2026-04-01');
   assert.equal(inferExactPeriodStart(extraction, '2026-06-30', concepts), null);
+});
+
+test('missing OCF does not block independently validated Revenue and Profit Growth candidates', () => {
+  assert.equal(
+    resolveGrowthResearchStatus('CANDIDATE_ONLY', 'CANDIDATE_ONLY', [
+      'REVENUE_GROWTH_INPUT', 'PROFIT_GROWTH_INPUT',
+    ]),
+    'CANDIDATE_READY',
+  );
+});
+
+test('growth candidates require both growth revision inputs to be stable', () => {
+  assert.equal(
+    resolveGrowthResearchStatus('CANDIDATE_ONLY', 'CANDIDATE_ONLY', ['REVENUE_GROWTH_INPUT']),
+    'REVISION_REVIEW_REQUIRED',
+  );
+  assert.equal(
+    resolveGrowthResearchStatus('BLOCKED', 'CANDIDATE_ONLY', [
+      'REVENUE_GROWTH_INPUT', 'PROFIT_GROWTH_INPUT',
+    ]),
+    'BLOCKED',
+  );
 });
