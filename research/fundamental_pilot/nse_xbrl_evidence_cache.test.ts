@@ -43,6 +43,8 @@ test('collector archives exact original XML bytes and records relative raw evide
   try {
     const report=await collectXbrlEvidenceForFilingRows('ABC',[{seq_Id:'77',qe_Date:'31-MAR-2026',type:'Integrated Filing- Financials',type_Sub:'Original',consolidated:'Standalone',xbrl:'https://nsearchives.nseindia.in/corporate/xbrl/abc.xml'}],{fetchImpl:fakeFetch as typeof fetch,archiveDir:path.join(temp,'raw'),cacheFile:path.join(temp,'cache.json')});
     assert.equal(report.saved,1);
+    assert.equal(report.documents.length,1);
+    assert.equal(report.documents[0].seqId,'77');
     const cache=JSON.parse(fs.readFileSync(path.join(temp,'cache.json'),'utf8'));
     const doc=cache.symbols.ABC.documents[0];
     const stored=fs.readFileSync(path.join(temp,'raw','ABC','77_'+doc.sha256+'.xml'));
@@ -52,5 +54,7 @@ test('collector archives exact original XML bytes and records relative raw evide
     const secondRun=await collectXbrlEvidenceForFilingRows('abc',[{seq_Id:'77',qe_Date:'31-MAR-2026',type:'Integrated Filing- Financials',type_Sub:'Original',consolidated:'Standalone',xbrl:'https://nsearchives.nseindia.in/corporate/xbrl/abc.xml'}],{fetchImpl:fakeFetch as typeof fetch,archiveDir:path.join(temp,'raw'),cacheFile:path.join(temp,'cache.json')});
     assert.equal(secondRun.saved,0);
     assert.equal(secondRun.skipped,1);
+    assert.equal(secondRun.documents.length,1);
+    assert.equal(secondRun.documents[0].seqId,'77');
   } finally { fs.rmSync(temp,{recursive:true,force:true}); }
 });
