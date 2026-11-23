@@ -9,9 +9,6 @@ import { runEcmsGeminiResearch } from './server/geminiResearch.ts';
 import {
   fetchNseBhavcopyForDate,
   getCollectionJobStatus,
-  refreshFundamentalsBatch,
-  saveSymbolFundamentalsToCache,
-  startFullFundamentalCollection,
   syncLatestBhavcopiesCatchup,
 } from './server/liveFetcher.ts';
 import {
@@ -426,7 +423,26 @@ async function startServer() {
       const saveAll = Boolean(req.body?.saveAll);
 
       if (symbol) {
-        const forceBse = req.body?.force !== undefined ? Boolean(req.body.force) : true;
+        return res.status(503).json({
+          code: 'NSE_FUNDAMENTAL_SERVICE_NOT_READY',
+          symbol,
+          error: 'Legacy Yahoo fundamental fetch is disabled. NSE official XBRL validation and main-cache writing are not yet production-ready.',
+        });
+      }
+
+      if (saveAll) {
+        const rawScope =
+          typeof req.body?.scope === 'string' ? req.body.scope.toUpperCase() : 'MISSING_OR_OLD';
+        const scope: 'MISSING_OR_OLD' | 'NOT_AVAILABLE' | 'LIQUID' | 'ALL' | 'BHAVCOPY' =
+          rawScope === 'NOT_AVAILABLE' || rawScope === 'LIQUID' || rawScope === 'ALL' || rawScope === 'BHAVCOPY'
+            ? rawScope
+            : 'MISSING_OR_OLD';
+        if (scope !== 'BHAVCOPY') {
+          return res.status(503).json({
+            code: 'NSE_FUNDAMENTAL_SERVICE_NOT_READY',
+            error: 'Legacy Yahoo fundamental collection is disabled. Only Bhavcopy-scoped NSE filing evidence sync is currently available.',
+          });
+        }
         const result = await saveSymbolFundamentalsToCache(
           symbol,
           nsePipeline.getXbrlFilingsForSymbol(symbol),
@@ -445,14 +461,6 @@ async function startServer() {
           auditEntry: detail?.fundamentalAuditRows?.[0] ?? null,
         });
       }
-
-      if (saveAll) {
-        const rawScope =
-          typeof req.body?.scope === 'string' ? req.body.scope.toUpperCase() : 'MISSING_OR_OLD';
-        const scope: 'MISSING_OR_OLD' | 'NOT_AVAILABLE' | 'LIQUID' | 'ALL' | 'BHAVCOPY' =
-          rawScope === 'NOT_AVAILABLE' || rawScope === 'LIQUID' || rawScope === 'ALL' || rawScope === 'BHAVCOPY'
-            ? rawScope
-            : 'MISSING_OR_OLD';
 
         const targets = nsePipeline.getAuditCollectionTargets(scope);
         if (scope === 'BHAVCOPY') {
@@ -493,6 +501,14 @@ async function startServer() {
   });
 
   // Live Fundamental Fetcher (Single Symbol or Batch Missing Liquidity-Qualified)
+  app.post('/api/refresh/fundamentals', async (_req, res) => {
+    return res.status(503).json({
+      code: 'NSE_FUNDAMENTAL_SERVICE_NOT_READY',
+      error: 'Legacy Yahoo fundamental refresh is disabled. NSE official XBRL validation and main-cache writing are not yet production-ready.',
+    });
+  });
+
+  /* Legacy implementation retained only in git history; scanner triggers must not call Yahoo fundamentals.
   app.post('/api/refresh/fundamentals', async (req, res) => {
     try {
       const symbol = typeof req.body?.symbol === 'string' ? req.body.symbol.trim().toUpperCase() : '';
@@ -529,6 +545,7 @@ async function startServer() {
       return res.status(500).json({ error: (err as Error).message });
     }
   });
+  */
 
   // Fundamental Audit Universe Query (NSE/BSE Mapping & Freshness Tiers)
   app.get('/api/fundamentals/audit', (req, res) => {
@@ -558,6 +575,13 @@ async function startServer() {
       const limitNum = Number(req.body?.limit);
       const limit = Number.isFinite(limitNum) && limitNum > 0 ? Math.min(3000, limitNum) : undefined;
 
+      if (scope !== 'BHAVCOPY') {
+        return res.status(503).json({
+          code: 'NSE_FUNDAMENTAL_SERVICE_NOT_READY',
+          error: 'Legacy Yahoo fundamental collection is disabled. Only Bhavcopy-scoped NSE filing evidence sync is currently available.',
+        });
+      }
+
       const targets = nsePipeline.getAuditCollectionTargets(scope, limit);
       if (scope === 'BHAVCOPY') {
         const status = startNseFilingHistoryCollection(targets);
@@ -574,13 +598,10 @@ async function startServer() {
         });
       }
 
-      const status = startFullFundamentalCollection(
-        targets,
-        scope,
-        nsePipeline.getXbrlBySymbolMap(),
-        () => nsePipeline.reload()
-      );
-      return res.json(status);
+      return res.status(503).json({
+        code: 'NSE_FUNDAMENTAL_SERVICE_NOT_READY',
+        error: 'No non-Bhavcopy fundamental collection path is enabled.',
+      });
     } catch (err) {
       return res.status(500).json({ error: (err as Error).message });
     }
