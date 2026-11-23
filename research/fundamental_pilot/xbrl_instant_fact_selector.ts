@@ -83,3 +83,55 @@ export function selectXbrlInstantFact(
     explanation:'One exact-date, undimensioned instant fact with explicit currency unit selected. Accounting concept suitability remains a separate gate.',
   };
 }
+
+
+export interface XbrlInstantFactBundleSelection {
+  status: 'SELECTED_ALL_FACTS'|'BLOCKED_FACT_SELECTION'|'BLOCKED_MIXED_CURRENCY';
+  facts: Record<string, NonNullable<XbrlInstantFactSelection['fact']>> | null;
+  failedConcepts: string[];
+  currency: string | null;
+  explanation: string;
+}
+
+/**
+ * Selects an explicitly supplied set of instant facts for research calculations.
+ * Every concept must independently pass the exact-date/group/basis/unit gates,
+ * and all amounts must share one currency. It never guesses concepts or sums
+ * balance-sheet rows; accounting meaning and formula policy remain separate.
+ */
+export function selectXbrlInstantFactBundle(
+  extraction: XbrlExtraction,
+  request: { concepts: Record<string,string>; instantDate: string; basis:'STANDALONE'|'CONSOLIDATED'; filingBasis:'STANDALONE'|'CONSOLIDATED'|null },
+): XbrlInstantFactBundleSelection {
+  const entries=Object.entries(request.concepts);
+  if(entries.length===0 || entries.some(([key,concept])=>!key.trim() || !concept.trim())) {
+    throw new Error('At least one named metric input and exact XBRL concept are required');
+  }
+  const selected:Record<string,NonNullable<XbrlInstantFactSelection['fact']>>={};
+  const failed:string[]=[];
+  let currency:string|null=null;
+  for(const [key,concept] of entries) {
+    const result=selectXbrlInstantFact(extraction,{
+      concept,instantDate:request.instantDate,basis:request.basis,filingBasis:request.filingBasis,
+    });
+    if(result.status!=='SELECTED_UNIQUE_GROUP_FACT' || !result.fact) {
+      failed.push(key+' ('+concept+'): '+result.status);
+      continue;
+    }
+    const factCurrency=result.fact.unitMeasures[0];
+    if(currency!==null && currency!==factCurrency) {
+      return {status:'BLOCKED_MIXED_CURRENCY',facts:null,failedConcepts:[key],currency:null,
+        explanation:'Selected instant facts use different ISO 4217 currencies; no bundle was returned.'};
+    }
+    currency=factCurrency;
+    selected[key]=result.fact;
+  }
+  if(failed.length>0) return {
+    status:'BLOCKED_FACT_SELECTION',facts:null,failedConcepts:failed,currency:null,
+    explanation:'One or more required exact concepts did not pass unique group-context, period, basis, numeric and unit checks. Partial bundles are withheld.',
+  };
+  return {
+    status:'SELECTED_ALL_FACTS',facts:selected,failedConcepts:[],currency,
+    explanation:'All requested instant facts passed exact-date, undimensioned group, basis, numeric and common-currency checks. This does not approve any accounting formula.',
+  };
+}
