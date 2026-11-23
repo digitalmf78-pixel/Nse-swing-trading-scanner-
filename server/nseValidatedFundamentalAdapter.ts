@@ -71,3 +71,58 @@ export function selectNseScannerFundamentalPatches(
   }
   return output;
 }
+
+
+import type { FundamentalProfile as ScannerFundamentalProfile } from '../src/types/trading.ts';
+
+/**
+ * Makes the seven scanner decision metrics NSE-validated-only.
+ * Legacy CSV/free-source/Yahoo values are cleared before validated cache patches
+ * are applied; non-core fields (EPS, valuation, holdings) are left untouched.
+ */
+export function applyNseValidatedFundamentalPatches(
+  existing: Map<string, ScannerFundamentalProfile>,
+  patches: Map<string, NseScannerFundamentalPatch>,
+): Map<string, ScannerFundamentalProfile> {
+  const output = new Map<string, ScannerFundamentalProfile>();
+  for (const [rawSymbol, profile] of existing) {
+    const symbol = rawSymbol.trim().toUpperCase();
+    output.set(symbol, {
+      ...profile,
+      revenueGrowthPct: null,
+      profitGrowthPct: null,
+      roePct: null,
+      rocePct: null,
+      debtToEquity: null,
+      interestCoverage: null,
+      operatingCashFlowInr: null,
+      fundamentalSources: (profile.fundamentalSources || []).filter(source =>
+        !/yahoo|yfinance|\.ns|\.bo|bse|free source|csv baseline/i.test(source)
+      ),
+    });
+  }
+  for (const [rawSymbol, patch] of patches) {
+    const symbol = rawSymbol.trim().toUpperCase();
+    const current = output.get(symbol);
+    if (!current) continue;
+    output.set(symbol, {
+      ...current,
+      financialPeriodEnd: patch.financialPeriodEnd,
+      publicationDate: patch.publicationDate,
+      officialFilingUrl: patch.officialFilingUrl,
+      officialFilingSource: patch.officialFilingUrl ? 'NSE Official XBRL' : '',
+      revenueGrowthPct: patch.revenueGrowthPct,
+      profitGrowthPct: patch.profitGrowthPct,
+      roePct: patch.roePct,
+      rocePct: patch.rocePct,
+      debtToEquity: patch.debtToEquity,
+      interestCoverage: patch.interestCoverage,
+      operatingCashFlowInr: patch.operatingCashFlowInr,
+      fundamentalSources: patch.conflict ? [] : patch.fundamentalSources,
+      fundamentalRemark: patch.conflict
+        ? 'NSE validated profile conflict — metrics withheld'
+        : 'NSE validated metrics only; unvalidated metrics withheld',
+    });
+  }
+  return output;
+}

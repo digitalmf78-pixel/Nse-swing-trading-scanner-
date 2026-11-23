@@ -37,3 +37,43 @@ test('blocks a validated metric with unexpected scanner unit',()=>{
   const patch=selectNseScannerFundamentalPatches(cache([p])).get('ABC')!;
   assert.equal(patch.revenueGrowthPct,null);
 });
+
+
+import { applyNseValidatedFundamentalPatches } from '../../server/nseValidatedFundamentalAdapter.ts';
+import type { FundamentalProfile as ScannerFundamentalProfile } from '../../src/types/trading.ts';
+
+test('pipeline adapter clears legacy seven-metric values and never falls back for blocked metrics', () => {
+  const legacy = {
+    symbol:'ABC', revenueGrowthPct:44, profitGrowthPct:33, roePct:22, rocePct:21,
+    debtToEquity:0.2, interestCoverage:8, operatingCashFlowInr:900,
+    fundamentalSources:['Yahoo Finance (.NS)','Free Source Cache'],
+  } as unknown as ScannerFundamentalProfile;
+  const existing = new Map([['ABC',legacy]]);
+  const patch = selectNseScannerFundamentalPatches(cache([profile()]));
+  const applied = applyNseValidatedFundamentalPatches(existing,patch).get('ABC')!;
+  assert.equal(applied.revenueGrowthPct,15);
+  assert.equal(applied.profitGrowthPct,null);
+  assert.equal(applied.roePct,null);
+  assert.equal(applied.rocePct,null);
+  assert.equal(applied.debtToEquity,null);
+  assert.equal(applied.interestCoverage,null);
+  assert.equal(applied.operatingCashFlowInr,null);
+  assert.deepEqual(applied.fundamentalSources,['NSE Official XBRL (validated)']);
+});
+
+test('pipeline adapter clears legacy seven-metric values when no approved NSE profile exists', () => {
+  const legacy = {
+    symbol:'XYZ', revenueGrowthPct:44, profitGrowthPct:33, roePct:22, rocePct:21,
+    debtToEquity:0.2, interestCoverage:8, operatingCashFlowInr:900,
+    fundamentalSources:['Yahoo Finance (.NS)'],
+  } as unknown as ScannerFundamentalProfile;
+  const applied = applyNseValidatedFundamentalPatches(new Map([['XYZ',legacy]]),new Map()).get('XYZ')!;
+  assert.equal(applied.revenueGrowthPct,null);
+  assert.equal(applied.profitGrowthPct,null);
+  assert.equal(applied.roePct,null);
+  assert.equal(applied.rocePct,null);
+  assert.equal(applied.debtToEquity,null);
+  assert.equal(applied.interestCoverage,null);
+  assert.equal(applied.operatingCashFlowInr,null);
+  assert.deepEqual(applied.fundamentalSources,[]);
+});
