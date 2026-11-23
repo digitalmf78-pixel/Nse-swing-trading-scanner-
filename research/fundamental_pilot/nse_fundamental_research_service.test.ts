@@ -268,6 +268,51 @@ test('candidate cache survives a fresh read after process-style restart', () => 
   }
 });
 
+test('default candidate cache path persists under app working directory across fresh processes', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nse-candidate-default-path-'));
+  const serviceUrl = new URL('../../server/nseFundamentalResearchService.ts', import.meta.url).href;
+  const report = {
+    symbol: 'DEFAULTPATH', status: 'BLOCKED', sector: 'UNKNOWN',
+    scannerEligible: false, productionApproved: false,
+    warnings: ['Default app cache path persistence check.'],
+  };
+  try {
+    const writerCode = `
+      import { appendCandidateReport, saveCandidateCache } from ${JSON.stringify(serviceUrl)};
+      const cache = { schemaVersion: 1, updatedAtUtc: '', symbols: {} };
+      appendCandidateReport(${JSON.stringify(report)}, cache);
+      saveCandidateCache(cache);
+    `;
+    const writer = spawnSync(process.execPath, [
+      '--experimental-strip-types', '--input-type=module', '-e', writerCode,
+    ], { cwd: dir, encoding: 'utf8' });
+    assert.equal(writer.status, 0, writer.stderr);
+
+    const cacheFile = path.join(dir, 'data', 'research', 'nse_fundamental_candidate_cache.json');
+    assert.equal(fs.existsSync(cacheFile), true);
+
+    const readerCode = `
+      import { loadCandidateCache, getNseFundamentalCandidateReports } from ${JSON.stringify(serviceUrl)};
+      const cache = loadCandidateCache();
+      const api = getNseFundamentalCandidateReports(undefined, 100);
+      process.stdout.write(JSON.stringify({ cache, api }));
+    `;
+    const reader = spawnSync(process.execPath, [
+      '--experimental-strip-types', '--input-type=module', '-e', readerCode,
+    ], { cwd: dir, encoding: 'utf8' });
+    assert.equal(reader.status, 0, reader.stderr);
+    const restored = JSON.parse(reader.stdout);
+    assert.equal(restored.cache.symbols.DEFAULTPATH.reports.length, 1);
+    assert.equal(restored.api.symbols, 1);
+    assert.equal(restored.api.reportCount, 1);
+    assert.equal(restored.api.reports[0].report.symbol, 'DEFAULTPATH');
+    assert.equal(restored.api.productionApproved, false);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+
 test('candidate cache refuses tampered report hashes and invalid schema', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nse-candidate-cache-invalid-'));
   const file = path.join(dir, 'cache.json');
