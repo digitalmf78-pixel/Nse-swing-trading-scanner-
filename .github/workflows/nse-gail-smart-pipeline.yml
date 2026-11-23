@@ -254,13 +254,15 @@ jobs:
           if(meta.basis==='Consolidated' && ocfBridgeReconciled) {
             const ocfCandidate=pipeline.candidateReport.candidates.operatingCashFlow;
             const comparablePrior=ocfComparativeCheck.comparablePriorValue;
-            if(!ocfCandidate||ocfCandidate.status!=='CANDIDATE_ONLY'||comparablePrior===null) {
+            if(!ocfCandidate||ocfCandidate.status!=='CANDIDATE_ONLY'||comparablePrior===null
+              ||typeof ocfCandidate.currentValue!=='number'||!Number.isFinite(ocfCandidate.currentValue)) {
               throw new Error('GAIL OCF comparative bridge passed but the OCF candidate cannot be safely rebased');
             }
+            const ocfCurrentValue=ocfCandidate.currentValue;
             ocfCandidate.priorValue=comparablePrior;
-            ocfCandidate.absoluteChange=Number((ocfCandidate.currentValue!-comparablePrior).toFixed(2));
+            ocfCandidate.absoluteChange=Number((ocfCurrentValue-comparablePrior).toFixed(2));
             ocfCandidate.percentageChange=comparablePrior>0
-              ? Number(((ocfCandidate.currentValue!/comparablePrior-1)*100).toFixed(2)) : null;
+              ? Number(((ocfCurrentValue/comparablePrior-1)*100).toFixed(2)) : null;
             ocfCandidate.explanation='Same-period OCF candidate rebased to the current filing comparative after the detailed official PDF reclassification bridge reconciled. Prior Original value is preserved separately in the audit evidence. Candidate-only; not production-approved.';
           } else if(meta.basis==='Consolidated' && ocfComparativeCheck?.status!=='MATCHED_ALL_PERIODS') {
             pipeline.candidateReport.candidates.operatingCashFlow=null;
