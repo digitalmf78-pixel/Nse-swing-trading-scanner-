@@ -61,6 +61,8 @@ test('latest comparable filing pair blocks when prior-year Original is missing',
 
 test('sector classification keeps financial issuers out of generic industrial mapping', () => {
   assert.equal(classifyIssuerSector('Private Sector Bank'), 'BANK');
+  assert.equal(classifyIssuerSector('Banking'), 'BANK');
+  assert.equal(classifyIssuerSector('Public Sector Banks'), 'BANK');
   assert.equal(classifyIssuerSector('Housing Finance'), 'NBFC');
   assert.equal(classifyIssuerSector('Life Insurance'), 'INSURANCE');
   assert.equal(classifyIssuerSector('Financial Services'), 'UNKNOWN');
