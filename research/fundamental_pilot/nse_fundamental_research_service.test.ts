@@ -2,6 +2,7 @@ import test from 'node:test';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 import {
   appendCandidateReport,
@@ -240,8 +241,14 @@ test('candidate cache survives a fresh read after process-style restart', () => 
     appendCandidateReport(report, cache);
     saveCandidateCache(cache, file);
 
-    // A second load is deliberately independent of the first in-memory object.
-    const restartedCache = loadCandidateCache(file);
+    // Read from a genuinely fresh Node process to model a server restart.
+    const child = spawnSync(process.execPath, [
+      '--experimental-strip-types', '--input-type=module', '-e',
+      "import { loadCandidateCache } from './server/nseFundamentalResearchService.ts'; const c = loadCandidateCache(process.argv[1]); process.stdout.write(JSON.stringify(c));",
+      file,
+    ], { cwd: process.cwd(), encoding: 'utf8' });
+    assert.equal(child.status, 0, child.stderr);
+    const restartedCache = JSON.parse(child.stdout);
     assert.equal(Object.keys(restartedCache.symbols).length, 1);
     assert.equal(restartedCache.symbols.ABC.reports.length, 1);
     assert.equal(restartedCache.symbols.ABC.reports[0].report.symbol, 'ABC');
