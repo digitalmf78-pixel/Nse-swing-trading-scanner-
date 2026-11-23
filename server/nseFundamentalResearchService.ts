@@ -227,8 +227,7 @@ function loadCandidateCache(): CandidateCache {
   return { schemaVersion: 1, updatedAtUtc: parsed.updatedAtUtc ?? '', symbols: parsed.symbols };
 }
 
-function appendCandidateReport(report: NseFundamentalResearchResult): void {
-  const cache = loadCandidateCache();
+function appendCandidateReport(report: NseFundamentalResearchResult, cache: CandidateCache): void {
   const symbol = report.symbol.trim().toUpperCase();
   const hash = createHash('sha256').update(JSON.stringify(report)).digest('hex');
   const entry = cache.symbols[symbol] ?? { symbol, reports: [] };
@@ -237,8 +236,11 @@ function appendCandidateReport(report: NseFundamentalResearchResult): void {
   }
   cache.symbols[symbol] = entry;
   cache.updatedAtUtc = new Date().toISOString();
+}
+
+function saveCandidateCache(cache: CandidateCache): void {
   fs.mkdirSync(path.dirname(CANDIDATE_CACHE_FILE), { recursive: true });
-  const temp = CANDIDATE_CACHE_FILE + '.tmp';
+  const temp = CANDIDATE_CACHE_FILE + '.tmp.' + process.pid + '.' + Date.now();
   fs.writeFileSync(temp, JSON.stringify(cache, null, 2) + '\n', 'utf8');
   fs.renameSync(temp, CANDIDATE_CACHE_FILE);
 }
@@ -483,7 +485,10 @@ async function runCollection(
   sectorBySymbol: Record<string, string>,
   fetchImpl: typeof fetch,
 ): Promise<void> {
+  let candidateCache: CandidateCache | null = null;
+  let candidateCacheDirty = false;
   try {
+    candidateCache = loadCandidateCache();
     let isinBySymbol: Record<string, string> = {};
     try {
       const equityMaster = await fetchNseEquityMaster(fetchImpl);
@@ -521,7 +526,8 @@ async function runCollection(
         if (filingFailures.has(symbol)) {
           const report = blocked(symbol, classifyIssuerSector(sectorBySymbol[symbol] ?? ''),
             'Fresh NSE filing metadata fetch failed; stale cached filing history was not used: ' + filingFailures.get(symbol));
-          appendCandidateReport(report);
+          appendCandidateReport(report, candidateCache!);
+          candidateCacheDirty = true;
           job.processed += 1;
           job.failed += 1;
           job.lastError = report.warnings[0];
@@ -530,7 +536,8 @@ async function runCollection(
         const sector = classifyIssuerSector(sectorBySymbol[symbol] ?? '');
         const result = await processIssuer(symbol, sector, cached, fetchImpl, isinBySymbol[symbol] ?? null);
         job.xbrlDocumentsSaved += result.xbrlSaved;
-        appendCandidateReport(result.report);
+        appendCandidateReport(result.report, candidateCache!);
+        candidateCacheDirty = true;
         job.processed += 1;
         if (result.report.status === 'BLOCKED') {
           job.failed += 1;
@@ -542,10 +549,15 @@ async function runCollection(
         }
       } catch (error) {
         const report = blocked(symbol, classifyIssuerSector(sectorBySymbol[symbol] ?? ''), (error as Error).message);
-        appendCandidateReport(report);
+        appendCandidateReport(report, candidateCache!);
+          candidateCacheDirty = true;
         job.processed += 1;
         job.failed += 1;
         job.lastError = report.warnings[0];
+      }
+      if (candidateCacheDirty && job.processed > 0 && job.processed % 25 === 0) {
+        saveCandidateCache(candidateCache!);
+        candidateCacheDirty = false;
       }
       await new Promise(resolve => setTimeout(resolve, 150));
     }
@@ -555,6 +567,10 @@ async function runCollection(
   } catch (error) {
     job.lastError = (error as Error).message;
   } finally {
+    if (candidateCache && candidateCacheDirty) {
+      try { saveCandidateCache(candidateCache); }
+      catch (error) { job.lastError = 'Candidate cache checkpoint failed: ' + (error as Error).message; }
+    }
     job.running = false;
     job.currentSymbol = '';
     job.finishedAtUtc = new Date().toISOString();
