@@ -833,236 +833,38 @@ async function fetchAndParseNseXbrl(filing: XbrlFiling): Promise<ParsedXbrlMetri
 
 export async function fetchYahooFundamentalsForSymbol(
   symbol: string,
-  xbrlFilings?: XbrlFiling[],
-  forceBseProbe = false
+  _xbrlFilings?: XbrlFiling[],
+  _forceBseProbe = false
 ): Promise<LiveFundamentalRecord> {
   const sym = symbol.trim().toUpperCase();
-
-  const [nsRes, xbrlRes] = await Promise.allSettled([
-    fetchYahooSingleExchange(sym, 'NS'),
-    xbrlFilings && xbrlFilings.length > 0
-      ? fetchAndParseNseXbrl(
-          xbrlFilings.find((f) => f.filingDescription.toLowerCase().includes('consolidated')) ||
-            xbrlFilings[0]
-        )
-      : Promise.resolve(null),
-  ]);
-
-  let primary = nsRes.status === 'fulfilled' ? nsRes.value : null;
-
-  // BSE (.BO) fallback if .NS failed or has missing core fields, or explicitly forced by Audit Verify
-  const needsBse =
-    forceBseProbe ||
-    !primary ||
-    primary.epsCurr === null ||
-    primary.trailingPE === null ||
-    primary.roePct === null ||
-    primary.revenueGrowthPct === null;
-
-  let bseRec: LiveFundamentalRecord | null = null;
-  if (needsBse) {
-    try {
-      bseRec = await fetchYahooSingleExchange(sym, 'BO');
-    } catch {
-      bseRec = null;
-    }
-  }
-
-  if (!primary && bseRec) {
-    primary = bseRec;
-  } else if (primary && bseRec) {
-    // Supplement missing fields from BSE (.BO) without clobbering newer .NS fields
-    const sources = new Set([...(primary.sources || []), 'BSE (.BO)']);
-    primary = {
-      ...primary,
-      sources: Array.from(sources),
-      source: `${primary.source} + BSE (.BO)`,
-      financialPeriodEnd:
-        bseRec.financialPeriodEnd > primary.financialPeriodEnd
-          ? bseRec.financialPeriodEnd
-          : primary.financialPeriodEnd,
-      providerSector: primary.providerSector || bseRec.providerSector,
-      companyName: primary.companyName || bseRec.companyName,
-      firstTradeDateIso: primary.firstTradeDateIso || bseRec.firstTradeDateIso,
-      nextEarningsDate: primary.nextEarningsDate || bseRec.nextEarningsDate,
-      revenueGrowthPct: primary.revenueGrowthPct ?? bseRec.revenueGrowthPct,
-      profitGrowthPct: primary.profitGrowthPct ?? bseRec.profitGrowthPct,
-      roePct: primary.roePct ?? bseRec.roePct,
-      rocePct: primary.rocePct ?? bseRec.rocePct,
-      debtToEquity: primary.debtToEquity ?? bseRec.debtToEquity,
-      interestCoverage: primary.interestCoverage ?? bseRec.interestCoverage,
-      operatingCashFlowInr: primary.operatingCashFlowInr ?? bseRec.operatingCashFlowInr,
-      freeCashFlowInr: primary.freeCashFlowInr ?? bseRec.freeCashFlowInr,
-      trailingPE: primary.trailingPE ?? bseRec.trailingPE,
-      priceToBook: primary.priceToBook ?? bseRec.priceToBook,
-      marketCapInr: primary.marketCapInr ?? bseRec.marketCapInr,
-      enterpriseValueInr: primary.enterpriseValueInr ?? bseRec.enterpriseValueInr,
-      dividendYieldPct: primary.dividendYieldPct ?? bseRec.dividendYieldPct,
-      promoterHoldingPct: primary.promoterHoldingPct ?? bseRec.promoterHoldingPct,
-      epsPrev: primary.epsPrev ?? bseRec.epsPrev,
-      epsCurr: primary.epsCurr ?? bseRec.epsCurr,
-      epsPrevPeriod: primary.epsPrevPeriod || bseRec.epsPrevPeriod,
-      epsCurrPeriod: primary.epsCurrPeriod || bseRec.epsCurrPeriod,
-      epsTtmPrev: primary.epsTtmPrev ?? bseRec.epsTtmPrev,
-      epsTtmCurr: primary.epsTtmCurr ?? bseRec.epsTtmCurr,
-    };
-  }
-
-  const xbrl = xbrlRes.status === 'fulfilled' ? xbrlRes.value : null;
-  const latestFiling =
-    xbrlFilings && xbrlFilings.length > 0
-      ? xbrlFilings.find((f) => f.filingDescription.toLowerCase().includes('consolidated')) ||
-        xbrlFilings[0]
-      : null;
-
-  if (!primary && xbrl && latestFiling) {
-    primary = {
-      symbol: sym,
-      asOfDate: toIstDateIso(),
-      source: 'NSE Official Integrated XBRL',
-      sourceUrl: latestFiling.officialFilingUrl,
-      financialPeriodEnd: xbrl.periodEnd || latestFiling.financialPeriodEnd,
-      publicationDate: latestFiling.publicationDate,
-      officialFilingUrl: latestFiling.officialFilingUrl,
-      officialFilingSource: latestFiling.officialSource,
-      sources: ['NSE XBRL'],
-      providerSector: '',
-      revenueGrowthPct: xbrl.revenueGrowthPct,
-      profitGrowthPct: xbrl.profitGrowthPct,
-      roePct: xbrl.roePct,
-      rocePct: null,
-      debtToEquity: xbrl.debtToEquity,
-      interestCoverage: xbrl.interestCoverage,
-      operatingCashFlowInr: null,
-      freeCashFlowInr: null,
-      trailingPE: null,
-      priceToBook: null,
-      marketCapInr: null,
-      enterpriseValueInr: null,
-      dividendYieldPct: null,
-      epsPrev: xbrl.epsPrev,
-      epsCurr: xbrl.epsCurr,
-      epsPrevPeriod: xbrl.epsPrevPeriod,
-      epsCurrPeriod: xbrl.epsCurrPeriod,
-      fetchedAtUtc: new Date().toISOString(),
-    };
-  } else if (primary && xbrl && latestFiling) {
-    const sources = new Set(['NSE XBRL', ...(primary.sources || [])]);
-    const xbrlNewerOrEqual =
-      xbrl.periodEnd &&
-      (!primary.financialPeriodEnd || xbrl.periodEnd >= primary.financialPeriodEnd);
-    const usableXbrlDe =
-      xbrlNewerOrEqual &&
-      xbrl.debtToEquity !== null &&
-      xbrl.debtToEquity >= 0 &&
-      (xbrl.debtToEquity > 0.005 || primary.debtToEquity === null) &&
-      !(primary.debtToEquity !== null && primary.debtToEquity > 0.2 && xbrl.debtToEquity < 0.03)
-        ? xbrl.debtToEquity
-        : null;
-    const usableXbrlIc =
-      xbrlNewerOrEqual &&
-      xbrl.interestCoverage !== null &&
-      (xbrl.interestCoverage > 0.1 || primary.interestCoverage === null)
-        ? xbrl.interestCoverage
-        : null;
-    primary = {
-      ...primary,
-      sources: Array.from(sources),
-      source: `NSE XBRL + ${primary.source}`,
-      publicationDate: latestFiling.publicationDate || primary.publicationDate,
-      officialFilingUrl: latestFiling.officialFilingUrl || primary.officialFilingUrl,
-      officialFilingSource: latestFiling.officialSource || primary.officialFilingSource,
-      financialPeriodEnd:
-        xbrl.periodEnd > primary.financialPeriodEnd ? xbrl.periodEnd : primary.financialPeriodEnd,
-      revenueGrowthPct:
-        (xbrlNewerOrEqual && xbrl.revenueGrowthPct !== null
-          ? xbrl.revenueGrowthPct
-          : null) ?? primary.revenueGrowthPct,
-      profitGrowthPct:
-        (xbrlNewerOrEqual && xbrl.profitGrowthPct !== null
-          ? xbrl.profitGrowthPct
-          : null) ?? primary.profitGrowthPct,
-      roePct: primary.roePct ?? xbrl.roePct,
-      debtToEquity: usableXbrlDe ?? primary.debtToEquity,
-      interestCoverage: usableXbrlIc ?? primary.interestCoverage,
-      epsCurr:
-        (xbrlNewerOrEqual && xbrl.epsCurr !== null ? xbrl.epsCurr : null) ?? primary.epsCurr,
-      epsPrev:
-        (xbrlNewerOrEqual && xbrl.epsPrev !== null ? xbrl.epsPrev : null) ?? primary.epsPrev,
-      epsCurrPeriod:
-        (xbrlNewerOrEqual && xbrl.epsCurrPeriod ? xbrl.epsCurrPeriod : '') || primary.epsCurrPeriod,
-      epsPrevPeriod:
-        (xbrlNewerOrEqual && xbrl.epsPrevPeriod ? xbrl.epsPrevPeriod : '') || primary.epsPrevPeriod,
-    };
-  }
-
-  if (primary && primary.debtToEquity !== null && primary.debtToEquity < 0) {
-    primary.debtToEquity = null;
-  }
-
-  if (!primary) {
-    throw new Error(`Unavailable on NSE XBRL, BSE (.BO), and Yahoo Finance (.NS) for ${sym}`);
-  }
-
-  return primary;
+  throw new Error(`YAHOO_FUNDAMENTALS_DISABLED: ${sym} — fundamentals must be fetched through the official NSE service only.`);
 }
 
 const EPS_ATTEMPT_CACHE = new Map<string, number>();
 
 export async function saveSymbolFundamentalsToCache(
   symbol: string,
-  xbrlFilings?: XbrlFiling[],
-  forceBseProbe = true
+  _xbrlFilings?: XbrlFiling[],
+  _forceBseProbe = false
 ): Promise<{
   record: LiveFundamentalRecord | null;
   totalSavedCount: number;
   error?: string;
 }> {
   const sym = symbol.trim().toUpperCase();
-  try {
-    const fresh = await fetchYahooFundamentalsForSymbol(sym, xbrlFilings, forceBseProbe);
-    const totalSavedCount = await upsertAndSaveFundamentalOverrides([fresh]);
-    return { record: fresh, totalSavedCount };
-  } catch (err) {
-    const current = loadLiveFundamentalOverrides();
-    return {
-      record: current[sym] ?? null,
-      totalSavedCount: Object.keys(current).length,
-      error: (err as Error).message,
-    };
-  }
+  return {
+    record: null,
+    totalSavedCount: Object.keys(loadLiveFundamentalOverrides()).length,
+    error: `NSE_FUNDAMENTAL_SERVICE_REQUIRED: Yahoo/BSE fundamental collection is disabled for ${sym}.`,
+  };
 }
 
 export async function ensureLiveFundamentalsForSymbol(
-  symbol: string,
-  xbrlFilings?: XbrlFiling[]
+  _symbol: string,
+  _xbrlFilings?: XbrlFiling[]
 ): Promise<LiveFundamentalRecord | null> {
-  const sym = symbol.trim().toUpperCase();
-  const overrides = loadLiveFundamentalOverrides();
-  const cached = overrides[sym];
-  if (
-    cached &&
-    cached.epsPrev !== undefined &&
-    cached.epsCurr !== undefined &&
-    cached.epsCurr !== null &&
-    cached.epsTtmCurr !== undefined
-  ) {
-    return cached;
-  }
-
-  const lastTry = EPS_ATTEMPT_CACHE.get(sym) ?? 0;
-  if (Date.now() - lastTry < 10 * 60 * 1000) {
-    return cached ?? null;
-  }
-  EPS_ATTEMPT_CACHE.set(sym, Date.now());
-
-  try {
-    const fresh = await fetchYahooFundamentalsForSymbol(sym, xbrlFilings);
-    await upsertAndSaveFundamentalOverrides([fresh]);
-    return fresh;
-  } catch {
-    return cached ?? null;
-  }
+  // Never return legacy Yahoo/BSE cache values as current NSE fundamentals.
+  return null;
 }
 
 export async function refreshFundamentalsBatch(
