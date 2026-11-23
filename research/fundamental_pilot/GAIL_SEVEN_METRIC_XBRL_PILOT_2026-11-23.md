@@ -89,3 +89,12 @@ The 30-Oct-2026 PDF notes that RLNG allocation under the Petronet LNG contract w
 The pilot demonstrates that a source pipeline must compare not only Original XBRL with its own PDF, but also the prior Original value with the current filing's comparative statement. Revenue and owner-profit values reconcile; OCF does not. The shared comparative guard preserves both values and withholds the OCF growth output instead of silently choosing one.
 
 Continue to reconcile the ₹121.88 Cr OCF comparative difference and validate more issuers. Keep all production paths disconnected until every metric has a resolved definition, period/basis mapping, revision history and official statement reconciliation.
+
+
+## Automated issuer-value regression coverage
+
+The shared `statement_comparative_guard.test.ts` now includes issuer-specific assertions:
+- Revenue: ₹88,651.21 Cr current / ₹71,086.05 Cr prior Original.
+- Owner-attributable profit: ₹9,385.02 Cr / ₹4,341.61 Cr.
+- OCF: current ₹10,602.50 Cr matches current PDF; prior Original ₹5,747.34 Cr matches its own PDF; current filing comparative ₹5,869.22 Cr remains separately preserved.
+The OCF regression asserts `RECLASSIFIED_COMPARATIVE_REVIEW_REQUIRED`, difference ₹121.88 Cr, and null comparable prior value. This prevents a silent selection of either comparative base.
