@@ -77,8 +77,9 @@ import type { FundamentalProfile as ScannerFundamentalProfile } from '../src/typ
 
 /**
  * Makes the seven scanner decision metrics NSE-validated-only.
- * Legacy CSV/free-source/Yahoo values are cleared before validated cache patches
- * are applied; non-core fields (EPS, valuation, holdings) are left untouched.
+ * Every unapproved financial metric, EPS and valuation ratio is cleared before
+ * validated NSE metric patches are applied. Market-derived fields and separately
+ * sourced shareholding data are not modified here.
  */
 export function applyNseValidatedFundamentalPatches(
   existing: Map<string, ScannerFundamentalProfile>,
@@ -109,8 +110,8 @@ export function applyNseValidatedFundamentalPatches(
         !/yahoo|yfinance|\.ns|\.bo|bse|free source|csv baseline/i.test(source)
       ),
       fundamentalRemark: hasLegacyYahooFundamentals
-        ? 'Legacy Yahoo/BSE EPS and P/E values withheld; NSE validated values required'
-        : profile.fundamentalRemark,
+        ? 'Legacy Yahoo/BSE fundamentals, EPS and valuation withheld; validated NSE values required'
+        : 'Unvalidated EPS, FCF and valuation metrics withheld; validated NSE values required',
     });
   }
   for (const [rawSymbol, patch] of patches) {
