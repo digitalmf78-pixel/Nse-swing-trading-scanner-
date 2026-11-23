@@ -190,24 +190,24 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
 
   const handleSyncBhavcopyNseFilingHistory = async () => {
     setSyncingNseFilingHistory(true);
-    setActionNotice('Starting official NSE filing-history sync for symbols in the latest Bhavcopy...');
+    setActionNotice('Starting NSE fundamental fetch, XBRL revision comparison and candidate validation for latest Bhavcopy symbols...');
     try {
-      const res = await fetch('/api/fundamentals/save-to-cache', {
+      const res = await fetch('/api/refresh/fundamentals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ saveAll: true, scope: 'BHAVCOPY' }),
+        body: JSON.stringify({ scope: 'BHAVCOPY' }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
       if (!json.running) {
         setSyncingNseFilingHistory(false);
-        setActionNotice(json.note || 'NSE filing-history sync did not start.');
+        setActionNotice(json.note || 'NSE fundamental research did not start.');
         return;
       }
-      setActionNotice(`NSE official filing-history sync started: ${json.total} Bhavcopy symbols. This stages filing evidence only; it does not yet approve or write metric values to the main fundamental cache.`);
+      setActionNotice(`NSE XBRL fundamental research started: ${json.total} Bhavcopy symbols. Current/prior filings and revisions will be checked; production scanner values remain unchanged.`);
     } catch (err) {
       setSyncingNseFilingHistory(false);
-      setActionNotice(`NSE filing-history sync error: ${(err as Error).message}`);
+      setActionNotice(`NSE fundamental fetch error: ${(err as Error).message}`);
     }
   };
 
@@ -216,14 +216,14 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
     let cancelled = false;
     const poll = async () => {
       try {
-        const res = await fetch('/api/fundamentals/nse-filing-history-status');
+        const res = await fetch('/api/fundamentals/collect-status');
         if (!res.ok) return;
         const status = await res.json();
         if (cancelled) return;
         setActionNotice(
           status.running
-            ? `NSE filing history: ${status.processed}/${status.total} · saved ${status.succeeded} · failed ${status.failed} · current ${status.currentSymbol || 'finishing'}`
-            : `NSE filing-history sync finished: ${status.succeeded} saved, ${status.failed} failed. Evidence is staged separately; scanner metric cache was not changed.`
+            ? `NSE fundamentals: ${status.processed}/${status.total} · XBRL saved ${status.xbrlDocumentsSaved} · candidates ${status.candidateReady} · revision review ${status.revisionReviewRequired} · blocked ${status.failed} · current ${status.currentSymbol || 'finishing'}`
+            : `NSE fundamental research finished: ${status.candidateReady} candidate-ready · ${status.revisionReviewRequired} revision-review · ${status.failed} blocked · ${status.xbrlDocumentsSaved} XBRL documents saved. No unapproved values were written to the scanner cache.`
         );
         if (!status.running) setSyncingNseFilingHistory(false);
       } catch {
@@ -413,23 +413,13 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
 
           <button
             type="button"
-            disabled
-            title="NSE official metric validation and main-cache writing are still being completed"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-200 bg-slate-100 text-xs font-medium text-slate-500 whitespace-nowrap cursor-not-allowed"
-          >
-            <Database className="w-3.5 h-3.5" />
-            NSE Metrics Pending
-          </button>
-
-          <button
-            type="button"
             onClick={handleSyncBhavcopyNseFilingHistory}
             disabled={syncingNseFilingHistory}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-50 text-xs font-medium text-indigo-800 whitespace-nowrap transition-colors"
-            title="Fetch official NSE filing metadata only for symbols present in the latest Bhavcopy"
+            title="Fetch NSE filing history, current/prior XBRL and revisions; calculate research candidates without changing the production scanner cache"
           >
             <Database className={`w-3.5 h-3.5 ${syncingNseFilingHistory ? 'animate-pulse' : ''}`} />
-            {syncingNseFilingHistory ? 'Syncing NSE Filings...' : 'Sync Bhavcopy NSE Filings'}
+            {syncingNseFilingHistory ? 'Fetching NSE Fundamentals...' : 'Fetch NSE Fundamentals'}
           </button>
 
           <button
