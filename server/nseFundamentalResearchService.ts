@@ -553,7 +553,6 @@ async function runCollection(
       const cachedRows = filingCache.symbols[symbol]?.rows ?? [];
       let industryRecord: NseIssuerIndustryRecord | undefined = industryCache.symbols[symbol];
       let sector: IssuerSector = 'UNKNOWN';
-      const isin = industryRecord?.isin || isinBySymbol[symbol] || null;
 
       try {
         const industryAge = industryRecord
@@ -626,7 +625,7 @@ async function runCollection(
         candidateCacheDirty = false;
       }
       if (industryCacheDirty && job.processed > 0 && job.processed % 25 === 0) {
-        saveNseIssuerIndustryCache(industryCache);
+        saveNseIssuerIndustryCache(industryCache!);
         industryCacheDirty = false;
       }
       await new Promise(resolve => setTimeout(resolve, 150));
