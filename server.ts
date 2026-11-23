@@ -450,15 +450,14 @@ async function startServer() {
     try {
       const symbol = typeof req.body?.symbol === 'string' ? req.body.symbol.trim().toUpperCase() : '';
       const rows = nsePipeline.getAllScreenerRows();
-      const sectorBySymbol = Object.fromEntries(rows.map(row => [row.symbol, row.providerSector || '']));
       if (symbol) {
         const row = rows.find(item => item.symbol === symbol);
         if (!row) return res.status(404).json({ code: 'NSE_SYMBOL_NOT_IN_BHAVCOPY_UNIVERSE', symbol });
-        const status = startNseFundamentalResearchCollection([symbol], { [symbol]: row.providerSector || '' });
+        const status = startNseFundamentalResearchCollection([symbol]);
         return res.json({ mode: 'NSE_OFFICIAL_XBRL_CANDIDATE_RESEARCH', ...status, note: 'NSE candidate research only; no production scanner metrics are changed.' });
       }
       const targets = nsePipeline.getAuditCollectionTargets('BHAVCOPY');
-      const status = startNseFundamentalResearchCollection(targets, sectorBySymbol);
+      const status = startNseFundamentalResearchCollection(targets);
       return res.json({ mode: 'NSE_OFFICIAL_XBRL_CANDIDATE_RESEARCH', ...status });
     } catch (err) {
       return res.status(500).json({ error: (err as Error).message });
@@ -494,10 +493,8 @@ async function startServer() {
       }
       const limitNum = Number(req.body?.limit);
       const limit = Number.isFinite(limitNum) && limitNum > 0 ? Math.min(3000, limitNum) : undefined;
-      const rows = nsePipeline.getAllScreenerRows();
-      const sectorBySymbol = Object.fromEntries(rows.map(row => [row.symbol, row.providerSector || '']));
       const targets = nsePipeline.getAuditCollectionTargets('BHAVCOPY', limit);
-      const status = startNseFundamentalResearchCollection(targets, sectorBySymbol);
+      const status = startNseFundamentalResearchCollection(targets);
       return res.json({
         mode: 'NSE_OFFICIAL_XBRL_CANDIDATE_RESEARCH',
         ...status,
