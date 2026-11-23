@@ -141,5 +141,5 @@ test('ITC owner-attributable fact is selected, not total PAT',()=>{
     {...current,extraction:currentExtraction},{...prior,extraction:priorExtraction},concepts);
   assert.equal(report.currentSelections.profit.fact?.numericValue,8562.53);
   assert.equal(report.priorSelections.profit.fact?.numericValue,10370.31);
-  assert.equal(report.candidateReport.candidates.profitGrowth?.growthPercent,-17.432265766404274);
+  assert.equal(report.candidateReport.candidates.profitGrowth?.growthPercent,-17.43);
 });
