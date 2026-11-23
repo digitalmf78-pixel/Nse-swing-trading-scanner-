@@ -92,6 +92,10 @@ test('NSE issuer industry cache round-trips with identity validation', () => {
     const loaded = loadNseIssuerIndustryCache(file);
     assert.equal(loaded.symbols.ABC.isin, 'INE123A01016');
     assert.equal(loaded.symbols.ABC.basicIndustry, 'Private Sector Bank');
+    const tampered = JSON.parse(fs.readFileSync(file, 'utf8'));
+    tampered.symbols.ABC.sourceUrl = 'https://evil.example/api/quote-equity?symbol=ABC';
+    fs.writeFileSync(file, JSON.stringify(tampered));
+    assert.throws(() => loadNseIssuerIndustryCache(file), /outside the official quote-equity endpoint/);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
