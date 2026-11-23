@@ -87,6 +87,8 @@ export function applyNseValidatedFundamentalPatches(
   const output = new Map<string, ScannerFundamentalProfile>();
   for (const [rawSymbol, profile] of existing) {
     const symbol = rawSymbol.trim().toUpperCase();
+    const sourceText = [profile.source, ...(profile.fundamentalSources || [])].filter(Boolean).join(' ');
+    const hasLegacyYahooFundamentals = /yahoo|yfinance|\.ns|\.bo|bse/i.test(sourceText);
     output.set(symbol, {
       ...profile,
       revenueGrowthPct: null,
@@ -96,9 +98,19 @@ export function applyNseValidatedFundamentalPatches(
       debtToEquity: null,
       interestCoverage: null,
       operatingCashFlowInr: null,
+      trailingPE: hasLegacyYahooFundamentals ? null : profile.trailingPE,
+      epsPrev: hasLegacyYahooFundamentals ? null : profile.epsPrev,
+      epsCurr: hasLegacyYahooFundamentals ? null : profile.epsCurr,
+      epsTtmPrev: hasLegacyYahooFundamentals ? null : profile.epsTtmPrev,
+      epsTtmCurr: hasLegacyYahooFundamentals ? null : profile.epsTtmCurr,
+      epsPrevPeriod: hasLegacyYahooFundamentals ? '' : profile.epsPrevPeriod,
+      epsCurrPeriod: hasLegacyYahooFundamentals ? '' : profile.epsCurrPeriod,
       fundamentalSources: (profile.fundamentalSources || []).filter(source =>
         !/yahoo|yfinance|\.ns|\.bo|bse|free source|csv baseline/i.test(source)
       ),
+      fundamentalRemark: hasLegacyYahooFundamentals
+        ? 'Legacy Yahoo/BSE EPS and P/E values withheld; NSE validated values required'
+        : profile.fundamentalRemark,
     });
   }
   for (const [rawSymbol, patch] of patches) {
