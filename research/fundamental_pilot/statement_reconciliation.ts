@@ -112,7 +112,6 @@ function evidenceMetadataIssues(facts: StatementFactEvidence[]): string[] {
     fact.issuerSymbol.trim().toUpperCase(),
     fact.isin.trim().toUpperCase(),
     fact.filingSequenceId.trim(),
-    fact.sourceDocumentSha256.toLowerCase(),
     fact.periodStart,
     fact.periodEnd,
     fact.periodType,
@@ -121,7 +120,7 @@ function evidenceMetadataIssues(facts: StatementFactEvidence[]): string[] {
     fact.unit.trim().toUpperCase(),
   ].join('|');
   if (facts.some(fact => identity(fact) !== identity(facts[0]))) {
-    issues.push('Statement facts do not share the same issuer, official filing, source hash, period, basis, currency and unit.');
+    issues.push('Statement facts do not share the same issuer, official filing, period, basis, currency and unit.');
   }
   return issues;
 }
