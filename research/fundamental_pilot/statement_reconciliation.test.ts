@@ -47,9 +47,9 @@ const evidence = (overrides: Partial<import('./statement_reconciliation.ts').Sta
   ...overrides,
 });
 
-test('strict evidence reconciliation accepts only the same issuer and exact filing provenance', async () => {
+test('strict evidence reconciliation accepts same filing provenance with separate source document hashes', async () => {
   const { reconcileStatementEvidence } = await import('./statement_reconciliation.ts');
-  const result = reconcileStatementEvidence(evidence(), evidence(), evidence());
+  const result = reconcileStatementEvidence(evidence(), evidence({ sourceDocumentSha256: 'b'.repeat(64) }), evidence({ sourceDocumentSha256: 'c'.repeat(64) }));
   assert.equal(result.status, 'MATCHES_BOTH');
   assert.equal(result.metadataValid, true);
   assert.equal(result.metricMappingApproved, false);
@@ -70,7 +70,7 @@ test('strict evidence reconciliation blocks period, basis, unit and source-filin
     { basis: 'Standalone' as const },
     { unit: 'INR Lakhs' },
     { filingSequenceId: '208372' },
-    { sourceDocumentSha256: 'b'.repeat(64) },
+    { issuerSymbol: 'GAIL', isin: 'INE129A01019' },
   ]) {
     const result = reconcileStatementEvidence(evidence(), evidence(mismatch));
     assert.equal(result.status, 'BLOCKED_METADATA_MISMATCH');
@@ -82,4 +82,12 @@ test('strict evidence reconciliation rejects missing values and invalid toleranc
   const { reconcileStatementEvidence } = await import('./statement_reconciliation.ts');
   assert.equal(reconcileStatementEvidence(evidence(), evidence({ value: null })).status, 'MISSING_INPUT');
   assert.equal(reconcileStatementEvidence(evidence(), evidence(), null, -1).status, 'MISSING_INPUT');
+});
+
+
+test('strict evidence reconciliation rejects malformed source document hashes', async () => {
+  const { reconcileStatementEvidence } = await import('./statement_reconciliation.ts');
+  const result = reconcileStatementEvidence(evidence(), evidence({ sourceDocumentSha256: 'not-a-sha256' }));
+  assert.equal(result.status, 'BLOCKED_METADATA_MISMATCH');
+  assert.equal(result.metadataValid, false);
 });
