@@ -268,16 +268,16 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
       const res = await fetch('/api/refresh/fundamentals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scope: 'BHAVCOPY' }),
+        body: JSON.stringify({ batchMissing: true, limit: 25 }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
-      if (!json.running) {
+      if (!json.started && !json.running) {
         setSyncingNseFilingHistory(false);
         setActionNotice(json.note || 'NSE fundamental research did not start.');
         return;
       }
-      setActionNotice(`NSE XBRL fundamental research started: ${json.total} Bhavcopy symbols. Current/prior filings and revisions will be checked; results are staged for research and do not change scanner metrics.`);
+      setActionNotice(`NSE XBRL fundamental research started for ${json.selectedSymbols?.length ?? json.total ?? 0} missing/incomplete symbols. Current/prior filings and revisions will be checked; results are staged for research and do not change scanner metrics.`);
     } catch (err) {
       setSyncingNseFilingHistory(false);
       setActionNotice(`NSE fundamental fetch error: ${(err as Error).message}`);
@@ -289,9 +289,10 @@ export const FundamentalAuditTable: React.FC<FundamentalAuditTableProps> = ({
     let cancelled = false;
     const poll = async () => {
       try {
-        const res = await fetch('/api/fundamentals/collect-status');
+        const res = await fetch('/api/fundamentals/nse-research-status');
         if (!res.ok) return;
-        const status = await res.json();
+        const payload = await res.json();
+        const status = payload.collection ?? payload;
         if (cancelled) return;
         setActionNotice(
           status.running
