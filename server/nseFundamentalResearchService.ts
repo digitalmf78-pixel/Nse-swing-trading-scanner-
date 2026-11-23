@@ -3,7 +3,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fetchNseEquityMaster, loadNseEquityMasterCache } from './nseEquityMasterCache.ts';
 import { collectNseFilingHistoryForSymbols, loadNseFilingHistoryCache } from './nseFilingHistoryCache.ts';
-import { collectXbrlEvidenceForFilingRows, loadNseXbrlEvidenceCache, type NseXbrlEvidenceDocument } from './nseXbrlEvidenceCache.ts';
+import { collectXbrlEvidenceForFilingRows, type NseXbrlEvidenceDocument } from './nseXbrlEvidenceCache.ts';
 import { resolveNseConceptMap } from '../research/fundamental_pilot/nse_concept_map_resolver.ts';
 import { buildSevenMetricXbrlPipeline } from '../research/fundamental_pilot/seven_metric_xbrl_pipeline.ts';
 import { selectXbrlMetricFact } from '../research/fundamental_pilot/xbrl_metric_fact_selector.ts';
@@ -353,8 +353,7 @@ async function processIssuer(
     };
   }
 
-  const evidenceCache = loadNseXbrlEvidenceCache();
-  const docs = evidenceCache.symbols[symbol]?.documents ?? [];
+  const docs = download.documents;
   const bySeq = new Map(docs.map(doc => [String(doc.seqId), doc]));
   const currentDoc = bySeq.get(String(pair.currentOriginal.seq_Id));
   const priorDoc = bySeq.get(String(pair.priorOriginal.seq_Id));
