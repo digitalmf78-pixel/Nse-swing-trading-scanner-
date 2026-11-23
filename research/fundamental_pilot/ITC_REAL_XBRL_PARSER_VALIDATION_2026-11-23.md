@@ -55,6 +55,7 @@ XBRL raw values are INR. NSE's rendered statement presents INR Lakhs. Divide raw
 | RevenueFromOperations | FourD | 601,017,000,000 | 60,101.70 | 6,010,170.00 |
 | ProfitLossForPeriod | OneD | 42,293,300,000 | 4,229.33 | 422,933.00 |
 | ProfitLossForPeriod | FourD | 87,381,200,000 | 8,738.12 | 873,812.00 |
+| ProfitOrLossAttributableToOwnersOfParent | FourD | 85,625,300,000 | 8,562.53 | 856,253.00 |
 | ProfitBeforeTax | OneD | 55,976,600,000 | 5,597.66 | 559,766.00 |
 | ProfitBeforeTax | FourD | 113,726,000,000 | 11,372.60 | 1,137,260.00 |
 | FinanceCosts | OneD | 3,827,000,000 | 382.70 | 38,270.00 |
@@ -106,3 +107,23 @@ Not proved:
 ## Next safe step
 
 Build a small, explicit taxonomy mapping and context-selection test set from these two real filings. Then add at least one issuer with a different reporting pattern and a revised filing. Keep the work research-only until metric values, comparative periods, dimensions, units and formulas are independently reconciled across multiple companies.
+
+
+## Follow-up owner attribution and PDF tie-out correction — 23-Nov-2026
+
+The official ITC consolidated results PDF is published on ITC's investor site:
+https://itcportal.com/content/dam/itc-corporate/pdfs/financial-result/quarterly-results-2026-2027/september-2026/ITC-Financial-Result-Q2-FY2027-cfs.pdf
+
+The PDF and official NSE iXBRL display separate total profit from profit attributable to owners:
+- H1 FY27 total profit for period: ₹8,738.12 Cr.
+- H1 FY27 owners of parent: ₹8,562.53 Cr.
+- H1 FY27 non-controlling interests: ₹175.59 Cr.
+- H1 FY26 PDF comparative total profit: ₹10,529.96 Cr.
+- H1 FY26 PDF comparative owners of parent: ₹10,370.31 Cr.
+- H1 FY26 non-controlling interests: ₹159.65 Cr.
+
+The official NSE iXBRL display reports these values in INR Lakhs (total ₹873,812 lakh; owners ₹856,253 lakh; NCI ₹17,559 lakh), confirming the difference is an attribution distinction, not rounding. The earlier pilot incorrectly labelled total PAT as owner-attributable profit. The mechanically calculated growth remains near -17.43% by coincidence, but the owner-profit fact selection in the pilot is blocked until the exact QName and value are independently asserted for both original filings.
+
+The same official PDF's consolidated cash-flow statement reports H1 FY27 OCF ₹8,362.97 Cr and H1 FY26 OCF ₹6,162.60 Cr. Both match the selected current/prior XBRL OCF values exactly. OCF is now PDF_MATCHED / candidate-only for this pair.
+
+Revenue and OCF remain candidate-only. Revenue comparability remains qualified because the filing notes Sproutlife and Century Pulp & Paper acquisitions and changes in excise duty. No metric is production-approved.
