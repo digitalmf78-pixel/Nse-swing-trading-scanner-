@@ -66,3 +66,22 @@ The shared `statement_comparative_guard.test.ts` now includes issuer-specific as
 - Owner-attributable profit: ₹2,606.88 Cr / ₹2,093.36 Cr.
 - OCF: ₹1,899.83 Cr / ₹3,482.26 Cr.
 Each assertion requires current XBRL, current PDF, prior Original XBRL, prior Original PDF and current comparative to agree. All remain candidate-only.
+
+
+## H1 FY27 consolidated OCF line-item bridge
+
+The consolidated cash-flow statement in the same official NSE results PDF was checked line by line (PDF statement headed “Unaudited Consolidated Statement of Cash Flows”, ₹ crore; extracted statement lines 761–794). This is a current-filing comparative, not a revised prior filing: the prior H1 value in the current PDF is exactly the prior Original value. Therefore no reclassification adjustment is applied and the prior base remains ₹3,482.26 Cr.
+
+| Cash-flow bridge | H1 FY26 | H1 FY27 | Change |
+|---|---:|---:|---:|
+| Operating profit before working capital changes | 3,463.06 | 3,939.97 | +476.91 |
+| Working-capital movements (sum of seven disclosed lines) | +601.90 | −1,373.20 | −1,975.10 |
+| Cash generated from operations | 4,064.96 | 2,566.77 | −1,498.19 |
+| Income tax paid (net of refund) | −582.70 | −666.94 | −84.24 |
+| Net cash generated from operating activities | **3,482.26** | **1,899.83** | **−1,582.43** |
+
+The seven working-capital lines reconcile exactly in both periods. The largest swing is inventories: +₹708.44 Cr in H1 FY26 versus −₹1,519.08 Cr in H1 FY27, a −₹2,227.52 Cr movement. Other movements partly offset it. The change in cash generated reconciles as +₹476.91 Cr operating profit before working capital plus −₹1,975.10 Cr working-capital movements = −₹1,498.19 Cr; the additional ₹84.24 Cr tax outflow reconciles the final OCF decline to −₹1,582.43 Cr. This is a cash-flow bridge, not a causal conclusion about inventory or demand.
+
+The adjustment block also reconciles from PBT and all disclosed non-cash/other adjustments: ₹3,463.06 Cr prior and ₹3,939.97 Cr current. Profit attribution independently ties: total group PAT ₹2,644.80 Cr = owners ₹2,606.88 Cr + NCI ₹37.92 Cr; prior ₹2,135.28 Cr = owners ₹2,093.36 Cr + NCI ₹41.92 Cr. All values are ₹ crore.
+
+Regression tests assert the working-capital line sums, cash-generated subtotal, taxes-to-OCF bridge, profit allocation, and fail-closed behavior when a disclosed inventory movement is tampered. These are research-only checks; production approval remains false.
