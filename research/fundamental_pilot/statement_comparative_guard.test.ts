@@ -153,7 +153,7 @@ test('GAIL H1 FY27 OCF preserves ₹121.88 Cr reclassified comparative and withh
   assert.equal(result.status,'RECLASSIFIED_COMPARATIVE_REVIEW_REQUIRED');
   assert.equal(result.priorOriginalValue,5747.34);
   assert.equal(result.currentComparativeValue,5869.22);
-  assert.equal(result.reclassificationDifference,121.88);
+  assert.ok(Math.abs((result.reclassificationDifference ?? 0)-121.88)<1e-9);
   assert.equal(result.comparablePriorValue,null);
   assert.equal(result.productionApproved,false);
 });
