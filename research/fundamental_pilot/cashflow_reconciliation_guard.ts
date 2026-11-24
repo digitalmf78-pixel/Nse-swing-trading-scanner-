@@ -4,15 +4,20 @@ export type CashReconciliationStatus =
   | 'BLOCKED_MISSING_VALUE'
   | 'BLOCKED_INVALID_INPUT';
 
+export type CashFlowFactContext =
+  | { kind: 'INSTANT'; date: string }
+  | { kind: 'DURATION'; startDate: string; endDate: string };
+
 export interface CashFlowFactValue {
   value: number | null;
-  period: string;
+  context: CashFlowFactContext;
   basis: 'Standalone' | 'Consolidated';
   unit: string;
 }
 
 export interface CashReconciliationInput {
-  period: string;
+  periodStart: string;
+  periodEnd: string;
   basis: 'Standalone' | 'Consolidated';
   unit: string;
   openingCash: CashFlowFactValue;
@@ -47,17 +52,36 @@ const EMPTY_CHECKS = {
 };
 const EMPTY_DIFFS = { rollForward: null, closingCash: null, operatingCashFlow: null };
 
+function isIsoDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+function previousCalendarDate(value: string): string {
+  return new Date(new Date(`${value}T00:00:00.000Z`).getTime() - 86400000)
+    .toISOString().slice(0, 10);
+}
+function isInstant(fact: CashFlowFactValue, date: string): boolean {
+  return fact.context?.kind === 'INSTANT' && fact.context.date === date;
+}
+function isDuration(fact: CashFlowFactValue, startDate: string, endDate: string): boolean {
+  return fact.context?.kind === 'DURATION'
+    && fact.context.startDate === startDate && fact.context.endDate === endDate;
+}
+
 /**
- * Research-only cash-flow integrity guard. Every input fact carries its own
- * period, consolidation basis and unit; mixed facts are rejected before math.
+ * Research-only cash-flow integrity guard. XBRL instant contexts (opening and
+ * closing cash/balance-sheet cash) are kept distinct from duration contexts
+ * (net cash movement and OCF). Every fact must match the filing basis and unit.
  * Tolerance is expressed in the declared common unit. Never production-approved.
  */
 export function evaluateCashReconciliation(input: CashReconciliationInput): CashReconciliationDecision {
-  if (!input.period.trim() || !input.unit.trim()
+  if (!isIsoDate(input.periodStart) || !isIsoDate(input.periodEnd)
+    || input.periodStart > input.periodEnd || !input.unit.trim()
     || !['Standalone', 'Consolidated'].includes(input.basis)
     || (input.tolerance !== undefined && (!Number.isFinite(input.tolerance) || input.tolerance < 0))) {
     return { status: 'BLOCKED_INVALID_INPUT', checks: EMPTY_CHECKS, differences: EMPTY_DIFFS,
-      productionApproved: false, explanation: 'Expected period, basis, unit and non-negative finite tolerance must be valid.' };
+      productionApproved: false, explanation: 'Expected ISO period dates, basis, unit and non-negative finite tolerance must be valid.' };
   }
   const facts = [input.openingCash, input.netCashMovement, input.closingCashFlowStatement, input.closingCashBalanceSheet];
   const optionalFacts = [input.operatingCashFlow, input.statementOperatingCashFlow];
@@ -67,11 +91,21 @@ export function evaluateCashReconciliation(input: CashReconciliationInput): Cash
       productionApproved: false, explanation: 'A required fact object is missing.' };
   }
   const allFacts = [...facts, ...optionalFacts.filter((f): f is CashFlowFactValue => f !== undefined && f !== null)];
-  if (allFacts.some(f => !f.period?.trim() || !f.unit?.trim()
-    || !['Standalone', 'Consolidated'].includes(f.basis)
-    || f.period !== input.period || f.basis !== input.basis || f.unit !== input.unit)) {
+  if (allFacts.some(f => !f.unit?.trim() || !['Standalone', 'Consolidated'].includes(f.basis)
+    || f.basis !== input.basis || f.unit !== input.unit)) {
     return { status: 'BLOCKED_INVALID_INPUT', checks: EMPTY_CHECKS, differences: EMPTY_DIFFS,
-      productionApproved: false, explanation: 'Fact period, consolidation basis and unit must exactly match the expected filing metadata.' };
+      productionApproved: false, explanation: 'Fact consolidation basis and unit must exactly match the expected filing metadata.' };
+  }
+  const openingDate = previousCalendarDate(input.periodStart);
+  const contextsMatch = isInstant(input.openingCash, openingDate)
+    && isDuration(input.netCashMovement, input.periodStart, input.periodEnd)
+    && isInstant(input.closingCashFlowStatement, input.periodEnd)
+    && isInstant(input.closingCashBalanceSheet, input.periodEnd)
+    && (input.operatingCashFlow == null || isDuration(input.operatingCashFlow, input.periodStart, input.periodEnd))
+    && (input.statementOperatingCashFlow == null || isDuration(input.statementOperatingCashFlow, input.periodStart, input.periodEnd));
+  if (!contextsMatch) {
+    return { status: 'BLOCKED_INVALID_INPUT', checks: EMPTY_CHECKS, differences: EMPTY_DIFFS,
+      productionApproved: false, explanation: 'Opening cash must be an instant at the day before period start; closing cash facts must be instants at period end; movement and OCF facts must be durations for the exact reporting period.' };
   }
   if (facts.some(f => f.value === null || !Number.isFinite(f.value))
     || ((input.operatingCashFlow == null) !== (input.statementOperatingCashFlow == null))
