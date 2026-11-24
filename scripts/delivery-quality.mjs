@@ -3,7 +3,9 @@ export function sessionAgeDays(latestSession, today) {
       !/^\d{4}-\d{2}-\d{2}$/.test(String(today || ''))) return null;
   const latest = Date.parse(latestSession + 'T00:00:00Z');
   const current = Date.parse(today + 'T00:00:00Z');
-  if (!Number.isFinite(latest) || !Number.isFinite(current)) return null;
+  if (!Number.isFinite(latest) || !Number.isFinite(current) ||
+      new Date(latest).toISOString().slice(0, 10) !== latestSession ||
+      new Date(current).toISOString().slice(0, 10) !== today) return null;
   return Math.floor((current - latest) / 86_400_000);
 }
 export function assessFreshness(latestSession, today, maxAgeDays = 7) {
