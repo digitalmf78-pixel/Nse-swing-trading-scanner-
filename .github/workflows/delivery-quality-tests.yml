@@ -7,6 +7,7 @@ on:
       - 'scripts/delivery-quality.mjs'
       - 'scripts/delivery-quality.test.mjs'
       - 'scripts/check-nse-master.mjs'
+      - 'scripts/check-nse-bhavcopy.mjs'
       - 'scripts/update-delivery-dashboard.mjs'
       - 'docs/index.html'
   push:
@@ -39,5 +40,8 @@ jobs:
       - name: Check live NSE Equity master compatibility (advisory)
         continue-on-error: true
         run: node scripts/check-nse-master.mjs
+      - name: Check live NSE EOD Bhavcopy compatibility (advisory)
+        continue-on-error: true
+        run: node scripts/check-nse-bhavcopy.mjs
       - name: Run delivery quality tests
         run: node --test scripts/delivery-quality.test.mjs
