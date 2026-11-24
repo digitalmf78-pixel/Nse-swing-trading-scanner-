@@ -100,6 +100,9 @@ export function selectRoePatPeriodCandidate(request: {
   if (equity.status !== 'SELECTED_EQUITY_PAIR_CANDIDATE' || !equity.averageEquity || !equity.currency) {
     return blocked('BLOCKED_EQUITY_PAIR', 'A complete validated research-only opening/closing owner-equity pair is required before selecting ROE PAT.', [], equity.status);
   }
+  if (periodType === 'TTM') {
+    return blocked('BLOCKED_PERIOD_ALIGNMENT', 'A TTM PAT candidate must be derived from four contiguous, non-overlapping quarterly periods with revision resolution; one filing context labelled TTM is not sufficient.', [], equity.status);
+  }
   if (!validDate(periodStart) || !validDate(periodEnd) || periodStart >= periodEnd
     || periodStart !== nextCalendarDate(equityPair.opening.date)
     || periodEnd !== equityPair.closing.date) {
