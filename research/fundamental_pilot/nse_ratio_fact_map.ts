@@ -6,6 +6,7 @@ export type RatioFactRole =
   | 'PROFIT_NUMERATOR'
   | 'OWNER_EQUITY'
   | 'PBT'
+  | 'REPORTED_EBIT'
   | 'FINANCE_COSTS'
   | 'CURRENT_BORROWINGS'
   | 'NONCURRENT_BORROWINGS'
@@ -23,11 +24,14 @@ export interface RatioFactMap {
 }
 
 // Exact local names observed in official NSE Integrated Filing Ind AS instances.
-// The mapper never fabricates namespace prefixes or accepts fuzzy aliases.
+// Reported EBIT deliberately has no QName mapping until an issuer-level EBIT
+// concept is proven against official statements and reconciled. Never infer it
+// from PBT + FinanceCosts.
 const ROLE_NAMES: Record<RatioFactRole,string[]> = {
   PROFIT_NUMERATOR: ['ProfitOrLossAttributableToOwnersOfParent','ProfitLossForPeriod'],
   OWNER_EQUITY: ['EquityAttributableToOwnersOfParent'],
   PBT: ['ProfitBeforeTax'],
+  REPORTED_EBIT: [],
   FINANCE_COSTS: ['FinanceCosts'],
   CURRENT_BORROWINGS: ['BorrowingsCurrent'],
   NONCURRENT_BORROWINGS: ['BorrowingsNoncurrent'],
@@ -41,7 +45,9 @@ const REQUIRED: Record<RatioMetric,RatioFactRole[]> = {
   // is not an interchangeable substitute.
   ROCE: ['PBT','FINANCE_COSTS','TOTAL_EQUITY','CURRENT_BORROWINGS','NONCURRENT_BORROWINGS'],
   DEBT_EQUITY: ['CURRENT_BORROWINGS','NONCURRENT_BORROWINGS','TOTAL_EQUITY'],
-  INTEREST_COVERAGE: ['PBT','FINANCE_COSTS'],
+  // PBT is not an EBIT substitute. Keep the mapping blocked until an exact,
+  // statement-reconciled reported EBIT concept is established.
+  INTEREST_COVERAGE: ['REPORTED_EBIT','FINANCE_COSTS'],
 };
 
 function localName(qname:string):string {
@@ -80,10 +86,13 @@ export function resolveNseRatioFactMap(
     else concepts[role]=found[0];
   }
   const status:RatioFactMapStatus=ambiguousRoles.length?'BLOCKED_AMBIGUOUS_CONCEPT':missingRoles.length?'BLOCKED_MISSING_CONCEPT':'CANDIDATE_FACT_MAP';
+  const interestCoverageBlocked=metric==='INTEREST_COVERAGE'&&missingRoles.includes('REPORTED_EBIT');
   return {
     metric,status,concepts,missingRoles,ambiguousRoles,productionApproved:false,
-    explanation:status==='CANDIDATE_FACT_MAP'
-      ? 'Observed exact NSE Ind AS concept QNames mapped to candidate input roles. No facts were selected and no ratio was calculated; statement reconciliation, exact context selection and formula policy remain mandatory.'
-      : 'One or more required exact concept roles are missing or ambiguous. No alias or partial ratio input map is accepted.',
+    explanation:interestCoverageBlocked
+      ? 'Interest Coverage is blocked: no verified issuer-level reported EBIT QName is mapped. PBT plus FinanceCosts is not accepted as EBIT; an exact reported EBIT fact must first pass the separate official-statement reconciliation gate.'
+      : status==='CANDIDATE_FACT_MAP'
+        ? 'Observed exact NSE Ind AS concept QNames mapped to candidate input roles. No facts were selected and no ratio was calculated; statement reconciliation, exact context selection and formula policy remain mandatory.'
+        : 'One or more required exact concept roles are missing or ambiguous. No alias or partial ratio input map is accepted.',
   };
 }
