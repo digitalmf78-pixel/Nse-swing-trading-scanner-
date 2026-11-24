@@ -74,3 +74,27 @@ The official NSE filings below show that issuers disclose materially different d
 ## Status
 
 Research evidence only. No scanner runtime, production ratio, fundamental validation approval, thresholds, delivery filters, or trade signals are changed by this note.
+
+### 6. Vedanta Limited — income available for debt service / interest expense (Q2 FY 2026–27)
+
+- Filing approved: 28 October 2026; Q2 and half-year ended 30 September 2026; unaudited, consolidated.
+- The filing repeats its explicit formula: Interest Service Coverage Ratio = income available for debt service / interest expense.
+- Income available for debt service = profit before exceptional items and tax + depreciation, depletion and amortisation expense + interest expense.
+- This is a current-period corroboration that the issuer's disclosed numerator is not generic EBIT. The filing separately reports finance costs and PBT, but those rows alone do not replace the full issuer formula.
+- Evidence: https://nsearchives.nseindia.com/corporate/ixbrl/INTEGRATED_FILING_INDAS_205611_28102026174238_iXBRL_WEB.html
+
+### 7. ELLENBARRIE INDUSTRIAL GASES LIMITED — EBIT / interest payment
+
+- Filing approved: 4 November 2026; Q2 and half-year ended 30 September 2026; unaudited, standalone.
+- Remarks explicitly describe Interest Service Coverage Ratio as Earnings Before Interest and Taxes (EBIT) divided by Interest Payment.
+- The filing labels the result as a percentage; preserve the issuer's disclosed presentation and do not silently normalize units or percentage conventions.
+- The filing gives the formula label but this evidence alone does not identify a proven XBRL QName for the EBIT value. Keep the fact-map role blocked until the source instance fact is extracted and tied to the exact statement/remarks context.
+- Evidence: https://nsearchives.nseindia.com/corporate/ixbrl/INTEGRATED_FILING_INDAS_209834_04112026200233_iXBRL_WEB.html
+
+### 8. BHARAT COKING COAL LIMITED — disclosed EBIT and finance-cost values
+
+- Filing approved: 25 October 2026; Q2 and half-year ended 30 September 2026; unaudited, standalone.
+- Remarks disclose EBIT of ₹179.78 crore and Finance Cost of ₹97.07 crore for the half-year, and EBIT of ₹234.52 crore and Finance Cost of ₹48.74 crore for the quarter.
+- This provides issuer-reported numerator/denominator amounts for two distinct durations. It does not, by itself, prove a reusable XBRL QName or an exact formula bridge; do not combine quarter and half-year values or infer a concept mapping from the remarks.
+- Evidence: https://nsearchives.nseindia.com/corporate/ixbrl/INTEGRATED_FILING_INDAS_204008_25102026145453_iXBRL_WEB.html
+
