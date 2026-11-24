@@ -58,14 +58,14 @@ export function calculateDeliveryCycles(deliveryBySession, threshold = 60, minim
   const values = Array.isArray(deliveryBySession) ? deliveryBySession : [];
   let rolling5dPassCount = 0;
   for (let i = 4; i < values.length; i += 1) {
-    const window = values.slice(i - 4, i + 1).map(Number);
+    const window = values.slice(i - 4, i + 1).map(raw => raw === null || raw === undefined || raw === '' ? Number.NaN : Number(raw));
     if (window.length === 5 && window.every(Number.isFinite)) {
       const average = window.reduce((sum, value) => sum + value, 0) / 5;
       if (average >= threshold) rolling5dPassCount += 1;
     }
   }
   const dailyPassCount = values.reduce((count, raw) => {
-    const value = Number(raw);
+    const value = raw === null || raw === undefined || raw === '' ? Number.NaN : Number(raw);
     return count + (Number.isFinite(value) && value >= threshold ? 1 : 0);
   }, 0);
   const cycleA = rolling5dPassCount >= minimumPasses;
