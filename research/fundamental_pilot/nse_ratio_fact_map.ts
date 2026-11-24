@@ -22,8 +22,7 @@ export interface RatioFactMap {
   explanation: string;
 }
 
-// These local names were observed in official NSE Integrated Filing Ind AS
-// instances (KSHINTL standalone and ITC consolidated, 23-Nov-2026 audit).
+// Exact local names observed in official NSE Integrated Filing Ind AS instances.
 // The mapper never fabricates namespace prefixes or accepts fuzzy aliases.
 const ROLE_NAMES: Record<RatioFactRole,string[]> = {
   PROFIT_NUMERATOR: ['ProfitOrLossAttributableToOwnersOfParent','ProfitLossForPeriod'],
@@ -32,12 +31,15 @@ const ROLE_NAMES: Record<RatioFactRole,string[]> = {
   FINANCE_COSTS: ['FinanceCosts'],
   CURRENT_BORROWINGS: ['BorrowingsCurrent'],
   NONCURRENT_BORROWINGS: ['BorrowingsNoncurrent'],
-  TOTAL_EQUITY: ['Equity','EquityAttributableToOwnersOfParent'],
+  TOTAL_EQUITY: ['Equity'],
 };
 
 const REQUIRED: Record<RatioMetric,RatioFactRole[]> = {
   ROE: ['PROFIT_NUMERATOR','OWNER_EQUITY'],
-  ROCE: ['PBT','FINANCE_COSTS','OWNER_EQUITY','CURRENT_BORROWINGS','NONCURRENT_BORROWINGS'],
+  // ROCE capital employed includes total equity plus interest-bearing debt.
+  // Consolidated total equity includes non-controlling interests; owner equity
+  // is not an interchangeable substitute.
+  ROCE: ['PBT','FINANCE_COSTS','TOTAL_EQUITY','CURRENT_BORROWINGS','NONCURRENT_BORROWINGS'],
   DEBT_EQUITY: ['CURRENT_BORROWINGS','NONCURRENT_BORROWINGS','TOTAL_EQUITY'],
   INTEREST_COVERAGE: ['PBT','FINANCE_COSTS'],
 };
@@ -69,11 +71,9 @@ export function resolveNseRatioFactMap(
   for(const role of REQUIRED[metric]) {
     let wanted=ROLE_NAMES[role];
     if(role==='PROFIT_NUMERATOR') wanted=[basis==='CONSOLIDATED'?'ProfitOrLossAttributableToOwnersOfParent':'ProfitLossForPeriod'];
-    // Consolidated total equity must include non-controlling interests. Owner-attributable
-    // equity is a distinct statement row and must never substitute for total equity.
-    if(role==='TOTAL_EQUITY') wanted=basis==='CONSOLIDATED'
-      ? ['Equity']
-      : ['Equity','EquityAttributableToOwnersOfParent'];
+    // Total equity is an exact separate statement row for both bases. In a
+    // consolidated filing it includes NCI; owner-attributable equity is not
+    // accepted as a fallback for ROCE or debt/equity.
     const found=[...new Set(extraction.facts.map(f=>f.concept.trim()).filter(q=>wanted.some(n=>localName(q)===n.toLowerCase())))].sort();
     if(found.length===0) missingRoles.push(role);
     else if(found.length>1) ambiguousRoles.push(role);
