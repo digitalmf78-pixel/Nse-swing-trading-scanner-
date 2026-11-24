@@ -137,34 +137,42 @@ const payload = {
   status: sessions.length !== 5 ? 'INSUFFICIENT_SESSIONS' :
     freshness.status === 'STALE_DATA' ? 'STALE_DATA' :
     mainboard.verified ? 'READY' : 'READY_WITH_WARNINGS',
-  rule: 'NSE Main Board listed securities; delivery percentage must be >=60 on each of the latest five available EQ-series sessions.',
+  rule: 'FIRST FILTER: Across the full official NSE Main Board universe, pass if either 30-day Cycle A or Cycle B qualifies (A OR B).',
   requiredSessions: 5,
   deliveryCycle: { windowCalendarDays: 30, startDate: cycleStart, endDate: sessions.at(-1)?.iso || null, sessionsChecked: cycleSessions.length, thresholdPct: 60, minimumPasses: 5, gate: 'CYCLE_A_OR_CYCLE_B' },
   stocks: []
 };
-if (sessions.length === 5) {
-  const maps = sessions.map(s => new Map(readCsv(path.join(CACHE, s.name), s.iso).map(r => [r.symbol, r])));
+if (sessions.length === 5 && mainboard.verified) {
+  const latestMap = new Map(readCsv(path.join(CACHE, sessions[4].name), sessions[4].iso).map(r => [r.symbol, r]));
   const cycleMaps = cycleSessions.map(s => new Map(readCsv(path.join(CACHE, s.name), s.iso).map(r => [r.symbol, r])));
-  const symbols = [...maps[4].keys()].sort();
-  payload.stocks = symbols.map(symbol => {
-    const values = maps.map(m => m.get(symbol));
-    if (values.some(v => !v)) return null;
+  const boardSymbols = [...mainboard.symbols].sort();
+  payload.stocks = boardSymbols.map(symbol => {
+    const cycleValues = cycleMaps.map(m => m.get(symbol)?.deliveryPct ?? null);
+    const deliveryCycle30d = calculateDeliveryCycles(cycleValues);
+    if (!deliveryCycle30d.deliveryCyclePass) return null;
+    const latest = latestMap.get(symbol);
+    const latestKnown = latest || [...cycleMaps].reverse().map(m => m.get(symbol)).find(Boolean);
+    if (!latestKnown) return null;
+    const recentValues = sessions.map(s => {
+      const row = cycleMaps.find(m => m === null);
+      return row;
+    });
     return {
       symbol,
-      close: values[4].close,
-      volume: values[4].volume,
-      liquidityFlag: liquidityFlag(values[4].volume, LIQUIDITY_REVIEW_THRESHOLD),
-      deliveryQty: values[4].deliveryQty,
-      deliveryPct: values[4].deliveryPct,
-      fiveSessionDeliveryPct: values.map(v => v.deliveryPct),
-      deliveryCycle30d: calculateDeliveryCycles(cycleMaps.map(m => m.get(symbol)?.deliveryPct ?? null)),
-      allFiveAbove60: values.every(v => v.deliveryPct >= 60),
-      mainBoardStatus: mainboard.verified ? (mainboard.symbols.has(symbol) ? 'VERIFIED' : 'NOT_IN_CURRENT_MAINBOARD_MASTER') : 'UNVERIFIED',
+      close: latestKnown.close,
+      volume: latestKnown.volume,
+      liquidityFlag: liquidityFlag(latestKnown.volume, LIQUIDITY_REVIEW_THRESHOLD),
+      deliveryQty: latestKnown.deliveryQty,
+      deliveryPct: latestKnown.deliveryPct,
+      fiveSessionDeliveryPct: sessions.map(s => {
+        const rows = new Map(readCsv(path.join(CACHE, s.name), s.iso).map(r => [r.symbol, r]));
+        return rows.get(symbol)?.deliveryPct ?? null;
+      }),
+      deliveryCycle30d,
+      mainBoardStatus: 'VERIFIED',
       dates: sessions.map(s => s.iso)
     };
-  }).filter(Boolean).filter(s => s.allFiveAbove60)
-    .filter(s => !mainboard.verified || s.mainBoardStatus === 'VERIFIED')
-    .sort((a,b) => b.deliveryPct - a.deliveryPct);
+  }).filter(Boolean).sort((a,b) => b.deliveryPct - a.deliveryPct);
 }
 payload.lowVolumeReviewCount = payload.stocks.filter(s => s.liquidityFlag === 'LOW_VOLUME_REVIEW').length;
 payload.mainBoardUnverifiedCount = payload.stocks.filter(s => s.mainBoardStatus === 'UNVERIFIED').length;
