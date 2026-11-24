@@ -2,6 +2,13 @@ name: Daily NSE Delivery Data and Dashboard
 
 on:
   workflow_dispatch:
+  # Run once when this workflow definition changes on main, so the initial
+  # 200-session cache can be built immediately after deployment. Data commits
+  # do not match this path and therefore cannot create a loop.
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/daily-delivery-dashboard.yml"
   schedule:
     - cron: "15 14 * * 1-5"
 
