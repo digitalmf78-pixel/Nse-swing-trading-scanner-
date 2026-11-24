@@ -12,6 +12,9 @@ on:
       - 'scripts/check-delivery-updater-integration.mjs'
       - 'scripts/update-delivery-dashboard.mjs'
       - 'docs/index.html'
+      - 'server/nsePipeline.ts'
+      - 'server/swingBotEngine.ts'
+      - 'src/components/SwingTierSpecPanel.tsx'
   push:
     branches: [main]
     paths:
@@ -21,6 +24,9 @@ on:
       - 'scripts/delivery-quality.test.mjs'
       - 'scripts/update-delivery-dashboard.mjs'
       - 'docs/index.html'
+      - 'server/nsePipeline.ts'
+      - 'server/swingBotEngine.ts'
+      - 'src/components/SwingTierSpecPanel.tsx'
 
 permissions:
   contents: read
@@ -35,6 +41,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Install free project dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: TypeScript validation
+        run: npm run lint
+      - name: Production build validation
+        run: npm run build
       - name: Check dashboard updater syntax
         run: node --check scripts/update-delivery-dashboard.mjs
       - name: Check dashboard inline JavaScript syntax
