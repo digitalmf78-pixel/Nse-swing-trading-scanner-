@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { expectedNseTradingSessions, parseCsvLine } from './delivery-quality.mjs';
+import { lastNseTradingSessions, parseCsvLine } from './delivery-quality.mjs';
 
 const ROOT = process.cwd();
 const DELIVERY_DIR = path.join(ROOT, 'data', 'cache', 'delivery');
@@ -8,7 +8,6 @@ const STATUS_DIR = path.join(ROOT, 'data', 'cache', 'bhavcopy-200d');
 const STATUS_FILE = path.join(STATUS_DIR, 'status.json');
 const CALENDAR_FILE = path.join(ROOT, 'data', 'inputs', 'nse_trading_calendar.json');
 const REQUIRED_SESSIONS = 200;
-const CALENDAR_LOOKBACK_DAYS = 500;
 const UA = 'Mozilla/5.0 (compatible; NSE-200D-Bhavcopy-Cache/1.0)';
 
 function istNow() {
@@ -51,11 +50,7 @@ const now = istNow();
 const today = isoDate(now);
 const asOfDate = now.getUTCHours() < 18 ? isoDate(new Date(now.getTime() - 86_400_000)) : today;
 const calendar = JSON.parse(fs.readFileSync(CALENDAR_FILE, 'utf8'));
-const rangeStart = isoDate(new Date(Date.parse(asOfDate + 'T00:00:00Z') - CALENDAR_LOOKBACK_DAYS * 86_400_000));
-const expected = expectedNseTradingSessions(rangeStart, asOfDate, calendar).slice(-REQUIRED_SESSIONS);
-if (expected.length !== REQUIRED_SESSIONS) {
-  throw new Error('NSE calendar provides only ' + expected.length + ' sessions; cannot establish a 200-session base cache.');
-}
+const expected = lastNseTradingSessions(asOfDate, calendar, REQUIRED_SESSIONS, 500);
 
 const downloaded = [];
 const errors = [];
