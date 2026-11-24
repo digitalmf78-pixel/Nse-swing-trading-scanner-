@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - fix/delivery-30d-criteria-labels
+      - deploy/render-full-app
     paths:
       - "src/**"
       - "server/**"
@@ -19,6 +20,7 @@ on:
       - "package.json"
       - "tsconfig.json"
       - "index.html"
+      - "render.yaml"
       - ".github/workflows/scanner-validation.yml"
 
 permissions:
