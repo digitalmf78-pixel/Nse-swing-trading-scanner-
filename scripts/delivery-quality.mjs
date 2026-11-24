@@ -53,3 +53,28 @@ export function parseMainboardSymbols(csvText) {
   if (symbols.size < 1000) throw new Error('NSE equity master failed minimum-size validation');
   return symbols;
 }
+
+export function calculateDeliveryCycles(deliveryBySession, threshold = 60, minimumPasses = 5) {
+  const values = Array.isArray(deliveryBySession) ? deliveryBySession : [];
+  let rolling5dPassCount = 0;
+  for (let i = 4; i < values.length; i += 1) {
+    const window = values.slice(i - 4, i + 1).map(Number);
+    if (window.length === 5 && window.every(Number.isFinite)) {
+      const average = window.reduce((sum, value) => sum + value, 0) / 5;
+      if (average >= threshold) rolling5dPassCount += 1;
+    }
+  }
+  const dailyPassCount = values.reduce((count, raw) => {
+    const value = Number(raw);
+    return count + (Number.isFinite(value) && value >= threshold ? 1 : 0);
+  }, 0);
+  const cycleA = rolling5dPassCount >= minimumPasses;
+  const cycleB = dailyPassCount >= minimumPasses;
+  return {
+    rolling5dPassCount,
+    dailyPassCount,
+    cycleA,
+    cycleB,
+    deliveryCyclePass: cycleA || cycleB
+  };
+}
