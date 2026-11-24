@@ -14,6 +14,7 @@ test('old session is never labelled READY', () => {
 test('future or invalid session date fails closed', () => {
   assert.equal(assessFreshness('2026-11-25', '2026-11-24').status, 'STALE_DATA');
   assert.equal(assessFreshness('bad-date', '2026-11-24').status, 'STALE_DATA');
+  assert.equal(assessFreshness('2026-02-31', '2026-11-24').status, 'STALE_DATA');
 });
 test('low volume is review-only and does not alter eligibility', () => {
   assert.equal(liquidityFlag(1), 'LOW_VOLUME_REVIEW');
