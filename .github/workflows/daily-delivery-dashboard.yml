@@ -7,6 +7,8 @@ on:
     paths:
       - '.github/workflows/daily-delivery-dashboard.yml'
       - 'scripts/update-delivery-dashboard.mjs'
+      - 'scripts/delivery-quality.mjs'
+      - 'scripts/delivery-quality.test.mjs'
       - 'docs/index.html'
   schedule:
     - cron: "15 14 * * 1-5"
@@ -36,6 +38,9 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Test delivery data quality guards
+        run: node --test scripts/delivery-quality.test.mjs
+
       - name: Fetch and validate latest NSE delivery sessions
         run: node scripts/update-delivery-dashboard.mjs
 
@@ -43,7 +48,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/cache/delivery/sec_bhavdata_full_*.csv docs/data/latest.json
+          git add data/cache/delivery/sec_bhavdata_full_*.csv data/cache/delivery/EQUITY_L.csv docs/data/latest.json
           if ! git diff --cached --quiet; then
             git commit -m "data: refresh validated NSE delivery dashboard"
             git push
