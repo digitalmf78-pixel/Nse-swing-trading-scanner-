@@ -81,7 +81,7 @@ export function calculateDeliveryCycles(deliveryBySession, threshold = 60, minim
 
 
 export function expectedNseTradingSessions(startDate, endDate, calendar) {
-  const valid = value => /^\\d{4}-\\d{2}-\\d{2}$/.test(String(value || '')) &&
+  const valid = value => /^\d{4}-\d{2}-\d{2}$/.test(String(value || '')) &&
     Number.isFinite(Date.parse(value + 'T00:00:00Z')) &&
     new Date(Date.parse(value + 'T00:00:00Z')).toISOString().slice(0, 10) === value;
   if (!valid(startDate) || !valid(endDate) || startDate > endDate) throw new Error('Invalid NSE session date range');
