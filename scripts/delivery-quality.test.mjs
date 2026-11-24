@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { assessFreshness, assessNseSessionCompleteness, calculateDeliveryCycles, expectedNseTradingSessions, liquidityFlag, parseCsvLine, parseMainboardSymbols } from './delivery-quality.mjs';
+import { assessFreshness, assessNseSessionCompleteness, calculateDeliveryCycles, expectedNseTradingSessions, lastNseTradingSessions, liquidityFlag, parseCsvLine, parseMainboardSymbols } from './delivery-quality.mjs';
 
 test('recent EOD session is READY', () => {
   assert.deepEqual(assessFreshness('2026-11-23', '2026-11-24'), { ageDays: 1, freshnessStatus: 'FRESH', status: 'READY' });
@@ -79,4 +79,15 @@ test('missing full NSE trading session fails completeness closed', () => {
 
 test('unknown calendar year is never guessed from weekdays', () => {
   assert.throws(() => expectedNseTradingSessions('2027-01-01','2027-01-03',{years:{'2026':{holidays:[]}}}), /missing year 2027/);
+});
+
+test('200-session cache window selects the latest 200 official NSE sessions', () => {
+  const sessions = lastNseTradingSessions('2026-11-24', { years: { '2026': { holidays: [] } } }, 200, 300);
+  assert.equal(sessions.length, 200);
+  assert.equal(sessions.at(-1), '2026-11-24');
+  assert.ok(sessions.every(date => ![0, 6].includes(new Date(date + 'T00:00:00Z').getUTCDay())));
+  assert.deepEqual(sessions, [...sessions].sort());
+});
+test('200-session cache fails closed when official calendar coverage is insufficient', () => {
+  assert.throws(() => lastNseTradingSessions('2026-11-24', { years: { '2026': { holidays: [] } } }, 250, 300), /provides only/);
 });

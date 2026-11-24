@@ -33,6 +33,9 @@ jobs:
       - name: Test delivery data quality guards
         run: node --test scripts/delivery-quality.test.mjs
 
+      - name: Build and incrementally update the 200-session NSE Bhavcopy base cache
+        run: node scripts/sync-200d-bhavcopy.mjs
+
       - name: Fetch and validate latest NSE delivery sessions
         run: node scripts/update-delivery-dashboard.mjs
 
@@ -40,7 +43,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/cache/delivery/ docs/data/latest.json
+          git add data/cache/delivery/ data/cache/bhavcopy-200d/ docs/data/latest.json
           if ! git diff --cached --quiet; then
             git commit -m "data: refresh validated NSE delivery dashboard"
             git push
