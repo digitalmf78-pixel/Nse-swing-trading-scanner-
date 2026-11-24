@@ -1,0 +1,61 @@
+name: Daily NSE Delivery Data and Dashboard
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 14 * * 1-5"
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: nse-delivery-dashboard
+  cancel-in-progress: false
+
+jobs:
+  update-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout this scanner repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Fetch and validate latest NSE delivery sessions
+        run: node scripts/update-delivery-dashboard.mjs
+
+      - name: Persist validated delivery CSVs and dashboard data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/cache/delivery/sec_bhavdata_full_*.csv docs/data/latest.json
+          if ! git diff --cached --quiet; then
+            git commit -m "data: refresh validated NSE delivery dashboard"
+            git push
+          else
+            echo "No validated data changes to commit."
+          fi
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload dashboard site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+      - name: Publish dashboard
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Show published dashboard URL
+        run: echo "Dashboard published at ${{ steps.deployment.outputs.page_url }}"
