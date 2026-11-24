@@ -32,6 +32,10 @@ export function selectXbrlInstantFact(
   if (!request.concept.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(request.instantDate)) {
     throw new Error('Exact concept and instant date are required');
   }
+  const parsedInstantDate = new Date(request.instantDate + 'T00:00:00Z');
+  if (Number.isNaN(parsedInstantDate.getTime()) || parsedInstantDate.toISOString().slice(0, 10) !== request.instantDate) {
+    throw new Error('Instant date is invalid');
+  }
   if (request.filingBasis !== request.basis) {
     return { status:'BLOCKED_BASIS_MISMATCH',fact:null,eligibleCount:0,rejectedContextCount:0,
       explanation:'Filing-level standalone/consolidated basis must be explicit and match the requested instant fact basis.' };

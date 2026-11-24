@@ -69,3 +69,8 @@ test('withholds partial bundles when any required concept is missing',()=>{
   assert.equal(result.facts,null);
   assert.deepEqual(result.failedConcepts,['debt (in-capmkt:BorrowingsCurrent): MISSING_CONCEPT']);
 });
+
+test('rejects impossible and malformed instant dates',()=>{
+  assert.throws(()=>selectXbrlInstantFact(filing(),{...request,instantDate:'2026-02-30'}),/invalid/i);
+  assert.throws(()=>selectXbrlInstantFact(filing(),{...request,instantDate:'2026/09/30'}),/required/i);
+});
