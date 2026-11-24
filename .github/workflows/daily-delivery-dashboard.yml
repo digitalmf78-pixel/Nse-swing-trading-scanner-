@@ -43,7 +43,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/cache/delivery/ data/cache/bhavcopy-200d/status.json docs/data/latest.json
+          git add data/cache/delivery/ data/cache/bhavcopy-200d/ docs/data/latest.json
           if ! git diff --cached --quiet; then
             git commit -m "data: refresh validated NSE delivery dashboard"
             git push
