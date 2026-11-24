@@ -3,8 +3,9 @@ import path from 'node:path';
 import { lastNseTradingSessions, parseCsvLine } from './delivery-quality.mjs';
 
 const ROOT = process.cwd();
-const DELIVERY_DIR = path.join(ROOT, 'data', 'cache', 'delivery');
-const STATUS_DIR = path.join(ROOT, 'data', 'cache', 'bhavcopy-200d');
+const HISTORY_DIR = path.join(ROOT, 'data', 'cache', 'bhavcopy-200d');
+const SESSIONS_DIR = path.join(HISTORY_DIR, 'sessions');
+const STATUS_DIR = HISTORY_DIR;
 const STATUS_FILE = path.join(STATUS_DIR, 'status.json');
 const CALENDAR_FILE = path.join(ROOT, 'data', 'inputs', 'nse_trading_calendar.json');
 const REQUIRED_SESSIONS = 200;
@@ -44,7 +45,7 @@ function validateBhavcopy(file, expectedDate) {
   return { date: expectedDate, rows: eqRows.length, bytes: Buffer.byteLength(text) };
 }
 
-fs.mkdirSync(DELIVERY_DIR, { recursive: true });
+fs.mkdirSync(SESSIONS_DIR, { recursive: true });
 fs.mkdirSync(STATUS_DIR, { recursive: true });
 const now = istNow();
 const today = isoDate(now);
@@ -59,7 +60,7 @@ let cursor = 0;
 async function syncWorker() {
   while (cursor < expected.length) {
     const date = expected[cursor++];
-    const file = path.join(DELIVERY_DIR, filenameFor(date));
+    const file = path.join(SESSIONS_DIR, filenameFor(date));
     if (fs.existsSync(file)) {
       try {
         const meta = validateBhavcopy(file, date);
