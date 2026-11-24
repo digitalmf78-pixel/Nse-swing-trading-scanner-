@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { assessFreshness, calculateDeliveryCycles, liquidityFlag, parseCsvLine, parseMainboardSymbols } from './delivery-quality.mjs';
+import { assessFreshness, assessNseSessionCompleteness, calculateDeliveryCycles, expectedNseTradingSessions, liquidityFlag, parseCsvLine, parseMainboardSymbols } from './delivery-quality.mjs';
 
 const ROOT = process.cwd();
 const CACHE = path.join(ROOT, 'data', 'cache', 'delivery');
@@ -8,6 +8,7 @@ const OUTPUT = path.join(ROOT, 'docs', 'data', 'latest.json');
 const UA = 'Mozilla/5.0 (compatible; NSE-Delivery-Dashboard/1.0)';
 const MAINBOARD_URL = 'https://nsearchives.nseindia.com/content/equities/EQUITY_L.csv';
 const MAINBOARD_FILE = path.join(CACHE, 'EQUITY_L.csv');
+const CALENDAR_FILE = path.join(ROOT, 'data', 'inputs', 'nse_trading_calendar.json');
 const LIQUIDITY_REVIEW_THRESHOLD = 1000;
 const MAX_FRESHNESS_AGE_DAYS = 7;
 fs.mkdirSync(CACHE, { recursive: true });
@@ -80,13 +81,22 @@ async function loadMainboardMaster() {
 const attemptAtUtc = new Date().toISOString();
 const now = istToday();
 const today = isoDate(now);
+// NSE EOD bhavcopy is not expected until after the cash-market close.
+const asOfDate = now.getUTCHours() < 18 ? isoDate(new Date(now.getTime() - 86_400_000)) : today;
 const checked = [];
 const downloaded = [];
-for (let offset = 44; offset >= 0; offset--) {
-  const d = new Date(now.getTime() - offset * 86_400_000);
-  const day = d.getUTCDay();
-  if (day === 0 || day === 6) continue;
-  const iso = isoDate(d);
+let calendar = null;
+let calendarError = null;
+let expected45 = [];
+try {
+  calendar = JSON.parse(fs.readFileSync(CALENDAR_FILE, 'utf8'));
+  const fetchStart = isoDate(new Date(Date.parse(asOfDate + 'T00:00:00Z') - 44 * 86_400_000));
+  expected45 = expectedNseTradingSessions(fetchStart, asOfDate, calendar);
+} catch (error) {
+  calendarError = error instanceof Error ? error.message : 'NSE trading calendar validation failed';
+  console.log('NSE calendar unavailable: ' + calendarError);
+}
+for (const iso of expected45) {
   checked.push(iso);
   const file = path.join(CACHE, filenameFor(iso));
   if (fs.existsSync(file) && fs.statSync(file).size > 1000) {
@@ -114,9 +124,18 @@ for (const file of files) {
   try { readCsv(path.join(CACHE, file.name), file.iso); validFiles.push(file); }
   catch (error) { console.log('Cached session rejected ' + file.iso + ': ' + error.message); }
 }
-const sessions = validFiles.slice(-5);
-const cycleStart = sessions.length ? new Date(Date.parse(sessions.at(-1).iso + 'T00:00:00Z') - 29 * 86_400_000).toISOString().slice(0, 10) : null;
-const cycleSessions = validFiles.filter(x => cycleStart && x.iso >= cycleStart && x.iso <= (sessions.at(-1)?.iso || today));
+const validByDate = new Map(validFiles.map(file => [file.iso, file]));
+const expectedLatestFive = expected45.slice(-5);
+const sessions = expectedLatestFive.map(date => validByDate.get(date)).filter(Boolean);
+const cycleEnd = expected45.at(-1) || null;
+const cycleStart = cycleEnd ? new Date(Date.parse(cycleEnd + 'T00:00:00Z') - 29 * 86_400_000).toISOString().slice(0, 10) : null;
+let expectedCycleSessions = [];
+try { if (calendar && cycleStart && cycleEnd) expectedCycleSessions = expectedNseTradingSessions(cycleStart, cycleEnd, calendar); }
+catch (error) { calendarError = error instanceof Error ? error.message : 'NSE cycle calendar validation failed'; }
+const cycleSessions = expectedCycleSessions.map(date => validByDate.get(date)).filter(Boolean);
+const cycleCompleteness = assessNseSessionCompleteness(expectedCycleSessions, cycleSessions.map(file => file.iso));
+const latestFiveMissing = expectedLatestFive.filter(date => !validByDate.has(date));
+const sessionWindowComplete = !calendarError && latestFiveMissing.length === 0 && cycleCompleteness.complete && sessions.length === 5;
 const freshness = assessFreshness(sessions.at(-1)?.iso || null, today, MAX_FRESHNESS_AGE_DAYS);
 const mainboard = await loadMainboardMaster();
 const payload = {
@@ -134,15 +153,15 @@ const payload = {
   mainBoardSource: mainboard.source,
   liquidityReviewThresholdVolume: LIQUIDITY_REVIEW_THRESHOLD,
   liquidityRule: 'Volume below ' + LIQUIDITY_REVIEW_THRESHOLD + ' shares is flagged for review only; no stock is removed by this flag.',
-  status: sessions.length !== 5 ? 'INSUFFICIENT_SESSIONS' :
+  status: !sessionWindowComplete ? 'INCOMPLETE_SESSIONS' :
     freshness.status === 'STALE_DATA' ? 'STALE_DATA' :
     mainboard.verified ? 'READY' : 'READY_WITH_WARNINGS',
   rule: 'FIRST FILTER: Across the full official NSE Main Board universe, pass if either 30-day Cycle A or Cycle B qualifies (A OR B).',
   requiredSessions: 5,
-  deliveryCycle: { windowCalendarDays: 30, startDate: cycleStart, endDate: sessions.at(-1)?.iso || null, sessionsChecked: cycleSessions.length, thresholdPct: 60, minimumPasses: 5, gate: 'CYCLE_A_OR_CYCLE_B' },
+  deliveryCycle: { windowCalendarDays: 30, startDate: cycleStart, endDate: cycleEnd, sessionsChecked: cycleSessions.length, expectedSessions: expectedCycleSessions.length, missingSessions: cycleCompleteness.missingDates, thresholdPct: 60, minimumPasses: 5, gate: 'CYCLE_A_OR_CYCLE_B' },
   stocks: []
 };
-if (sessions.length === 5 && mainboard.verified) {
+if (sessionWindowComplete && mainboard.verified) {
   const recentMaps = sessions.map(s => new Map(readCsv(path.join(CACHE, s.name), s.iso).map(r => [r.symbol, r])));
   const latestMap = recentMaps[4];
   const cycleMaps = cycleSessions.map(s => new Map(readCsv(path.join(CACHE, s.name), s.iso).map(r => [r.symbol, r])));
