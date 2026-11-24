@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { assessFreshness, liquidityFlag, parseCsvLine, parseMainboardSymbols } from './delivery-quality.mjs';
+import { assessFreshness, calculateDeliveryCycles, liquidityFlag, parseCsvLine, parseMainboardSymbols } from './delivery-quality.mjs';
 
 test('recent EOD session is READY', () => {
   assert.deepEqual(assessFreshness('2026-11-23', '2026-11-24'), { ageDays: 1, freshnessStatus: 'FRESH', status: 'READY' });
@@ -35,4 +35,30 @@ test('CSV parser preserves quoted commas and escaped quotes', () => {
   assert.deepEqual(parseCsvLine('ABC,"Example, Limited","A ""quoted"" name",EQ'), [
     'ABC', 'Example, Limited', 'A "quoted" name', 'EQ'
   ]);
+});
+
+test('30-day Cycle A counts qualifying rolling five-session averages', () => {
+  const result = calculateDeliveryCycles([60, 62, 61, 59, 58, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69]);
+  assert.equal(result.rolling5dPassCount, 11);
+  assert.equal(result.cycleA, true);
+});
+test('30-day Cycle B counts qualifying individual sessions independently', () => {
+  const result = calculateDeliveryCycles([60, 59, 61, 40, 62, 30, 63, 20, 64]);
+  assert.equal(result.dailyPassCount, 5);
+  assert.equal(result.cycleB, true);
+  assert.equal(result.cycleA, false);
+  assert.equal(result.deliveryCyclePass, true);
+});
+test('exactly 60 qualifies and missing values fail rolling windows', () => {
+  const result = calculateDeliveryCycles([60, 60, null, 60, 60, 60, 60, 60, 60, 60]);
+  assert.equal(result.dailyPassCount, 7);
+  assert.equal(result.rolling5dPassCount, 2);
+  assert.equal(result.cycleA, false);
+  assert.equal(result.cycleB, true);
+});
+test('Cycle A and Cycle B both fail when neither threshold is met', () => {
+  const result = calculateDeliveryCycles([59, 59, 59, 59, 59, 59, 59, 59, 59]);
+  assert.equal(result.cycleA, false);
+  assert.equal(result.cycleB, false);
+  assert.equal(result.deliveryCyclePass, false);
 });
