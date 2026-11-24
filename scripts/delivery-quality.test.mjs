@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { assessFreshness, calculateDeliveryCycles, liquidityFlag, parseCsvLine, parseMainboardSymbols } from './delivery-quality.mjs';
+import { assessFreshness, assessNseSessionCompleteness, calculateDeliveryCycles, expectedNseTradingSessions, liquidityFlag, parseCsvLine, parseMainboardSymbols } from './delivery-quality.mjs';
 
 test('recent EOD session is READY', () => {
   assert.deepEqual(assessFreshness('2026-11-23', '2026-11-24'), { ageDays: 1, freshnessStatus: 'FRESH', status: 'READY' });
@@ -61,4 +61,22 @@ test('Cycle A and Cycle B both fail when neither threshold is met', () => {
   assert.equal(result.cycleA, false);
   assert.equal(result.cycleB, false);
   assert.equal(result.deliveryCyclePass, false);
+});
+
+
+test('official NSE calendar includes special weekend sessions and excludes holidays', () => {
+  const calendar = { years: { '2026': { holidays: ['2026-11-08','2026-11-10'], special_sessions: { '2026-11-08': 'Muhurat Trading' } } } };
+  assert.deepEqual(expectedNseTradingSessions('2026-11-07','2026-11-11',calendar), ['2026-11-08','2026-11-09','2026-11-11']);
+});
+
+test('missing full NSE trading session fails completeness closed', () => {
+  const expected = ['2026-11-06','2026-11-08','2026-11-09','2026-11-11'];
+  const check = assessNseSessionCompleteness(expected, ['2026-11-06','2026-11-09','2026-11-11']);
+  assert.equal(check.complete, false);
+  assert.deepEqual(check.missingDates, ['2026-11-08']);
+  assert.equal(assessNseSessionCompleteness(expected, expected).complete, true);
+});
+
+test('unknown calendar year is never guessed from weekdays', () => {
+  assert.throws(() => expectedNseTradingSessions('2027-01-01','2027-01-03',{years:{'2026':{holidays:[]}}}), /missing year 2027/);
 });
