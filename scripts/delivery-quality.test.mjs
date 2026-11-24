@@ -51,8 +51,8 @@ test('30-day Cycle B counts qualifying individual sessions independently', () =>
 });
 test('exactly 60 qualifies and missing values fail rolling windows', () => {
   const result = calculateDeliveryCycles([60, 60, null, 60, 60, 60, 60, 60, 60, 60]);
-  assert.equal(result.dailyPassCount, 7);
-  assert.equal(result.rolling5dPassCount, 2);
+  assert.equal(result.dailyPassCount, 9);
+  assert.equal(result.rolling5dPassCount, 3);
   assert.equal(result.cycleA, false);
   assert.equal(result.cycleB, true);
 });
