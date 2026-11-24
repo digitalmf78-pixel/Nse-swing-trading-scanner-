@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { assessFreshness, liquidityFlag, parseMainboardSymbols } from './delivery-quality.mjs';
+import { assessFreshness, liquidityFlag, parseCsvLine, parseMainboardSymbols } from './delivery-quality.mjs';
 
 test('recent EOD session is READY', () => {
   assert.deepEqual(assessFreshness('2026-11-23', '2026-11-24'), { ageDays: 1, freshnessStatus: 'FRESH', status: 'READY' });
@@ -29,4 +29,10 @@ test('official main-board CSV parser validates schema and EQ/BE/BZ rows', () => 
   assert.equal(symbols.size, 1002);
   assert.ok(symbols.has('SYM0'));
   assert.ok(symbols.has('BETA'));
+});
+
+test('CSV parser preserves quoted commas and escaped quotes', () => {
+  assert.deepEqual(parseCsvLine('ABC,"Example, Limited","A ""quoted"" name",EQ'), [
+    'ABC', 'Example, Limited', 'A "quoted" name', 'EQ'
+  ]);
 });
