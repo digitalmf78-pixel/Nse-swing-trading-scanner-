@@ -1294,27 +1294,37 @@ class NsePipelineEngine {
 
   private loadBhavcopiesAndBuildScreener(root: string): void {
     this.loadDeliveryReferenceData(root);
-    const dir = path.join(root, 'data', 'cache', 'delivery');
-    if (!fs.existsSync(dir)) return;
 
-    const files = fs
-      .readdirSync(dir)
-      .filter((f) => /^sec_bhavdata_full_\d{8}\.csv$/.test(f))
-      .map((f) => {
+    // The 200-session base cache is the scanner's primary EOD history.
+    // The rolling delivery directory supplements recent sessions. If a date
+    // exists in both stores, prefer the rolling delivery copy.
+    const sourceDirs = [
+      { dir: path.join(root, 'data', 'cache', 'bhavcopy-200d', 'sessions'), source: 'BASE_200D' },
+      { dir: path.join(root, 'data', 'cache', 'delivery'), source: 'DELIVERY' },
+    ];
+    const filesByDate = new Map<string, { iso: string; filePath: string; source: string }>();
+    for (const { dir, source } of sourceDirs) {
+      if (!fs.existsSync(dir)) continue;
+      for (const f of fs.readdirSync(dir)) {
+        if (!/^sec_bhavdata_full_\d{8}\.csv$/.test(f)) continue;
         const m = f.match(/(\d{2})(\d{2})(\d{4})/);
-        return {
-          f,
-          iso: m ? `${m[3]}-${m[2]}-${m[1]}` : f,
-        };
-      })
-      .sort((a, b) => a.iso.localeCompare(b.iso));
+        if (!m) continue;
+        const iso = m[3] + '-' + m[2] + '-' + m[1];
+        const previous = filesByDate.get(iso);
+        if (!previous || source === 'DELIVERY') {
+          filesByDate.set(iso, { iso, filePath: path.join(dir, f), source });
+        }
+      }
+    }
+    const files = [...filesByDate.values()].sort((a, b) => a.iso.localeCompare(b.iso));
+    if (files.length === 0) return;
 
     const loadedSessionDates: string[] = [];
 
     const ALLOWED_SERIES = new Set(['EQ', 'BE', 'BZ']);
 
-    for (const { f, iso } of files) {
-      const content = fs.readFileSync(path.join(dir, f), 'utf-8');
+    for (const { iso, filePath } of files) {
+      const content = fs.readFileSync(filePath, 'utf-8');
       const lines = content.split(/\r?\n/);
       if (lines.length < 2) continue;
 
