@@ -32,5 +32,7 @@ jobs:
           node-version: "22"
       - name: Check dashboard updater syntax
         run: node --check scripts/update-delivery-dashboard.mjs
+      - name: Check dashboard inline JavaScript syntax
+        run: node --input-type=module -e 'import fs from "node:fs"; const html = fs.readFileSync("docs/index.html", "utf8"); const script = html.match(/<script>([\\s\\S]*?)<\\/script>/i)?.[1]; if (!script) throw new Error("Dashboard inline script not found"); new Function(script); console.log("Dashboard JavaScript syntax OK");'
       - name: Run delivery quality tests
         run: node --test scripts/delivery-quality.test.mjs
