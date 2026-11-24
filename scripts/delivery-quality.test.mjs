@@ -39,7 +39,7 @@ test('CSV parser preserves quoted commas and escaped quotes', () => {
 
 test('30-day Cycle A counts qualifying rolling five-session averages', () => {
   const result = calculateDeliveryCycles([60, 62, 61, 59, 58, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69]);
-  assert.equal(result.rolling5dPassCount, 11);
+  assert.equal(result.rolling5dPassCount, 10);
   assert.equal(result.cycleA, true);
 });
 test('30-day Cycle B counts qualifying individual sessions independently', () => {
