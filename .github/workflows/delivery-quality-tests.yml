@@ -3,6 +3,7 @@ name: Delivery data quality tests
 on:
   pull_request:
     paths:
+      - '.github/workflows/delivery-quality-tests.yml'
       - 'scripts/delivery-quality.mjs'
       - 'scripts/delivery-quality.test.mjs'
       - 'scripts/update-delivery-dashboard.mjs'
@@ -10,6 +11,7 @@ on:
   push:
     branches: [main]
     paths:
+      - '.github/workflows/delivery-quality-tests.yml'
       - 'scripts/delivery-quality.mjs'
       - 'scripts/delivery-quality.test.mjs'
       - 'scripts/update-delivery-dashboard.mjs'
