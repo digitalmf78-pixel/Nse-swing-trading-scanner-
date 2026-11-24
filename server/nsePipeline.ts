@@ -63,6 +63,9 @@ class NsePipelineEngine {
   private initialized = false;
   private latestSessionDate = '';
   private sessionDates: string[] = [];
+  private mainboardSymbols = new Set<string>();
+  private mainboardVerified = false;
+  private tradingCalendar: { years: Record<string, { holidays?: string[]; special_sessions?: Record<string, string> }> } | null = null;
   private thresholds: Thresholds = {
     min_revenue_growth_pct: 0,
     min_profit_growth_pct: 0,
@@ -116,12 +119,11 @@ class NsePipelineEngine {
     if (this.initialized) return;
     const root = process.cwd();
     this.loadThresholds(root);
-    const streakMap = this.loadStreakState(root);
     // Legacy CSV/free-source/Yahoo caches are intentionally not loaded as fundamentals.
     // Only explicitly validated official NSE metric patches may populate scanner profiles.
     this.mergeNseValidatedFundamentals(root);
     this.loadXbrlFilings(root);
-    this.loadBhavcopiesAndBuildScreener(root, streakMap);
+    this.loadBhavcopiesAndBuildScreener(root);
     this.loadRawSignals(root);
     this.generateSignalsForMissingSessions();
     this.attachLatestSignalsToScreener();
@@ -806,69 +808,78 @@ class NsePipelineEngine {
     return dateStr >= refIso ? dateStr : '';
   }
 
-  private computeDeliveryAtSlice(
-    seriesSlice: DailyBhavRow[],
-    asOfDate: string,
-    isIpo: boolean
-  ): {
-    deliveryCategory: DeliveryCategory;
-    rolling5dGt60Count: number;
-    dailyGt60Count: number;
-    valid30dCount: number;
-  } {
-    const asOfMs = Date.parse(`${asOfDate}T00:00:00Z`);
-    const cutoff30dMs = Number.isFinite(asOfMs) ? asOfMs - 29 * 24 * 60 * 60 * 1000 : 0;
-    const window30d = seriesSlice.filter((d) => {
-      const ms = Date.parse(`${d.date}T00:00:00Z`);
-      return ms >= cutoff30dMs && d.delivPer !== null;
-    });
-
-    let dailyGt60Count = 0;
-    let rolling5dGt60Count = 0;
-    for (let i = 0; i < window30d.length; i++) {
-      if ((window30d[i].delivPer ?? 0) >= 60.0) dailyGt60Count++;
-      if (i >= 4) {
-        const avg5 =
-          ((window30d[i - 4].delivPer ?? 0) +
-            (window30d[i - 3].delivPer ?? 0) +
-            (window30d[i - 2].delivPer ?? 0) +
-            (window30d[i - 1].delivPer ?? 0) +
-            (window30d[i].delivPer ?? 0)) /
-          5;
-        if (avg5 >= 60.0) rolling5dGt60Count++;
+  private loadDeliveryReferenceData(root: string): void {
+    this.mainboardSymbols.clear(); this.mainboardVerified=false; this.tradingCalendar=null;
+    try {
+      const calendar=JSON.parse(fs.readFileSync(path.join(root,'data','inputs','nse_trading_calendar.json'),'utf-8'));
+      if(calendar?.years&&typeof calendar.years==='object') this.tradingCalendar=calendar;
+    } catch { this.tradingCalendar=null; }
+    try {
+      const masterPath=path.join(root,'data','cache','delivery','EQUITY_L.csv');
+      const metadata=JSON.parse(fs.readFileSync(path.join(root,'docs','data','latest.json'),'utf-8'));
+      const fetched=Date.parse(metadata.mainBoardMasterFetchedAtUtc||''), age=Date.now()-fetched;
+      const source='https://nsearchives.nseindia.com/content/equities/EQUITY_L.csv';
+      if(metadata.mainBoardStatus!=='VERIFIED'||metadata.mainBoardSource!==source||!Number.isFinite(fetched)||age<0||age>7*86400000)return;
+      const records=parseCsvRecords(fs.readFileSync(masterPath,'utf-8'));
+      if(!records.length)return;
+      const headers=Object.keys(records[0]), key=(n:string)=>headers.find(x=>x.trim().toUpperCase()===n);
+      const sk=key('SYMBOL'),rk=key('SERIES'),ik=key('ISIN NUMBER');
+      if(!sk||!rk||!ik)return;
+      const symbols=new Set<string>();
+      for(const row of records){
+        const sym=(row[sk]||'').trim().toUpperCase(),series=(row[rk]||'').trim().toUpperCase(),isin=(row[ik]||'').trim();
+        if(sym&&isin&&/^[A-Z0-9&.-]+$/.test(sym)&&['EQ','BE','BZ'].includes(series))symbols.add(sym);
       }
-    }
-
-    let deliveryCategory: DeliveryCategory = 'NONE';
-    if (window30d.length < 5) {
-      if (isIpo && window30d.length >= 2) {
-        const avgDelivShort =
-          window30d.reduce((acc, d) => acc + (d.delivPer ?? 0), 0) / window30d.length;
-        const passA = avgDelivShort >= 60.0;
-        const passB = dailyGt60Count >= Math.ceil(window30d.length * 0.6);
-        if (passA && passB) deliveryCategory = 'A_AND_B';
-        else if (passA) deliveryCategory = 'A_ONLY';
-        else if (passB) deliveryCategory = 'B_ONLY';
-      } else {
-        deliveryCategory = 'WAIT_FOR_DATA';
-      }
-    } else {
-      const passA = rolling5dGt60Count >= 5;
-      const passB = dailyGt60Count >= 5;
-      if (passA && passB) deliveryCategory = 'A_AND_B';
-      else if (passA) deliveryCategory = 'A_ONLY';
-      else if (passB) deliveryCategory = 'B_ONLY';
-    }
-
-    return {
-      deliveryCategory,
-      rolling5dGt60Count,
-      dailyGt60Count,
-      valid30dCount: window30d.length,
-    };
+      if(symbols.size<1000)return;
+      this.mainboardSymbols=symbols;this.mainboardVerified=true;
+    } catch { this.mainboardSymbols.clear();this.mainboardVerified=false; }
   }
 
-  private computeDynamicStreak(seriesHistory: DailyBhavRow[], isIpo: boolean): {
+  private expectedNseSessions(startDate:string,endDate:string):string[]{
+    if(!this.tradingCalendar)throw new Error('official NSE trading calendar unavailable');
+    const start=Date.parse(startDate+'T00:00:00Z'),end=Date.parse(endDate+'T00:00:00Z');
+    if(!Number.isFinite(start)||!Number.isFinite(end)||start>end)throw new Error('invalid NSE calendar range');
+    const out:string[]=[];
+    for(let ms=start;ms<=end;ms+=86400000){
+      const date=new Date(ms).toISOString().slice(0,10),year=this.tradingCalendar.years[date.slice(0,4)];
+      if(!year)throw new Error('NSE calendar missing year '+date.slice(0,4));
+      const holidays=new Set(year.holidays||[]),special=new Set(Object.keys(year.special_sessions||{})),day=new Date(ms).getUTCDay();
+      if(special.has(date)||(day!==0&&day!==6&&!holidays.has(date)))out.push(date);
+    }
+    return out;
+  }
+
+  private deliveryWindowStatus(asOfDate:string):string|null{
+    if(!this.mainboardVerified)return 'WAIT_FOR_DATA: official NSE Main Board master unverified or stale';
+    if(!this.tradingCalendar)return 'WAIT_FOR_DATA: official NSE trading calendar unavailable';
+    const ms=Date.parse(asOfDate+'T00:00:00Z');
+    if(!Number.isFinite(ms))return 'WAIT_FOR_DATA: invalid EOD session date';
+    const start=new Date(ms-29*86400000).toISOString().slice(0,10);
+    try{
+      const expected=this.expectedNseSessions(start,asOfDate),available=new Set(this.sessionDates),missing=expected.filter(d=>!available.has(d));
+      if(!expected.length||missing.length)return 'WAIT_FOR_DATA: incomplete NSE Bhavcopy sessions'+(missing.length?' (missing '+missing.slice(0,5).join(', ')+')':'');
+    }catch(e){return 'WAIT_FOR_DATA: '+(e instanceof Error?e.message:'NSE calendar validation failed');}
+    return null;
+  }
+
+  private computeDeliveryAtSlice(seriesSlice:DailyBhavRow[],asOfDate:string):{
+    deliveryCategory:DeliveryCategory;rolling5dGt60Count:number;dailyGt60Count:number;valid30dCount:number;
+  }{
+    if(this.deliveryWindowStatus(asOfDate))return{deliveryCategory:'WAIT_FOR_DATA',rolling5dGt60Count:0,dailyGt60Count:0,valid30dCount:0};
+    const ms=Date.parse(asOfDate+'T00:00:00Z'),from=new Date(ms-29*86400000).toISOString().slice(0,10);
+    const sessions=this.expectedNseSessions(from,asOfDate),byDate=new Map(seriesSlice.map(r=>[r.date,r]));
+    const values=sessions.map(d=>{const v=byDate.get(d)?.delivPer;return v!==null&&v!==undefined&&Number.isFinite(v)?v:null;});
+    let dailyGt60Count=0,rolling5dGt60Count=0;
+    for(let i=0;i<values.length;i++){
+      const v=values[i];if(v!==null&&v>=60)dailyGt60Count++;
+      if(i>=4){const w=values.slice(i-4,i+1);if(w.every((x):x is number=>x!==null)&&w.reduce((a,x)=>a+x,0)/5>=60)rolling5dGt60Count++;}
+    }
+    const A=rolling5dGt60Count>=5,B=dailyGt60Count>=5;
+    const deliveryCategory:DeliveryCategory=A&&B?'A_AND_B':A?'A_ONLY':B?'B_ONLY':'NONE';
+    return{deliveryCategory,rolling5dGt60Count,dailyGt60Count,valid30dCount:values.filter(v=>v!==null).length};
+  }
+
+  private computeDynamicStreak(seriesHistory: DailyBhavRow[]): {
     consecutiveStreak: number;
     totalQualifyingSessions: number;
     firstStreakDate: string;
@@ -885,7 +896,7 @@ class NsePipelineEngine {
 
     for (let i = seriesHistory.length - 1; i >= 0; i--) {
       const slice = seriesHistory.slice(0, i + 1);
-      const res = this.computeDeliveryAtSlice(slice, seriesHistory[i].date, isIpo);
+      const res = this.computeDeliveryAtSlice(slice, seriesHistory[i].date);
       if (i === seriesHistory.length - 1) latestCat = res.deliveryCategory;
       if (isAB(res.deliveryCategory)) {
         totalQualifyingSessions++;
@@ -979,7 +990,7 @@ class NsePipelineEngine {
         const scrRow = this.screenerBySymbol.get(sym);
         const isIpo = scrRow?.isIpo ?? false;
         const seriesHistory = hist.filter((d) => d.series === latest.series);
-        const delivInfo = this.computeDeliveryAtSlice(seriesHistory, eodDate, isIpo);
+        const delivInfo = this.computeDeliveryAtSlice(seriesHistory, eodDate);
         const isDeliveryAB =
           delivInfo.deliveryCategory === 'A_AND_B' ||
           delivInfo.deliveryCategory === 'A_ONLY' ||
@@ -1281,7 +1292,8 @@ class NsePipelineEngine {
     return atr;
   }
 
-  private loadBhavcopiesAndBuildScreener(root: string, streakMap: Map<string, StreakInfo>): void {
+  private loadBhavcopiesAndBuildScreener(root: string): void {
+    this.loadDeliveryReferenceData(root);
     const dir = path.join(root, 'data', 'cache', 'delivery');
     if (!fs.existsSync(dir)) return;
 
@@ -1297,8 +1309,7 @@ class NsePipelineEngine {
       })
       .sort((a, b) => a.iso.localeCompare(b.iso));
 
-    this.sessionDates = files.map((x) => x.iso);
-    this.latestSessionDate = files[files.length - 1]?.iso || '';
+    const loadedSessionDates: string[] = [];
 
     const ALLOWED_SERIES = new Set(['EQ', 'BE', 'BZ']);
 
@@ -1324,6 +1335,9 @@ class NsePipelineEngine {
         DELIV_QTY: headerCols.indexOf('DELIV_QTY'),
         DELIV_PER: headerCols.indexOf('DELIV_PER'),
       };
+      if (Object.values(idx).some(v => v < 0)) continue;
+      const firstLine=lines.slice(1).find(line=>line.trim()), firstCols=firstLine?.split(',')??[];
+      if(!firstLine||parseBhavDateToIso(firstCols[idx.DATE1]||'')!==iso)continue;
 
       const seenToday = new Map<string, DailyBhavRow>();
       for (let i = 1; i < lines.length; i++) {
@@ -1333,12 +1347,15 @@ class NsePipelineEngine {
         const sym = (cols[idx.SYMBOL] || '').trim().toUpperCase();
         const series = (cols[idx.SERIES] || '').trim().toUpperCase();
         if (!sym || !ALLOWED_SERIES.has(series)) continue;
+        if(this.mainboardVerified&&!this.mainboardSymbols.has(sym))continue;
+        const rowDate=parseBhavDateToIso(cols[idx.DATE1]||'');
+        if(rowDate!==iso)continue;
 
         const prev = seenToday.get(sym);
         if (prev && prev.series === 'EQ') continue;
 
         const row: DailyBhavRow = {
-          date: idx.DATE1 >= 0 && cols[idx.DATE1] ? parseBhavDateToIso(cols[idx.DATE1]) : iso,
+          date: rowDate,
           symbol: sym,
           series,
           prevClose: toNum(cols[idx.PREV_CLOSE]),
@@ -1356,12 +1373,18 @@ class NsePipelineEngine {
         seenToday.set(sym, row);
       }
 
+      if(seenToday.size<1000)continue;
+      loadedSessionDates.push(iso);
       for (const [sym, row] of seenToday.entries()) {
         const list = this.historyBySymbol.get(sym);
         if (list) list.push(row);
         else this.historyBySymbol.set(sym, [row]);
       }
     }
+
+    this.sessionDates=loadedSessionDates.sort();
+    this.latestSessionDate=this.sessionDates.at(-1)||'';
+    if(!this.latestSessionDate)return;
 
     const ipoCutoffDate = this.sessionDates.length > 3 ? this.sessionDates[3] : '';
 
@@ -1372,7 +1395,6 @@ class NsePipelineEngine {
       if (!latest || latest.date !== this.latestSessionDate || latest.close === null) continue;
       const fundPreCheck = this.fundamentalsBySymbol.get(sym);
       if (this.isEtfOrFundSymbol(sym, fundPreCheck?.companyName || '')) continue;
-      const streak = streakMap.get(sym);
 
       const bhavListingDate = history[0]?.date || '';
       const sessionsCount = history.length;
@@ -1426,41 +1448,19 @@ class NsePipelineEngine {
 
       // Filter history strictly to latest's series for delivery integrity
       const seriesHistory = history.filter((d) => d.series === latest.series);
-      const delivSlice = this.computeDeliveryAtSlice(seriesHistory, this.latestSessionDate, isIpo);
+      const delivSlice = this.computeDeliveryAtSlice(seriesHistory, this.latestSessionDate);
       const rolling5dGt60Count = delivSlice.rolling5dGt60Count;
       const dailyGt60Count = delivSlice.dailyGt60Count;
       const valid30dCount = delivSlice.valid30dCount;
       const computedCategory = delivSlice.deliveryCategory;
 
-      // Use streak file only if latestSessionDate matches streak's LastScanDate; otherwise compute dynamically across all sessions
-      const useStaticStreak = this.latestSessionDate === '2026-11-13';
-      const dynamicStreak = useStaticStreak
-        ? null
-        : this.computeDynamicStreak(seriesHistory, isIpo);
-
-      const streakCat = streak?.lastCategory;
-      let deliveryCategory: DeliveryCategory = computedCategory;
-      if (
-        useStaticStreak &&
-        (streakCat === 'A_AND_B' ||
-          streakCat === 'A_ONLY' ||
-          streakCat === 'B_ONLY' ||
-          streakCat === 'NONE' ||
-          streakCat === 'WAIT_FOR_DATA')
-      ) {
-        deliveryCategory = streakCat;
-      }
-
-      const validDelivTail = seriesHistory
-        .filter((d) => d.delivPer !== null)
-        .slice(-5)
-        .map((d) => d.delivPer as number);
-      const avgDeliv5D =
-        useStaticStreak && streak?.lastAvgDelivery5D !== null && streak?.lastAvgDelivery5D !== undefined
-          ? streak.lastAvgDelivery5D
-          : validDelivTail.length === 5 || (isIpo && validDelivTail.length >= 2)
-            ? validDelivTail.reduce((acc, n) => acc + n, 0) / validDelivTail.length
-            : null;
+      const dynamicStreak=this.computeDynamicStreak(seriesHistory);
+      const deliveryCategory:DeliveryCategory=computedCategory;
+      const fiveDates=this.sessionDates.filter(d=>d<=latest.date).slice(-5),byDate=new Map(seriesHistory.map(r=>[r.date,r.delivPer]));
+      const fiveValues=fiveDates.map(d=>byDate.get(d)??null);
+      const numericFiveValues=fiveValues.filter((v):v is number=>v!==null&&Number.isFinite(v));
+      const avgDeliv5D=numericFiveValues.length===5?numericFiveValues.reduce((sum,v)=>sum+v,0)/5:null;
+      const deliveryDataWarning=this.deliveryWindowStatus(this.latestSessionDate);
 
       // 20-Session RVOL (prior 20 sessions excluding latest; adaptive lookback >=2 for IPO stocks)
       const priorSessions = history.slice(0, -1);
@@ -1640,7 +1640,7 @@ class NsePipelineEngine {
         ((delivQtyRatio ?? 0) >= 1.2 || rvolBand === 'HIGH')
       ) {
         swingTier = 'TIER_2_ACCUMULATION';
-      } else if (strictTrendPass && liquidityPass && rvolBand === 'HIGH' && (changePct ?? 0) > 0) {
+      } else if (strictTrendPass && liquidityPass && isDeliveryAB && rvolBand === 'HIGH' && (changePct ?? 0) > 0) {
         swingTier = 'TIER_3_RVOL_WATCH';
       }
 
@@ -1742,21 +1742,13 @@ class NsePipelineEngine {
         delivQtyRatio,
         delivValueCr,
         deliveryCategory,
-        deliveryStatus: useStaticStreak
-          ? streak?.lastStatus || (isDeliveryAB ? 'PASS_A_OR_B' : deliveryCategory)
-          : dynamicStreak?.deliveryStatus || deliveryCategory,
+        deliveryStatus: deliveryDataWarning || dynamicStreak?.deliveryStatus || deliveryCategory,
         rolling5dGt60Count,
         dailyGt60Count,
         valid30dSessions: valid30dCount,
-        consecutiveStreak: useStaticStreak
-          ? streak?.consecutiveStreak ?? 0
-          : dynamicStreak?.consecutiveStreak ?? 0,
-        totalQualifyingSessions: useStaticStreak
-          ? streak?.totalQualifyingSessions ?? 0
-          : dynamicStreak?.totalQualifyingSessions ?? 0,
-        firstStreakDate: useStaticStreak
-          ? streak?.firstStreakDate ?? ''
-          : dynamicStreak?.firstStreakDate ?? '',
+        consecutiveStreak: dynamicStreak?.consecutiveStreak ?? 0,
+        totalQualifyingSessions: dynamicStreak?.totalQualifyingSessions ?? 0,
+        firstStreakDate: dynamicStreak?.firstStreakDate ?? '',
         rvol,
         rvolBand,
         liquidityTier,
