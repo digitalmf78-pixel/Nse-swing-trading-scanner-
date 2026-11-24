@@ -143,7 +143,8 @@ const payload = {
   stocks: []
 };
 if (sessions.length === 5 && mainboard.verified) {
-  const latestMap = new Map(readCsv(path.join(CACHE, sessions[4].name), sessions[4].iso).map(r => [r.symbol, r]));
+  const recentMaps = sessions.map(s => new Map(readCsv(path.join(CACHE, s.name), s.iso).map(r => [r.symbol, r])));
+  const latestMap = recentMaps[4];
   const cycleMaps = cycleSessions.map(s => new Map(readCsv(path.join(CACHE, s.name), s.iso).map(r => [r.symbol, r])));
   const boardSymbols = [...mainboard.symbols].sort();
   payload.stocks = boardSymbols.map(symbol => {
@@ -153,10 +154,6 @@ if (sessions.length === 5 && mainboard.verified) {
     const latest = latestMap.get(symbol);
     const latestKnown = latest || [...cycleMaps].reverse().map(m => m.get(symbol)).find(Boolean);
     if (!latestKnown) return null;
-    const recentValues = sessions.map(s => {
-      const row = cycleMaps.find(m => m === null);
-      return row;
-    });
     return {
       symbol,
       close: latestKnown.close,
@@ -164,10 +161,7 @@ if (sessions.length === 5 && mainboard.verified) {
       liquidityFlag: liquidityFlag(latestKnown.volume, LIQUIDITY_REVIEW_THRESHOLD),
       deliveryQty: latestKnown.deliveryQty,
       deliveryPct: latestKnown.deliveryPct,
-      fiveSessionDeliveryPct: sessions.map(s => {
-        const rows = new Map(readCsv(path.join(CACHE, s.name), s.iso).map(r => [r.symbol, r]));
-        return rows.get(symbol)?.deliveryPct ?? null;
-      }),
+      fiveSessionDeliveryPct: recentMaps.map(m => m.get(symbol)?.deliveryPct ?? null),
       deliveryCycle30d,
       mainBoardStatus: 'VERIFIED',
       dates: sessions.map(s => s.iso)
