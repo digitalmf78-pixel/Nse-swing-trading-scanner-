@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - '.github/workflows/delivery-quality-tests.yml'
+      - '.github/workflows/daily-delivery-dashboard.yml'
       - 'scripts/delivery-quality.mjs'
       - 'scripts/delivery-quality.test.mjs'
       - 'scripts/check-nse-master.mjs'
