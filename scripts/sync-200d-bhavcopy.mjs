@@ -55,42 +55,47 @@ const expected = lastNseTradingSessions(asOfDate, calendar, REQUIRED_SESSIONS, 5
 const downloaded = [];
 const errors = [];
 const validated = [];
-for (const date of expected) {
-  const file = path.join(DELIVERY_DIR, filenameFor(date));
-  if (fs.existsSync(file)) {
-    try {
-      const meta = validateBhavcopy(file, date);
-      validated.push(meta);
-      continue;
-    } catch (error) {
-      errors.push({ date, error: 'Cached file rejected: ' + error.message });
+let cursor = 0;
+async function syncWorker() {
+  while (cursor < expected.length) {
+    const date = expected[cursor++];
+    const file = path.join(DELIVERY_DIR, filenameFor(date));
+    if (fs.existsSync(file)) {
+      try {
+        const meta = validateBhavcopy(file, date);
+        validated.push(meta);
+        continue;
+      } catch (error) {
+        errors.push({ date, error: 'Cached file rejected: ' + error.message });
+      }
     }
-  }
 
-  const url = 'https://nsearchives.nseindia.com/products/content/' + filenameFor(date);
-  try {
-    const response = await fetch(url, {
-      headers: { 'User-Agent': UA, Accept: 'text/csv,text/plain,*/*', Referer: 'https://www.nseindia.com/' },
-      signal: AbortSignal.timeout(15_000)
-    });
-    if (!response.ok) throw new Error('NSE HTTP ' + response.status);
-    const body = await response.text();
-    if (!body || /^\s*</.test(body)) throw new Error('NSE did not return CSV data');
-    const temp = file + '.tmp';
-    fs.writeFileSync(temp, body, 'utf8');
+    const url = 'https://nsearchives.nseindia.com/products/content/' + filenameFor(date);
     try {
-      const meta = validateBhavcopy(temp, date);
-      fs.renameSync(temp, file);
-      validated.push(meta);
-      downloaded.push(date);
+      const response = await fetch(url, {
+        headers: { 'User-Agent': UA, Accept: 'text/csv,text/plain,*/*', Referer: 'https://www.nseindia.com/' },
+        signal: AbortSignal.timeout(15_000)
+      });
+      if (!response.ok) throw new Error('NSE HTTP ' + response.status);
+      const body = await response.text();
+      if (!body || /^\\s*</.test(body)) throw new Error('NSE did not return CSV data');
+      const temp = file + '.tmp';
+      fs.writeFileSync(temp, body, 'utf8');
+      try {
+        const meta = validateBhavcopy(temp, date);
+        fs.renameSync(temp, file);
+        validated.push(meta);
+        downloaded.push(date);
+      } catch (error) {
+        fs.rmSync(temp, { force: true });
+        throw error;
+      }
     } catch (error) {
-      fs.rmSync(temp, { force: true });
-      throw error;
+      errors.push({ date, error: error.message });
     }
-  } catch (error) {
-    errors.push({ date, error: error.message });
   }
 }
+await Promise.all(Array.from({ length: 4 }, () => syncWorker()));
 
 const validatedDates = [...new Set(validated.map(x => x.date))].sort();
 const missingDates = expected.filter(date => !validatedDates.includes(date));
