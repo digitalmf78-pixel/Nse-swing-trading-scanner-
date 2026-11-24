@@ -16,6 +16,7 @@ button{background:#1d4770;border:1px solid #376a9e;color:white;border-radius:10p
 .pct{color:var(--good);font-weight:700}.empty{padding:28px;color:var(--muted);text-align:center}.foot{color:var(--muted);font-size:12px;line-height:1.6;margin-top:16px}
 .status{font-size:12px;padding:6px 10px;border-radius:20px;background:#163c32;color:#8de6c0}.status.warn{background:#49331b;color:var(--warn)}.flag{font-size:11px;color:var(--warn);font-weight:700}.flag.ok{color:var(--good)}
 .notice{background:#18283e;border:1px solid var(--line);border-radius:10px;padding:11px 13px;color:var(--muted);font-size:12px;line-height:1.5;margin-top:12px}
+.rulebox{background:#132b35;border:1px solid #285363;border-radius:12px;padding:14px 16px;margin:14px 0;color:var(--text);line-height:1.55}.rulebox strong{color:#8de6c0}.rulebox ul{margin:8px 0 0;padding-left:20px}.rulebox li{margin:4px 0}.rulehint{color:var(--muted);font-size:12px;margin-top:8px}
 @media(max-width:700px){main{padding:18px 11px}.cards{grid-template-columns:1fr 1fr}.v{font-size:19px}}
 </style></head>
 <body><main>
@@ -28,6 +29,7 @@ button{background:#1d4770;border:1px solid #376a9e;color:white;border-radius:10p
 <div class="card"><div class="k">Data age (calendar days)</div><div class="v" id="age">—</div></div>
 </section>
 <div class="notice" id="quality">Checking data quality…</div>
+<section class="rulebox" aria-label="Delivery qualification rules"><strong>Delivery qualification rules</strong><ul><li><strong>5-session condition:</strong> Delivery % must be ≥60% on EACH of the latest 5 available NSE EQ-series trading sessions.</li><li><strong>Listing condition:</strong> Symbol must be present in the current official NSE Main Board Equity Master (EQ/BE/BZ universe).</li><li><strong>Data condition:</strong> All 5 sessions must have valid NSE EOD Bhavcopy data; stale or incomplete data is flagged, not treated as a pass.</li><li><strong>Liquidity review:</strong> Latest-session traded volume below 1,000 shares is marked REVIEW only; it does not automatically remove the stock.</li></ul><div class="rulehint">Source: NSE official EOD Bhavcopy + NSE Equity Master. This is a research filter, not a buy/sell signal. Session percentages are shown in date order in the table.</div></section>
 <div class="toolbar"><input id="search" type="search" placeholder="Search company symbol…"><button id="refresh">Refresh</button></div>
 <section class="panel"><div class="panelhead"><strong>Stocks with delivery ≥60% on all 5 sessions</strong><span id="updated" class="k"></span></div>
 <div class="tablewrap"><table><thead><tr><th>Symbol</th><th>Latest close (₹)</th><th>Volume</th><th>Liquidity review</th><th>Delivery qty</th><th>Latest delivery %</th><th>5-session delivery %</th></tr></thead><tbody id="rows"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody></table></div></section>
