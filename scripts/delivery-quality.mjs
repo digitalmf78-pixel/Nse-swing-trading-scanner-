@@ -78,3 +78,30 @@ export function calculateDeliveryCycles(deliveryBySession, threshold = 60, minim
     deliveryCyclePass: cycleA || cycleB
   };
 }
+
+
+export function expectedNseTradingSessions(startDate, endDate, calendar) {
+  const valid = value => /^\\d{4}-\\d{2}-\\d{2}$/.test(String(value || '')) &&
+    Number.isFinite(Date.parse(value + 'T00:00:00Z')) &&
+    new Date(Date.parse(value + 'T00:00:00Z')).toISOString().slice(0, 10) === value;
+  if (!valid(startDate) || !valid(endDate) || startDate > endDate) throw new Error('Invalid NSE session date range');
+  if (!calendar?.years || typeof calendar.years !== 'object') throw new Error('Official NSE trading calendar unavailable');
+  const sessions = [];
+  for (let ms = Date.parse(startDate + 'T00:00:00Z'); ms <= Date.parse(endDate + 'T00:00:00Z'); ms += 86_400_000) {
+    const date = new Date(ms).toISOString().slice(0, 10);
+    const year = calendar.years[date.slice(0, 4)];
+    if (!year) throw new Error('NSE trading calendar missing year ' + date.slice(0, 4));
+    const holidays = new Set(Array.isArray(year.holidays) ? year.holidays : []);
+    const special = new Set(Object.keys(year.special_sessions || {}));
+    const weekday = new Date(ms).getUTCDay();
+    if (special.has(date) || (weekday !== 0 && weekday !== 6 && !holidays.has(date))) sessions.push(date);
+  }
+  return sessions;
+}
+
+export function assessNseSessionCompleteness(expectedDates, availableDates) {
+  const expected = [...new Set(Array.isArray(expectedDates) ? expectedDates : [])].sort();
+  const available = new Set(Array.isArray(availableDates) ? availableDates : []);
+  const missingDates = expected.filter(date => !available.has(date));
+  return { complete: expected.length > 0 && missingDates.length === 0, expectedCount: expected.length, availableCount: expected.length - missingDates.length, missingDates };
+}
