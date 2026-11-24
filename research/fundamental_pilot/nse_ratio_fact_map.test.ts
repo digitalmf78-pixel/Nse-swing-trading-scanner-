@@ -68,6 +68,16 @@ test('ROCE maps PBT, finance costs, total equity and borrowings but never invent
   assert.match(result.explanation,/No facts were selected and no ratio was calculated/);
 });
 
+test('Interest Coverage blocks PBT plus FinanceCosts until a verified reported EBIT QName exists',()=>{
+  const result=resolveNseRatioFactMap('INTEREST_COVERAGE','NON_FINANCIAL','STANDALONE',filing());
+  assert.equal(result.status,'BLOCKED_MISSING_CONCEPT');
+  assert.deepEqual(result.missingRoles,['REPORTED_EBIT']);
+  assert.equal(result.concepts.PBT,undefined);
+  assert.equal(result.concepts.FINANCE_COSTS,'in-capmkt:FinanceCosts');
+  assert.equal(result.productionApproved,false);
+  assert.match(result.explanation,/no verified issuer-level reported EBIT QName/);
+});
+
 test('blocks duplicate exact total-equity QNames from different namespaces',()=>{
   const f=filing();
   f.facts.push({...f.facts[0],concept:'custom:Equity'});
