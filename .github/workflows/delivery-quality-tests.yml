@@ -1,0 +1,30 @@
+name: Delivery data quality tests
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/delivery-quality.mjs'
+      - 'scripts/delivery-quality.test.mjs'
+      - 'scripts/update-delivery-dashboard.mjs'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/delivery-quality.mjs'
+      - 'scripts/delivery-quality.test.mjs'
+      - 'scripts/update-delivery-dashboard.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run delivery quality tests
+        run: node --test scripts/delivery-quality.test.mjs
