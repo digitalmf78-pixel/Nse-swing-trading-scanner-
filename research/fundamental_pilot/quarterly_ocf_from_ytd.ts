@@ -27,6 +27,18 @@ const shiftYear=(s:string):string|null=>{
   if(date.getUTCFullYear()!==y-1||date.getUTCMonth()!==m-1||date.getUTCDate()!==d) return null;
   return date.toISOString().slice(0,10);
 };
+const expectedYtdEnd=(start:string,months:number):string|null=>{
+  if(!validDate(start)) return null;
+  const [year,month,day]=start.split('-').map(Number);
+  if(day!==1) return null;
+  // Inclusive YTD windows must run from the first day of a month to the
+  // final calendar day of month 3 (Q1) or month 6 (H1).
+  return new Date(Date.UTC(year,month-1+months,0)).toISOString().slice(0,10);
+};
+const hasExactYtdWindow=(start:string,end:string,months:number):boolean=>{
+  const expected=expectedYtdEnd(start,months);
+  return expected!==null && end===expected;
+};
 const nextDay=(s:string):string=>{
   const d=new Date(`${s}T00:00:00Z`);d.setUTCDate(d.getUTCDate()+1);return d.toISOString().slice(0,10);
 };
@@ -64,9 +76,13 @@ export function deriveQuarterlyOcfFromYtd(
     ||shiftYear(currentQ1.periodStart)!==priorQ1.periodStart
     ||shiftYear(currentH1.periodEnd)!==priorH1.periodEnd
     ||shiftYear(currentQ1.periodEnd)!==priorQ1.periodEnd
+    ||!hasExactYtdWindow(currentQ1.periodStart,currentQ1.periodEnd,3)
+    ||!hasExactYtdWindow(currentH1.periodStart,currentH1.periodEnd,6)
+    ||!hasExactYtdWindow(priorQ1.periodStart,priorQ1.periodEnd,3)
+    ||!hasExactYtdWindow(priorH1.periodStart,priorH1.periodEnd,6)
     ||currentQ1.periodEnd>=currentH1.periodEnd
     ||priorQ1.periodEnd>=priorH1.periodEnd) {
-    return blocked('BLOCKED_PERIOD_ALIGNMENT','Current and prior Q1/H1 YTD dates must align exactly by calendar year and share the same fiscal-year start');
+    return blocked('BLOCKED_PERIOD_ALIGNMENT','Current and prior Q1/H1 YTD dates must be exact three-/six-calendar-month windows, align one year apart, and share the same fiscal-year start');
   }
   const currentQuarterStart=nextDay(currentQ1.periodEnd);
   const priorQuarterStart=nextDay(priorQ1.periodEnd);
