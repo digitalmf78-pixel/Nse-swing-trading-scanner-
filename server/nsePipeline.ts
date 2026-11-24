@@ -1302,7 +1302,7 @@ class NsePipelineEngine {
       { dir: path.join(root, 'data', 'cache', 'bhavcopy-200d', 'sessions'), source: 'BASE_200D' },
       { dir: path.join(root, 'data', 'cache', 'delivery'), source: 'DELIVERY' },
     ];
-    const filesByDate = new Map<string, { f: string; iso: string; filePath: string; source: string }>();
+    const filesByDate = new Map<string, { iso: string; filePath: string; source: string }>();
     for (const { dir, source } of sourceDirs) {
       if (!fs.existsSync(dir)) continue;
       for (const f of fs.readdirSync(dir)) {
@@ -1312,7 +1312,7 @@ class NsePipelineEngine {
         const iso = m[3] + '-' + m[2] + '-' + m[1];
         const previous = filesByDate.get(iso);
         if (!previous || source === 'DELIVERY') {
-          filesByDate.set(iso, { f, iso, filePath: path.join(dir, f), source });
+          filesByDate.set(iso, { iso, filePath: path.join(dir, f), source });
         }
       }
     }
@@ -1323,7 +1323,7 @@ class NsePipelineEngine {
 
     const ALLOWED_SERIES = new Set(['EQ', 'BE', 'BZ']);
 
-    for (const { f, iso, filePath } of files) {
+    for (const { iso, filePath } of files) {
       const content = fs.readFileSync(filePath, 'utf-8');
       const lines = content.split(/\r?\n/);
       if (lines.length < 2) continue;
