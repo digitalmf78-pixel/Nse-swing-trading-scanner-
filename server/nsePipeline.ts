@@ -990,7 +990,7 @@ class NsePipelineEngine {
         const scrRow = this.screenerBySymbol.get(sym);
         const isIpo = scrRow?.isIpo ?? false;
         const seriesHistory = hist.filter((d) => d.series === latest.series);
-        const delivInfo = this.computeDeliveryAtSlice(seriesHistory, eodDate, isIpo);
+        const delivInfo = this.computeDeliveryAtSlice(seriesHistory, eodDate);
         const isDeliveryAB =
           delivInfo.deliveryCategory === 'A_AND_B' ||
           delivInfo.deliveryCategory === 'A_ONLY' ||
@@ -1458,7 +1458,8 @@ class NsePipelineEngine {
       const deliveryCategory:DeliveryCategory=computedCategory;
       const fiveDates=this.sessionDates.filter(d=>d<=latest.date).slice(-5),byDate=new Map(seriesHistory.map(r=>[r.date,r.delivPer]));
       const fiveValues=fiveDates.map(d=>byDate.get(d)??null);
-      const avgDeliv5D=fiveValues.length===5&&fiveValues.every(v=>v!==null&&Number.isFinite(v))?fiveValues.reduce((a,v)=>a+(v as number),0)/5:null;
+      const numericFiveValues=fiveValues.filter((v):v is number=>v!==null&&Number.isFinite(v));
+      const avgDeliv5D=numericFiveValues.length===5?numericFiveValues.reduce((sum,v)=>sum+v,0)/5:null;
       const deliveryDataWarning=this.deliveryWindowStatus(this.latestSessionDate);
 
       // 20-Session RVOL (prior 20 sessions excluding latest; adaptive lookback >=2 for IPO stocks)
