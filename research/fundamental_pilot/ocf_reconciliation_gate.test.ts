@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { gateOcfCandidateOnReconciliation } from './ocf_reconciliation_gate.ts';
+import type { OcfCandidateResult } from './operating_cashflow_candidate.ts';
+import type { CashReconciliationDecision } from './cashflow_reconciliation_guard.ts';
+const candidate: OcfCandidateResult = { status:'CANDIDATE_ONLY',currentValue:120,priorValue:100,absoluteChange:20,percentageChange:20,currentDirection:'POSITIVE',priorDirection:'POSITIVE',productionApproved:false,explanation:'candidate' };
+const decision = (): CashReconciliationDecision => ({ status:'RECONCILED_CANDIDATE',checks:{openingPlusMovementEqualsClosing:true,cashFlowClosingMatchesBalanceSheet:true,operatingCashFlowMatchesStatement:true},differences:{rollForward:0,closingCash:0,operatingCashFlow:0},productionApproved:false,explanation:'reconciled' });
+test('accepts OCF only when both current and prior periods fully reconcile',()=>{const r=gateOcfCandidateOnReconciliation(candidate,decision(),decision());assert.equal(r.status,'RECONCILED_CANDIDATE');assert.equal(r.currentValue,120);assert.equal(r.priorValue,100);assert.equal(r.percentageChange,20);assert.equal(r.productionApproved,false);});
+test('blocks current-period reconciliation failure',()=>{const d=decision();d.status='REVIEW_REQUIRED';assert.equal(gateOcfCandidateOnReconciliation(candidate,d,decision()).status,'BLOCKED_CURRENT_RECONCILIATION');});
+test('blocks prior-period reconciliation failure',()=>{const d=decision();d.status='REVIEW_REQUIRED';assert.equal(gateOcfCandidateOnReconciliation(candidate,decision(),d).status,'BLOCKED_PRIOR_RECONCILIATION');});
+test('blocks when explicit OCF statement-row cross-check is absent',()=>{const d=decision();d.checks.operatingCashFlowMatchesStatement=null;assert.equal(gateOcfCandidateOnReconciliation(candidate,d,decision()).status,'BLOCKED_OCF_CROSSCHECK');});
+test('blocks when cash roll-forward or balance-sheet tie-out is absent',()=>{const a=decision();a.checks.openingPlusMovementEqualsClosing=null;assert.equal(gateOcfCandidateOnReconciliation(candidate,a,decision()).status,'BLOCKED_OCF_CROSSCHECK');const b=decision();b.checks.cashFlowClosingMatchesBalanceSheet=false;assert.equal(gateOcfCandidateOnReconciliation(candidate,decision(),b).status,'BLOCKED_PRIOR_RECONCILIATION');});
+test('blocks non-candidate or non-finite OCF input',()=>{const a={...candidate,status:'BLOCKED_MISSING_VALUE' as const};assert.equal(gateOcfCandidateOnReconciliation(a,decision(),decision()).status,'BLOCKED_OCF_CANDIDATE');const b={...candidate,currentValue:Number.NaN};assert.equal(gateOcfCandidateOnReconciliation(b,decision(),decision()).status,'BLOCKED_OCF_CANDIDATE');});
