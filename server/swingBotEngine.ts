@@ -25,6 +25,10 @@ import { loadWatchlistSymbols } from './watchlistStore.ts';
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
+function isDeliveryCycleQualified(row: ScreenerRow): boolean {
+  return row.deliveryCategory === 'A_AND_B' || row.deliveryCategory === 'A_ONLY' || row.deliveryCategory === 'B_ONLY';
+}
+
 interface OhlcvBar {
   date: string;
   open: number;
@@ -2462,8 +2466,9 @@ export async function analyzeStockWithV3Bot(
   if (!detail) {
     throw new Error(`Symbol ${sym} not found in NSE Mainboard dataset.`);
   }
+  if (!isDeliveryCycleQualified(detail.summary)) throw new Error(`Blocked by first filter: ${sym} does not pass verified 30-day Delivery Cycle A OR Cycle B.`);
 
-  const allRows = options?.allRows ?? nsePipeline.getAllScreenerRows();
+  const allRows = (options?.allRows ?? nsePipeline.getAllScreenerRows()).filter(isDeliveryCycleQualified);
   const overview = nsePipeline.getOverview();
   const dashboard =
     options?.dashboard ??
@@ -2685,12 +2690,10 @@ export async function analyzeStockWithV3Bot(
         : 'Not triggered'
   );
   addItem(
-    'Delivery 5D Avg > 60%',
+    '30D Delivery Cycle A OR B',
     10,
-    (phase5Accumulation.delivery5dAvgPct ?? 0) > 60,
-    phase5Accumulation.delivery5dAvgPct !== null
-      ? `${phase5Accumulation.delivery5dAvgPct.toFixed(1)}%`
-      : 'DATA NOT AVAILABLE'
+    isDeliveryCycleQualified(detail.summary),
+    `${detail.summary.deliveryCategory} · Cycle A ${detail.summary.rolling5dGt60Count}/5 windows · Cycle B ${detail.summary.dailyGt60Count}/5 sessions`
   );
   addItem(
     'Fast Entry Trigger Confirmed',
@@ -2853,6 +2856,7 @@ export async function runDailyBotScanner(params?: {
   paperTradingMode: boolean;
 }> {
   const allRows = nsePipeline.getAllScreenerRows();
+  const deliveryQualifiedRows = allRows.filter(isDeliveryCycleQualified);
   const overview = nsePipeline.getOverview();
   const dashboard = await getOpenMacroAndNewsDashboard({
     allRows,
@@ -2868,12 +2872,12 @@ export async function runDailyBotScanner(params?: {
   let candidates: ScreenerRow[] = [];
 
   if (q) {
-    candidates = allRows.filter(
+    candidates = deliveryQualifiedRows.filter(
       (r) => r.symbol.includes(q) || r.providerSector.toUpperCase().includes(q)
     );
   } else if (params?.scope === 'WATCHLIST') {
     const wl = new Set(loadWatchlistSymbols());
-    candidates = allRows.filter((r) => wl.has(r.symbol));
+    candidates = deliveryQualifiedRows.filter((r) => wl.has(r.symbol));
   } else if (params?.scope === 'IPO') {
     const tierRank = (t: ScreenerRow['swingTier']) =>
       t === 'TIER_1_READY'
@@ -2883,7 +2887,7 @@ export async function runDailyBotScanner(params?: {
           : t === 'TIER_3_RVOL_WATCH'
             ? 1
             : 0;
-    candidates = allRows
+    candidates = deliveryQualifiedRows
       .filter(
         (r) =>
           r.isIpo || r.providerSector.trim().toUpperCase() === 'IPO / RECENT LISTINGS'
@@ -2898,16 +2902,16 @@ export async function runDailyBotScanner(params?: {
         return (b.sessionsCount ?? 0) - (a.sessionsCount ?? 0);
       });
   } else if (params?.scope === 'DELIV_HIGH') {
-    candidates = allRows
-      .filter((r) => r.liquidityPass && (r.avgDeliv5D ?? 0) >= 60)
+    candidates = deliveryQualifiedRows
+      .filter((r) => r.liquidityPass)
       .sort((a, b) => (b.rvol ?? 0) - (a.rvol ?? 0));
   } else if (params?.scope === 'TOP_SECTORS') {
     const top3 = new Set(overview.sectorSentiment.slice(0, 3).map((s) => s.sector.toUpperCase()));
-    candidates = allRows
+    candidates = deliveryQualifiedRows
       .filter((r) => r.liquidityPass && top3.has(r.providerSector.toUpperCase()))
       .sort((a, b) => (b.rvol ?? 0) - (a.rvol ?? 0));
   } else {
-    candidates = allRows
+    candidates = deliveryQualifiedRows
       .filter(
         (r) =>
           r.liquidityPass &&
@@ -2943,7 +2947,7 @@ export async function runDailyBotScanner(params?: {
           dashboard,
           sector1mMap,
           bulkDeals,
-          allRows,
+          allRows: deliveryQualifiedRows,
         }).catch(() => null)
       )
     );
@@ -3342,6 +3346,7 @@ export async function recommendStocksWithOpenAnalysis(options?: {
   limit?: number;
 }): Promise<RecommendedStocksResponse> {
   const allRows = nsePipeline.getAllScreenerRows();
+  const deliveryQualifiedRows = allRows.filter(isDeliveryCycleQualified);
   const overview = nsePipeline.getOverview();
   const dashboard = await getOpenMacroAndNewsDashboard({
     allRows,
@@ -3355,7 +3360,7 @@ export async function recommendStocksWithOpenAnalysis(options?: {
   );
 
   // Score universe candidates pre-filter so we evaluate the highest-probability NSE stocks
-  const scoredPool = allRows
+  const scoredPool = deliveryQualifiedRows
     .filter((r) => r.liquidityPass && r.fundamentalPassCount >= 4)
     .map((r) => {
       let preScore = r.fundamentalPassCount * 12;
@@ -3385,7 +3390,7 @@ export async function recommendStocksWithOpenAnalysis(options?: {
             dashboard,
             sector1mMap,
             bulkDeals,
-            allRows,
+            allRows: deliveryQualifiedRows,
           });
           return { row, bot };
         } catch {
@@ -3414,7 +3419,7 @@ export async function recommendStocksWithOpenAnalysis(options?: {
     }
 
     if (row.fundamentalVerified) filtersPassed.push('Verified Fundamentals');
-    if ((row.avgDeliv5D ?? 0) >= 60) filtersPassed.push(`5D Deliv ${row.avgDeliv5D?.toFixed(1)}%`);
+    if (isDeliveryCycleQualified(row)) filtersPassed.push(`30D Delivery ${row.deliveryCategory} (A ${row.rolling5dGt60Count}/5 windows · B ${row.dailyGt60Count}/5 sessions)`);
     if ((row.rvol ?? 0) >= 1.5) filtersPassed.push(`High RVOL ${row.rvol?.toFixed(2)}x`);
     if (row.swingTier !== 'NONE') filtersPassed.push(row.swingTier);
     if (row.uTurnStatus === 'ACTIVE_TRIGGER' || row.uTurnStatus === 'CONFIRMED_SUPPORT') {
@@ -3446,7 +3451,7 @@ export async function recommendStocksWithOpenAnalysis(options?: {
       Math.round(
         (f.hardRejectPass ? 40 : f.hardRejectPassCount * 4.5) +
           bot.scoring.totalScore * 0.35 +
-          ((row.avgDeliv5D ?? 0) >= 60 ? 7 : 0) +
+          (row.deliveryCategory === 'A_AND_B' ? 7 : 5) +
           ((row.rvol ?? 0) >= 1.5 ? 6 : 0) +
           (row.uTurnStatus === 'ACTIVE_TRIGGER' || row.uTurnStatus === 'CONFIRMED_SUPPORT' ? 8 : 0) +
           (row.swingTier === 'TIER_1_READY' ? 8 : row.swingTier === 'TIER_2_ACCUMULATION' ? 5 : 0) +
