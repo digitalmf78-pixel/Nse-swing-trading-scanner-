@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { assessFreshness, liquidityFlag, parseCsvLine, parseMainboardSymbols } from './delivery-quality.mjs';
+import { assessFreshness, calculateDeliveryCycles, liquidityFlag, parseCsvLine, parseMainboardSymbols } from './delivery-quality.mjs';
 
 const ROOT = process.cwd();
 const CACHE = path.join(ROOT, 'data', 'cache', 'delivery');
@@ -82,7 +82,7 @@ const now = istToday();
 const today = isoDate(now);
 const checked = [];
 const downloaded = [];
-for (let offset = 14; offset >= 0; offset--) {
+for (let offset = 44; offset >= 0; offset--) {
   const d = new Date(now.getTime() - offset * 86_400_000);
   const day = d.getUTCDay();
   if (day === 0 || day === 6) continue;
@@ -115,6 +115,8 @@ for (const file of files) {
   catch (error) { console.log('Cached session rejected ' + file.iso + ': ' + error.message); }
 }
 const sessions = validFiles.slice(-5);
+const cycleStart = sessions.length ? new Date(Date.parse(sessions.at(-1).iso + 'T00:00:00Z') - 29 * 86_400_000).toISOString().slice(0, 10) : null;
+const cycleSessions = validFiles.filter(x => cycleStart && x.iso >= cycleStart && x.iso <= (sessions.at(-1)?.iso || today));
 const freshness = assessFreshness(sessions.at(-1)?.iso || null, today, MAX_FRESHNESS_AGE_DAYS);
 const mainboard = await loadMainboardMaster();
 const payload = {
@@ -137,10 +139,12 @@ const payload = {
     mainboard.verified ? 'READY' : 'READY_WITH_WARNINGS',
   rule: 'NSE Main Board listed securities; delivery percentage must be >=60 on each of the latest five available EQ-series sessions.',
   requiredSessions: 5,
+  deliveryCycle: { windowCalendarDays: 30, startDate: cycleStart, endDate: sessions.at(-1)?.iso || null, sessionsChecked: cycleSessions.length, thresholdPct: 60, minimumPasses: 5, gate: 'CYCLE_A_OR_CYCLE_B' },
   stocks: []
 };
 if (sessions.length === 5) {
   const maps = sessions.map(s => new Map(readCsv(path.join(CACHE, s.name), s.iso).map(r => [r.symbol, r])));
+  const cycleMaps = cycleSessions.map(s => new Map(readCsv(path.join(CACHE, s.name), s.iso).map(r => [r.symbol, r])));
   const symbols = [...maps[4].keys()].sort();
   payload.stocks = symbols.map(symbol => {
     const values = maps.map(m => m.get(symbol));
@@ -153,6 +157,7 @@ if (sessions.length === 5) {
       deliveryQty: values[4].deliveryQty,
       deliveryPct: values[4].deliveryPct,
       fiveSessionDeliveryPct: values.map(v => v.deliveryPct),
+      deliveryCycle30d: calculateDeliveryCycles(cycleMaps.map(m => m.get(symbol)?.deliveryPct ?? null)),
       allFiveAbove60: values.every(v => v.deliveryPct >= 60),
       mainBoardStatus: mainboard.verified ? (mainboard.symbols.has(symbol) ? 'VERIFIED' : 'NOT_IN_CURRENT_MAINBOARD_MASTER') : 'UNVERIFIED',
       dates: sessions.map(s => s.iso)
@@ -171,6 +176,7 @@ console.log(JSON.stringify({
   mainBoardStatus: payload.mainBoardStatus,
   sessions: payload.sessionDates,
   qualifiedStocks: payload.stocks.length,
+  cycleSessions: payload.deliveryCycle.sessionsChecked,
   lowVolumeReviewCount: payload.lowVolumeReviewCount,
   downloaded
 }));
