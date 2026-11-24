@@ -16,7 +16,7 @@ function filing(date: string, value: number, issuer='INE000A01000'): XbrlExtract
     contextCount:1, factCount:1, warnings:[],
   };
 }
-const request = () => ({
+const request = (): Parameters<typeof selectRoeEquityPairCandidate>[0] => ({
   opening: { extraction:filing('2025-03-31',800), concept:'in-capmkt:EquityAttributableToOwnersOfParent',
     date:'2025-03-31', basis:'CONSOLIDATED' as const, filingBasis:'CONSOLIDATED' as const },
   closing: { extraction:filing('2026-03-31',1000), concept:'in-capmkt:EquityAttributableToOwnersOfParent',
