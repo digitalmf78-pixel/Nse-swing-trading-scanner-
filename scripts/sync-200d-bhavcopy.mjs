@@ -78,7 +78,7 @@ async function syncWorker() {
       });
       if (!response.ok) throw new Error('NSE HTTP ' + response.status);
       const body = await response.text();
-      if (!body || /^\\s*</.test(body)) throw new Error('NSE did not return CSV data');
+      if (!body || /^\s*</.test(body)) throw new Error('NSE did not return CSV data');
       const temp = file + '.tmp';
       fs.writeFileSync(temp, body, 'utf8');
       try {
