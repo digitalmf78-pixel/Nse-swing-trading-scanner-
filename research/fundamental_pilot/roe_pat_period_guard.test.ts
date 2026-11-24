@@ -74,3 +74,11 @@ test('standalone filings require entity profit for period concept',()=>{
   input.basis='STANDALONE'; input.filingBasis='STANDALONE'; input.concept=standalone;
   assert.equal(selectRoePatPeriodCandidate(input).status,'SELECTED_PAT_PERIOD_CANDIDATE');
 });
+
+test('blocks a single filing context labelled TTM without four-quarter chain evidence',()=>{
+  const input=request();
+  input.periodType='TTM';
+  const result=selectRoePatPeriodCandidate(input);
+  assert.equal(result.status,'BLOCKED_PERIOD_ALIGNMENT');
+  assert.equal(result.pat,null);
+});
