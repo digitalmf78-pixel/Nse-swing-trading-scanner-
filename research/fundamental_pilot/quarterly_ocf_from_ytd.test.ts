@@ -88,3 +88,38 @@ test('rejects impossible calendar dates without throwing',()=>{
   );
   assert.equal(r.status,'BLOCKED_PERIOD_ALIGNMENT');
 });
+
+test('blocks a short Q1 YTD window even when all four dates align year over year',()=>{
+  const r=deriveQuarterlyOcfFromYtd(
+    fact(100,'2026-04-01','2026-09-30'),
+    fact(40,'2026-04-01','2026-08-31'),
+    fact(80,'2025-04-01','2025-09-30'),
+    fact(30,'2025-04-01','2025-08-31'),
+  );
+  assert.equal(r.status,'BLOCKED_PERIOD_ALIGNMENT');
+  assert.equal(r.currentQuarterValue,null);
+});
+
+test('blocks a short H1 YTD window rather than deriving an incomplete quarter',()=>{
+  const r=deriveQuarterlyOcfFromYtd(
+    fact(100,'2026-04-01','2026-08-31'),
+    fact(40,'2026-04-01','2026-06-30'),
+    fact(80,'2025-04-01','2025-08-31'),
+    fact(30,'2025-04-01','2025-06-30'),
+  );
+  assert.equal(r.status,'BLOCKED_PERIOD_ALIGNMENT');
+  assert.equal(r.currentQuarterValue,null);
+});
+
+test('supports exact calendar windows for a non-April fiscal-year start',()=>{
+  const r=deriveQuarterlyOcfFromYtd(
+    fact(100,'2026-01-01','2026-06-30'),
+    fact(40,'2026-01-01','2026-03-31'),
+    fact(80,'2025-01-01','2025-06-30'),
+    fact(30,'2025-01-01','2025-03-31'),
+  );
+  assert.equal(r.status,'CANDIDATE_ONLY');
+  assert.equal(r.currentQuarterValue,60);
+  assert.equal(r.currentQuarterStart,'2026-04-01');
+  assert.equal(r.currentQuarterEnd,'2026-06-30');
+});
