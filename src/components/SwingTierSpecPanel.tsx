@@ -183,14 +183,15 @@ export const SwingTierSpecPanel: React.FC<SwingTierSpecPanelProps> = ({
                 </span>
               </div>
               <p className="text-[11px] text-slate-700 leading-relaxed">
-                <strong>Matlab:</strong> Aaj high volume ke saath green move aaya hai, lekin abhi 30D Delivery A/B ya EMA21 trend confirm nahi hua hai. Radar par rakhen.
+                <strong>Matlab:</strong> 30D Delivery A/B first filter pass ho chuka hai; aaj high volume ke saath green move aaya hai, lekin EMA21 / DelivQty alignment abhi confirm nahi hua. Radar par rakhen.
               </p>
               <ul className="space-y-1 text-[11px] font-mono text-slate-700 list-disc list-inside tabular-nums">
                 <li>20D Avg Turnover &gt;= ₹1.5 Cr (Liquid)</li>
+                <li>30D Delivery A OR B qualified (first filter)</li>
                 <li>20D RVOL &gt; 1.50x (Volume surge)</li>
                 <li>EOD Change % &gt; 0% (Green close)</li>
                 <li className="text-slate-500">
-                  Missing: 30D Delivery A/B or EMA21/DelivQty alignment
+                  Waiting for: EMA21 / DelivQty alignment
                 </li>
               </ul>
             </div>
@@ -198,11 +199,10 @@ export const SwingTierSpecPanel: React.FC<SwingTierSpecPanelProps> = ({
 
           <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-600 flex flex-wrap items-center justify-between gap-2">
             <span>
-              <strong>Selection Flow:</strong> Pehle <strong>T1</strong> (Ready) ya{' '}
-              <strong>T2</strong> (Accumulation) filter karo → 3M Result Gate &amp; Fundamental Audit (&gt;=4/7) check karo → Stock Detail me U-Turn Zone &amp; ATR Stop dekho.
+              <strong>Selection Flow:</strong> Pehle poore verified NSE Main Board par <strong>30D Delivery Cycle A OR B</strong> first filter → phir T1 / T2 / T3 → 3M Result Gate &amp; Fundamental Audit (&gt;=4/7) → Stock Detail me U-Turn Zone &amp; ATR Stop.
             </span>
             <span className="font-mono text-slate-500">
-              Delivery A = 5D Avg &gt;= 60% · Delivery B = Day Deliv &gt;= 60% (5+ sessions)
+              Cycle A = 30D me kam se kam 5 consecutive 5-session windows ka average &gt;= 60% · Cycle B = 30D me kam se kam 5 sessions ka delivery &gt;= 60% · A OR B
             </span>
           </div>
         </div>
