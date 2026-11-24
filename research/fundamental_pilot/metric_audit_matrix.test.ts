@@ -12,7 +12,7 @@ const allMetrics = {
   OPERATING_CASH_FLOW:'VALIDATED',
 } as const;
 
-test('non-financial matrix marks all explicitly defined industrial metrics candidate-only', () => {
+test('non-financial matrix keeps industrial Interest Coverage blocked pending issuer evidence', () => {
   const matrix=buildMetricAuditMatrix('NON_FINANCIAL',allMetrics);
   assert.equal(matrix.metrics.REVENUE_GROWTH.decision,'DATA_VALIDATED_FORMULA_CANDIDATE_ONLY');
   assert.equal(matrix.metrics.PROFIT_GROWTH.decision,'DATA_VALIDATED_FORMULA_CANDIDATE_ONLY');
@@ -20,11 +20,11 @@ test('non-financial matrix marks all explicitly defined industrial metrics candi
   assert.equal(matrix.metrics.ROE.decision,'DATA_VALIDATED_FORMULA_CANDIDATE_ONLY');
   assert.equal(matrix.metrics.ROCE.decision,'DATA_VALIDATED_FORMULA_CANDIDATE_ONLY');
   assert.equal(matrix.metrics.DEBT_EQUITY.decision,'DATA_VALIDATED_FORMULA_CANDIDATE_ONLY');
-  assert.equal(matrix.metrics.INTEREST_COVERAGE.decision,'DATA_VALIDATED_FORMULA_CANDIDATE_ONLY');
+  assert.equal(matrix.metrics.INTEREST_COVERAGE.decision,'FORMULA_BLOCKED_DEFINITION');
   assert.equal(matrix.productionApproved,false);
   assert.equal(matrix.readyForProduction,false);
-  assert.equal(matrix.candidateCount,7);
-  assert.equal(matrix.blockedCount,0);
+  assert.equal(matrix.candidateCount,6);
+  assert.equal(matrix.blockedCount,1);
 });
 
 test('absent metric is explicitly missing and never zero-filled', () => {
