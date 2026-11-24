@@ -2,14 +2,6 @@ name: Daily NSE Delivery Data and Dashboard
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/daily-delivery-dashboard.yml'
-      - 'scripts/update-delivery-dashboard.mjs'
-      - 'scripts/delivery-quality.mjs'
-      - 'scripts/delivery-quality.test.mjs'
-      - 'docs/index.html'
   schedule:
     - cron: "15 14 * * 1-5"
 
