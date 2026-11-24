@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: nse-swing-trading-scanner
+    runtime: node
+    region: singapore
+    plan: 1c-2g
+    buildCommand: npm install --include=dev && npm run audit:data && npm run test:fundamental-pilot && npm run lint && npm run build && node scripts/create-runtime-seed.mjs
+    startCommand: node scripts/prepare-runtime-data.mjs && ./node_modules/.bin/tsx server.ts
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_ENV
+        value: production
+    disk:
+      name: nse-scanner-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
