@@ -67,11 +67,21 @@ const INDUSTRIAL: Record<FundamentalMetric,Omit<MetricDefinitionPolicy,'metric'|
     caveats:['This narrow candidate definition excludes lease liabilities pending explicit accounting policy','For some sectors this generic ratio is not applicable or needs a sector-specific definition'],
   },
   INTEREST_COVERAGE: {
-    readiness:'CANDIDATE_ONLY',
-    candidateFormula:'EBIT for exact duration / finance costs for the same exact duration',
-    requiredFacts:['EBIT from an explicitly mapped statement row or reconciled PBT plus finance costs','FinanceCosts for the identical duration','Same filing basis and currency'],
-    hardGates:['Resolve EBIT/PBT concept and associate/JV treatment','Finance costs must be positive and from the same duration and basis','No mixing annual, TTM, quarter or YTD inputs','Reconcile both numerator and denominator to official statement rows'],
-    caveats:['PBT plus finance costs is only a candidate EBIT bridge after reconciliation','A zero or negative finance-cost denominator is not converted to an infinite or zero ratio'],
+    readiness:'BLOCKED_DEFINITION',
+    candidateFormula:null,
+    requiredFacts:[],
+    hardGates:[
+      'Obtain issuer-specific Interest Coverage / Interest Service Coverage formula from an official NSE filing or audited annual report',
+      'Prove the issuer-defined numerator and denominator separately for the exact filing basis and reporting duration',
+      'Reconcile every formula component to official statement rows and XBRL contexts',
+      'Do not substitute PBT plus FinanceCosts for EBIT unless the issuer explicitly defines and supports that exact bridge',
+      'Keep alternative issuer formulas (for example, income available for debt service) distinct; never relabel them generic EBIT',
+    ],
+    caveats:[
+      'Official NSE filings demonstrate materially different issuer definitions; no universal industrial formula is approved',
+      'Lease interest, exceptional items, associates/JVs and discontinued operations can change the issuer-specific calculation',
+      'A zero or negative denominator is blocked; no infinite or zero ratio is manufactured',
+    ],
   },
   OPERATING_CASH_FLOW: {
     readiness:'CANDIDATE_ONLY',
