@@ -105,3 +105,13 @@ export function assessNseSessionCompleteness(expectedDates, availableDates) {
   const missingDates = expected.filter(date => !available.has(date));
   return { complete: expected.length > 0 && missingDates.length === 0, expectedCount: expected.length, availableCount: expected.length - missingDates.length, missingDates };
 }
+
+export function lastNseTradingSessions(endDate, calendar, requiredCount = 200, lookbackCalendarDays = 500) {
+  if (!Number.isInteger(requiredCount) || requiredCount < 1) throw new Error('Required session count must be a positive integer');
+  if (!Number.isInteger(lookbackCalendarDays) || lookbackCalendarDays < requiredCount) throw new Error('Calendar lookback must be a positive integer at least as large as the session count');
+  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(String(endDate || ''))) throw new Error('Invalid NSE session end date');
+  const startDate = new Date(Date.parse(endDate + 'T00:00:00Z') - lookbackCalendarDays * 86_400_000).toISOString().slice(0, 10);
+  const sessions = expectedNseTradingSessions(startDate, endDate, calendar);
+  if (sessions.length < requiredCount) throw new Error('NSE calendar provides only ' + sessions.length + ' sessions; ' + requiredCount + ' required');
+  return sessions.slice(-requiredCount);
+}
