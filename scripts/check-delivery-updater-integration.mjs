@@ -8,6 +8,10 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const updater = path.join(repoRoot, 'scripts', 'update-delivery-dashboard.mjs');
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nse-delivery-dry-run-'));
 try {
+  const calendarSource = path.join(repoRoot, 'data', 'inputs', 'nse_trading_calendar.json');
+  const calendarTarget = path.join(tempRoot, 'data', 'inputs', 'nse_trading_calendar.json');
+  fs.mkdirSync(path.dirname(calendarTarget), { recursive: true });
+  fs.copyFileSync(calendarSource, calendarTarget);
   const run = spawnSync(process.execPath, [updater], {
     cwd: tempRoot,
     encoding: 'utf8',
@@ -24,6 +28,8 @@ try {
   if ((data.sessionDates || []).length !== 5) throw new Error('Expected five validated sessions');
   if (data.deliveryCycle?.windowCalendarDays !== 30 || data.deliveryCycle?.gate !== 'CYCLE_A_OR_CYCLE_B') throw new Error('30-day delivery cycle metadata is missing');
   if ((data.deliveryCycle?.sessionsChecked || 0) < 5) throw new Error('Insufficient historical sessions for 30-day cycle evaluation');
+  if (!Array.isArray(data.deliveryCycle?.missingSessions) || data.deliveryCycle.missingSessions.length !== 0) throw new Error('One or more expected NSE cycle sessions are missing');
+  if (data.deliveryCycle.expectedSessions !== data.deliveryCycle.sessionsChecked) throw new Error('NSE calendar expected-session count does not match validated Bhavcopy sessions');
   if (data.deliveryCycle?.gate !== 'CYCLE_A_OR_CYCLE_B') throw new Error('Full Main Board A/B first-filter gate missing');
   if (data.freshnessStatus !== 'FRESH') throw new Error('Latest EOD session is not marked FRESH');
   if (!['READY', 'READY_WITH_WARNINGS'].includes(data.status)) throw new Error('Unexpected updater status: ' + data.status);
