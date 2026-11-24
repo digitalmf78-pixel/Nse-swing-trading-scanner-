@@ -9,6 +9,7 @@ const UA = 'Mozilla/5.0 (compatible; NSE-Delivery-Dashboard/1.0)';
 const MAINBOARD_URL = 'https://nsearchives.nseindia.com/content/equities/EQUITY_L.csv';
 const MAINBOARD_FILE = path.join(CACHE, 'EQUITY_L.csv');
 const CALENDAR_FILE = path.join(ROOT, 'data', 'inputs', 'nse_trading_calendar.json');
+const HISTORY_STATUS_FILE = path.join(ROOT, 'data', 'cache', 'bhavcopy-200d', 'status.json');
 const LIQUIDITY_REVIEW_THRESHOLD = 1000;
 const MAX_FRESHNESS_AGE_DAYS = 7;
 fs.mkdirSync(CACHE, { recursive: true });
@@ -138,7 +139,11 @@ const latestFiveMissing = expectedLatestFive.filter(date => !validByDate.has(dat
 const sessionWindowComplete = !calendarError && latestFiveMissing.length === 0 && cycleCompleteness.complete && sessions.length === 5;
 const freshness = assessFreshness(sessions.at(-1)?.iso || null, today, MAX_FRESHNESS_AGE_DAYS);
 const mainboard = await loadMainboardMaster();
+let historyCache = { status: 'NOT_INITIALIZED', requiredTradingSessions: 200, availableSessions: 0, missingSessions: [] };
+try { if (fs.existsSync(HISTORY_STATUS_FILE)) historyCache = JSON.parse(fs.readFileSync(HISTORY_STATUS_FILE, 'utf8')); }
+catch (error) { console.log('200-session cache status could not be read: ' + error.message); }
 const payload = {
+  historyCache,
   generatedAtUtc: new Date().toISOString(),
   lastAttemptAtUtc: attemptAtUtc,
   todayIst: today,
