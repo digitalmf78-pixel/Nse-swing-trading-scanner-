@@ -6,12 +6,14 @@ on:
       - 'scripts/delivery-quality.mjs'
       - 'scripts/delivery-quality.test.mjs'
       - 'scripts/update-delivery-dashboard.mjs'
+      - 'docs/index.html'
   push:
     branches: [main]
     paths:
       - 'scripts/delivery-quality.mjs'
       - 'scripts/delivery-quality.test.mjs'
       - 'scripts/update-delivery-dashboard.mjs'
+      - 'docs/index.html'
 
 permissions:
   contents: read
@@ -26,5 +28,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Check dashboard updater syntax
+        run: node --check scripts/update-delivery-dashboard.mjs
       - name: Run delivery quality tests
         run: node --test scripts/delivery-quality.test.mjs
