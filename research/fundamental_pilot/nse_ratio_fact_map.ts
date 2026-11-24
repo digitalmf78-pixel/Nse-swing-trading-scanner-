@@ -69,6 +69,11 @@ export function resolveNseRatioFactMap(
   for(const role of REQUIRED[metric]) {
     let wanted=ROLE_NAMES[role];
     if(role==='PROFIT_NUMERATOR') wanted=[basis==='CONSOLIDATED'?'ProfitOrLossAttributableToOwnersOfParent':'ProfitLossForPeriod'];
+    // Consolidated total equity must include non-controlling interests. Owner-attributable
+    // equity is a distinct statement row and must never substitute for total equity.
+    if(role==='TOTAL_EQUITY') wanted=basis==='CONSOLIDATED'
+      ? ['Equity']
+      : ['Equity','EquityAttributableToOwnersOfParent'];
     const found=[...new Set(extraction.facts.map(f=>f.concept.trim()).filter(q=>wanted.some(n=>localName(q)===n.toLowerCase())))].sort();
     if(found.length===0) missingRoles.push(role);
     else if(found.length>1) ambiguousRoles.push(role);

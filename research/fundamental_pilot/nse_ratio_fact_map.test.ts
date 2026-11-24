@@ -21,6 +21,20 @@ test('maps exact observed standalone concepts to candidate roles without approvi
   assert.equal(result.productionApproved,false);
 });
 
+test('consolidated debt/equity blocks when only owners-of-parent equity is present',()=>{
+  const result=resolveNseRatioFactMap('DEBT_EQUITY','NON_FINANCIAL','CONSOLIDATED',filing('CONSOLIDATED'));
+  assert.equal(result.status,'BLOCKED_MISSING_CONCEPT');
+  assert.deepEqual(result.missingRoles,['TOTAL_EQUITY']);
+});
+
+test('consolidated debt/equity uses total equity, not owners-of-parent equity',()=>{
+  const f=filing('CONSOLIDATED');
+  f.facts.push({...f.facts[0],concept:'in-capmkt:Equity'});
+  const result=resolveNseRatioFactMap('DEBT_EQUITY','NON_FINANCIAL','CONSOLIDATED',f);
+  assert.equal(result.status,'CANDIDATE_FACT_MAP');
+  assert.equal(result.concepts.TOTAL_EQUITY,'in-capmkt:Equity');
+});
+
 test('consolidated ROE requires owners-of-parent profit, never unallocated group profit',()=>{
   const result=resolveNseRatioFactMap('ROE','NON_FINANCIAL','CONSOLIDATED',filing('CONSOLIDATED'));
   assert.equal(result.status,'CANDIDATE_FACT_MAP');
