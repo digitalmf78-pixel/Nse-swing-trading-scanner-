@@ -35,9 +35,16 @@ for (let offset = 14; offset >= 0; offset -= 1) {
     const ix = Object.fromEntries(['SYMBOL','SERIES','DATE1','CLOSE_PRICE','TTL_TRD_QNTY','DELIV_QTY','DELIV_PER'].map(k => [k, headers.indexOf(k)]));
     if (Object.values(ix).some(v => v < 0)) continue;
     if (parseDate(parseCsvLine(lines[1])[ix.DATE1]) !== iso) continue;
-    const eqRows = lines.slice(1).map(parseCsvLine).filter(row => row[ix.SERIES]?.trim() === 'EQ' && row[ix.SYMBOL]?.trim());
-    if (eqRows.length < 100) continue;
-    sessions.push({ date: iso, rows: eqRows.length, bytes: Buffer.byteLength(csv) });
+    const eqRows = lines.slice(1).map(parseCsvLine).filter(row => {
+      if (row[ix.SERIES]?.trim() !== 'EQ' || !row[ix.SYMBOL]?.trim()) return false;
+      const close = Number(row[ix.CLOSE_PRICE]);
+      const volume = Number(row[ix.TTL_TRD_QNTY]);
+      const deliveryQty = Number(String(row[ix.DELIV_QTY]).replace(/,/g, ''));
+      const deliveryPct = Number(row[ix.DELIV_PER]);
+      return [close, volume, deliveryQty, deliveryPct].every(Number.isFinite) && close >= 0 && volume >= 0 && deliveryQty >= 0 && deliveryPct >= 0;
+    });
+    if (eqRows.length < 1000) continue;
+    sessions.push({ date: iso, validEqRows: eqRows.length, bytes: Buffer.byteLength(csv) });
   } catch (error) {
     attempts.push({ date: iso, error: error.message });
   }
