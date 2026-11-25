@@ -379,3 +379,18 @@ test('corrupt candidate cache is preserved and never silently replaced with an e
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+
+test('duration classifier rejects impossible, malformed and non-increasing calendar dates',()=>{
+  assert.equal(classifyNsePeriodType('2026-02-30','2026-06-30'),null);
+  assert.equal(classifyNsePeriodType('2026-04-01','2026-02-30'),null);
+  assert.equal(classifyNsePeriodType('2026-4-01','2026-06-30'),null);
+  assert.equal(classifyNsePeriodType('2026-04-01T00:00:00Z','2026-06-30'),null);
+  assert.equal(classifyNsePeriodType('2026-04-01','2026-04-01'),null);
+  assert.equal(classifyNsePeriodType('2026-04-02','2026-04-01'),null);
+});
+
+test('duration classifier accepts real leap-year dates but rejects invalid leap days',()=>{
+  assert.equal(classifyNsePeriodType('2024-02-29','2024-05-31'),'QUARTER');
+  assert.equal(classifyNsePeriodType('2025-02-29','2025-05-31'),null);
+});
