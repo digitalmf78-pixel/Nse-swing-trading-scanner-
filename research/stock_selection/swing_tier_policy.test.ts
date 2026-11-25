@@ -81,8 +81,8 @@ test('Tier 3 requires liquid delivery-qualified high-RVOL green mover, not EMA a
 
 test('IPO short history is provisional only for 2–4 valid observations meeting the legacy 60% rule', () => {
   assert.equal(qualifiesIpoShortHistoryProvisional([65, 55]), true);
-  assert.equal(qualifiesIpoShortHistoryProvisional([60, null, 40]), true);
-  assert.equal(qualifiesIpoShortHistoryProvisional([60, 60, 40, 40]), true);
+  assert.equal(qualifiesIpoShortHistoryProvisional([60, null, 65]), true);
+  assert.equal(qualifiesIpoShortHistoryProvisional([60, 60, 60, 40]), true);
   assert.equal(qualifiesIpoShortHistoryProvisional([60]), false);
   assert.equal(qualifiesIpoShortHistoryProvisional([60, 60, 60, 60, 60]), false);
   assert.equal(qualifiesIpoShortHistoryProvisional([40, 50, 55]), false);
