@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { classifySwingTier, countConsecutiveQualifyingRolling5SessionWindows } from '../research/stock_selection/swing_tier_policy.ts';
+import { classifySwingTier, countConsecutiveQualifyingRolling5SessionWindows, qualifiesIpoShortHistoryProvisional } from '../research/stock_selection/swing_tier_policy.ts';
 import path from 'node:path';
 import { parseBhavDateToIso, parseCsvRecords, toNum } from './csvParser.ts';
 import { classifyMarketCap, toIstDateIso } from './liveFetcher.ts';
@@ -1464,6 +1464,13 @@ class NsePipelineEngine {
       const dailyGt60Count = delivSlice.dailyGt60Count;
       const valid30dCount = delivSlice.valid30dCount;
       const computedCategory = delivSlice.deliveryCategory;
+      const ipoShortHistoryValues = seriesHistory
+        .filter((row) => row.date >= new Date(Date.parse(this.latestSessionDate + 'T00:00:00Z') - 29 * 86400000).toISOString().slice(0, 10))
+        .map((row) => row.delivPer);
+      const ipoProvisional = isIpo &&
+        valid30dCount >= 2 &&
+        valid30dCount < 5 &&
+        qualifiesIpoShortHistoryProvisional(ipoShortHistoryValues, 60);
 
       const dynamicStreak=this.computeDynamicStreak(seriesHistory);
       const deliveryCategory:DeliveryCategory=computedCategory;
@@ -1737,7 +1744,7 @@ class NsePipelineEngine {
         delivQtyRatio,
         delivValueCr,
         deliveryCategory,
-        deliveryStatus: deliveryDataWarning || dynamicStreak?.deliveryStatus || deliveryCategory,
+        deliveryStatus: deliveryDataWarning || (ipoProvisional ? 'IPO_PROVISIONAL' : dynamicStreak?.deliveryStatus || deliveryCategory),
         rolling5dGt60Count,
         dailyGt60Count,
         valid30dSessions: valid30dCount,
@@ -3205,20 +3212,11 @@ class NsePipelineEngine {
       const rolling5dGt60Count =
         countConsecutiveQualifyingRolling5SessionWindows(deliveryValues, 60);
 
-      let isDeliveryAB = false;
-      if (validDeliveryValues.length < 5) {
-        if (isIpo && validDeliveryValues.length >= 2) {
-          const avgDelivShort =
-            validDeliveryValues.reduce((acc, value) => acc + value, 0) /
-            validDeliveryValues.length;
-          const passA = avgDelivShort >= 60.0;
-          const passB =
-            dailyGt60Count >= Math.ceil(validDeliveryValues.length * 0.6);
-          isDeliveryAB = passA || passB;
-        }
-      } else {
-        isDeliveryAB = rolling5dGt60Count >= 5 || dailyGt60Count >= 5;
-      }
+      // IPO short-history qualification is display-only (IPO_PROVISIONAL).
+      // Historical T1/T2 snapshots use the same full Delivery A/B gate as live tiers.
+      const isDeliveryAB =
+        validDeliveryValues.length >= 5 &&
+        (rolling5dGt60Count >= 5 || dailyGt60Count >= 5);
       if (!isDeliveryAB) continue;
 
       const minLiqLookback = isIpo ? 2 : 20;
