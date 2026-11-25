@@ -107,10 +107,9 @@ test('blocks arbitrary standalone profit concepts even when standalone attributi
   }),/exact ProfitLossForPeriod/);
 });
 
-test('does not guess a taxonomy concept when issuer mapping is absent',()=>{
-  const report=buildSevenMetricXbrlPipeline('NON_FINANCIAL',current,prior,{
-    ...concepts,revenue:'in-capmkt:RevenueFromOperations',
-  });
+test('does not guess a taxonomy concept when the mapped revenue fact is absent',()=>{
+  const noRevenue={...current,extraction:extraction('2026-04-01','2026-09-30',{profit:120,ocf:150})};
+  const report=buildSevenMetricXbrlPipeline('NON_FINANCIAL',noRevenue,prior,concepts);
   assert.equal(report.currentSelections.revenue.status,'MISSING_CONCEPT');
   assert.equal(report.candidateReport.auditMatrix.metrics.REVENUE_GROWTH.decision,'DATA_MISSING');
 });
