@@ -78,3 +78,32 @@ test('rejects ambiguous single-period original filings',()=>{
     row('30-JUN-2026','184852'),row('30-JUN-2026','184853'),
   ],{symbol:'KSHINTL',basis:'Standalone',period:'30-JUN-2026'}),/Ambiguous original NSE filings/);
 });
+
+
+test('rejects malformed or impossible NSE period dates in filing-pair requests', () => {
+  for (const invalid of ['31-FEB-2026', '29-FEB-2025', '00-JAN-2026', '01-FOO-2026', '1-JAN-2026', '01-JAN-26']) {
+    assert.throws(() => resolveOriginalNseFilingPair([], {
+      ...request, currentPeriod: invalid,
+    }), /Invalid NSE filing-pair request/);
+  }
+});
+
+test('accepts a real leap-day period and rejects a non-leap-year day', () => {
+  const leap = row('29-FEB-2024', '300001');
+  const prior = row('28-FEB-2023', '300002');
+  const pair = resolveOriginalNseFilingPair([leap, prior], {
+    ...request, currentPeriod: '29-FEB-2024', priorPeriod: '28-FEB-2023',
+  });
+  assert.equal(pair.current.seq_Id, '300001');
+  assert.throws(() => findUniqueOriginalNseFiling([], {
+    symbol: 'KSHINTL', basis: 'Standalone', period: '29-FEB-2025',
+  }), /Invalid NSE single-filing request/);
+});
+
+test('single-filing lookup rejects impossible, lowercase and non-padded period dates', () => {
+  for (const period of ['31-APR-2026', '30-sep-2026', '1-SEP-2026']) {
+    assert.throws(() => findUniqueOriginalNseFiling([], {
+      symbol: 'KSHINTL', basis: 'Standalone', period,
+    }), /Invalid NSE single-filing request/);
+  }
+});
