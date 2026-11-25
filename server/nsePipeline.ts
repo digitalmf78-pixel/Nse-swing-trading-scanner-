@@ -871,7 +871,7 @@ class NsePipelineEngine {
     const sessions=this.expectedNseSessions(from,asOfDate),byDate=new Map(seriesSlice.map(r=>[r.date,r]));
     const values=sessions.map(d=>{const v=byDate.get(d)?.delivPer;return v!==null&&v!==undefined&&Number.isFinite(v)?v:null;});
     let dailyGt60Count=0;
-    for(const value of values){if(value!==null&&value>=60)dailyGt60Count++;}
+    for(const value of values){if(value!==null&&Number.isFinite(value)&&value>=60&&value<=100)dailyGt60Count++;}
     // Cycle A: the five-session rolling average must qualify for five
     // consecutive windows; separated qualifying windows cannot be combined.
     const rolling5dGt60Count=countConsecutiveQualifyingRolling5SessionWindows(values,60);
