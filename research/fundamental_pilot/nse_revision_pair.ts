@@ -101,7 +101,8 @@ export function resolveOriginalRevisionHistory(
     }
     return parsed;
   };
-  revisions.sort((a,b)=>timestamp(a)-timestamp(b));
+  const revisionTimes=new Map(revisions.map(row=>[row,timestamp(row)]));
+  revisions.sort((a,b)=>(revisionTimes.get(a) as number)-(revisionTimes.get(b) as number));
   return { original: originals[0], revisions, apiDuplicateRows };
 }
 
