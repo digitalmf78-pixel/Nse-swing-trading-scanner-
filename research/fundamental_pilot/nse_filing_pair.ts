@@ -37,7 +37,7 @@ const NSE_MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT',
 /** NSE filing period dates use DD-MMM-YYYY; reject normalized/impossible dates. */
 function isValidNsePeriodDate(value: unknown): value is string {
   if (typeof value !== 'string') return false;
-  const match = /^(\\d{2})-([A-Z]{3})-(\\d{4})$/.exec(value);
+  const match = /^(\d{2})-([A-Z]{3})-(\d{4})$/.exec(value);
   if (!match) return false;
   const day = Number(match[1]);
   const month = NSE_MONTHS.indexOf(match[2] as typeof NSE_MONTHS[number]);
