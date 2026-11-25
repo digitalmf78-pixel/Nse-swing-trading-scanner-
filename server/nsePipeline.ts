@@ -1459,54 +1459,46 @@ class NsePipelineEngine {
 
       // Filter history strictly to latest's series for delivery integrity
       const seriesHistory = history.filter((d) => d.series === latest.series);
-      const delivSlice = this.computeDeliveryAtSlice(seriesHistory, this.latestSessionDate);
-      const rolling5dGt60Count = delivSlice.rolling5dGt60Count;
-      const dailyGt60Count = delivSlice.dailyGt60Count;
-      const valid30dCount = delivSlice.valid30dCount;
-      const computedCategory = delivSlice.deliveryCategory;
-
-      const dynamicStreak=this.computeDynamicStreak(seriesHistory);
-      const deliveryCategory:DeliveryCategory=computedCategory;
-      const fiveDates=this.sessionDates.filter(d=>d<=latest.date).slice(-5),byDate=new Map(seriesHistory.map(r=>[r.date,r.delivPer]));
-      const fiveValues=fiveDates.map(d=>byDate.get(d)??null);
-      const numericFiveValues=fiveValues.filter((v):v is number=>v!==null&&Number.isFinite(v));
-      const avgDeliv5D=numericFiveValues.length===5?numericFiveValues.reduce((sum,v)=>sum+v,0)/5:null;
-      const deliveryDataWarning=this.deliveryWindowStatus(this.latestSessionDate);
-
-      // 20-Session RVOL (prior 20 sessions excluding latest; adaptive lookback >=2 for IPO stocks)
-      const priorSessions = history.slice(0, -1);
-      let rvol: number | null = null;
-      let rvolBand: RvolBand = 'WAIT_FOR_DATA';
-      let delivQtyRatio: number | null = null;
-      const minRvolLookback = isIpo ? 2 : 20;
-      if (priorSessions.length >= minRvolLookback) {
-        const prevWindow = priorSessions.slice(-20);
-        const avgVol = prevWindow.reduce((acc, s) => acc + s.volume, 0) / prevWindow.length;
-        if (avgVol > 0) {
-          rvol = latest.volume / avgVol;
-          rvolBand = rvol > 1.5 ? 'HIGH' : 'LOW';
-        }
-        const prevDeliv = prevWindow
-          .map((s) => s.delivQty)
-          .filter((q): q is number => q !== null && q > 0);
-        const minDelivCount = isIpo ? 2 : 10;
-        if (prevDeliv.length >= minDelivCount && latest.delivQty !== null) {
-          const avgDelivQty = prevDeliv.reduce((a, b) => a + b, 0) / prevDeliv.length;
-          if (avgDelivQty > 0) {
-            delivQtyRatio = latest.delivQty / avgDelivQty;
-          }
-        }
+      const seriesByDate = new Map(seriesHistory.map((d) => [d.date, d]));
+      const startDate = new Date(cutoff30dMs).toISOString().slice(0, 10);
+      let expectedDates: string[];
+      try {
+        expectedDates = this.expectedNseSessions(startDate, targetDate);
+      } catch {
+        continue;
       }
-
-      const delivValueCr =
-        latest.delivQty !== null && latest.close !== null
-          ? (latest.delivQty * latest.close) / 1e7
+      const deliveryValues = expectedDates.map((date) => {
+        const value = seriesByDate.get(date)?.delivPer;
+        return value !== null && value !== undefined &&
+          Number.isFinite(value) && value >= 0 && value <= 100
+          ? value
           : null;
+      });
+      const validDeliveryValues = deliveryValues.filter(
+        (value): value is number => value !== null
+      );
+      const dailyGt60Count = deliveryValues.filter(
+        (value) => value !== null && value >= 60
+      ).length;
+      const rolling5dGt60Count =
+        countConsecutiveQualifyingRolling5SessionWindows(deliveryValues, 60);
 
-      // 20-Session Liquidity Check (adaptive >=2 sessions for IPO stocks)
-      let avgTurnover20DCr: number | null = null;
-      let liquidityTier: LiquidityTier = 'WAIT_FOR_DATA';
-      let liquidityPass = false;
+      let isDeliveryAB = false;
+      if (validDeliveryValues.length < 5) {
+        if (isIpo && validDeliveryValues.length >= 2) {
+          const avgDelivShort =
+            validDeliveryValues.reduce((acc, value) => acc + value, 0) /
+            validDeliveryValues.length;
+          const passA = avgDelivShort >= 60.0;
+          const passB =
+            dailyGt60Count >= Math.ceil(validDeliveryValues.length * 0.6);
+          isDeliveryAB = passA || passB;
+        }
+      } else {
+        isDeliveryAB = rolling5dGt60Count >= 5 || dailyGt60Count >= 5;
+      }
+      if (!isDeliveryAB) continue;
+
       const minLiqLookback = isIpo ? 2 : 20;
       if (history.length >= minLiqLookback) {
         const liqWindow = history.slice(-20);
@@ -3251,7 +3243,16 @@ class NsePipelineEngine {
       const ema21Series = this.computeEmaSeries(closes, emaPeriod);
       const ema21 = ema21Series[ema21Series.length - 1] ?? null;
       const aboveEma21 = ema21 !== null ? latest.close > ema21 : null;
-      if (aboveEma21 !== true) continue;
+      const ema21FullSeries = closes.length >= 21 ? this.computeEmaSeries(closes, 21) : [];
+      const ema44Series = closes.length >= 44 ? this.computeEmaSeries(closes, 44) : [];
+      const ema21Strict = ema21FullSeries.length > 0
+        ? (ema21FullSeries[ema21FullSeries.length - 1] ?? null)
+        : null;
+      const ema44 = ema44Series.length > 0
+        ? (ema44Series[ema44Series.length - 1] ?? null)
+        : null;
+      const ema21AboveEma44 =
+        ema21Strict !== null && ema44 !== null ? ema21Strict > ema44 : null;
 
       const rsi14 =
         closes.length >= 15
@@ -3264,16 +3265,20 @@ class NsePipelineEngine {
           ? ((latest.close - latest.prevClose) / latest.prevClose) * 100
           : null;
 
-      let swingTier: 'TIER_1_READY' | 'TIER_2_ACCUMULATION' = 'TIER_2_ACCUMULATION';
+      const swingTier = classifySwingTier({
+        liquidityPass: true,
+        deliveryQualified: isDeliveryAB,
+        ema21AboveEma44: ema21AboveEma44 === true,
+        aboveEma21: aboveEma21 === true,
+        deliveryQuantityRatio: delivQtyRatio,
+        relativeVolume: rvol,
+        changePct,
+        rsi14,
+      });
       if (
-        rvolBand === 'HIGH' &&
-        (changePct ?? 0) > 0 &&
-        rsi14 !== null &&
-        rsi14 >= 45 &&
-        rsi14 <= 78
-      ) {
-        swingTier = 'TIER_1_READY';
-      }
+        swingTier !== 'TIER_1_READY' &&
+        swingTier !== 'TIER_2_ACCUMULATION'
+      ) continue;
 
       out.push({
         symbol: sym,
