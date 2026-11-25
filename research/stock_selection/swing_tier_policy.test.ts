@@ -13,14 +13,14 @@ test('Cycle A passes only after five consecutive qualifying rolling windows', ()
 
 test('Cycle A does not combine separated qualifying windows into a pass', () => {
   const values = [60, 60, 60, 60, 60, 40, 60, 60, 60, 60, 60, 40, 60, 60, 60, 60, 60];
-  assert.equal(countConsecutiveQualifyingRolling5SessionWindows(values), 5);
+  assert.equal(countConsecutiveQualifyingRolling5SessionWindows(values), 1);
   const separated = [60, 60, 60, 60, 60, 40, 40, 40, 40, 60, 60, 60, 60, 60];
   assert.equal(countConsecutiveQualifyingRolling5SessionWindows(separated), 1);
 });
 
 test('Cycle A resets on missing or invalid delivery observations', () => {
-  assert.equal(countConsecutiveQualifyingRolling5SessionWindows([60, 60, 60, 60, null, 60, 60, 60, 60, 60]), 2);
-  assert.equal(countConsecutiveQualifyingRolling5SessionWindows([60, 60, 60, 60, Number.NaN, 60, 60, 60, 60, 60]), 2);
+  assert.equal(countConsecutiveQualifyingRolling5SessionWindows([60, 60, 60, 60, null, 60, 60, 60, 60, 60]), 1);
+  assert.equal(countConsecutiveQualifyingRolling5SessionWindows([60, 60, 60, 60, Number.NaN, 60, 60, 60, 60, 60]), 1);
 });
 
 test('Tier 1 requires every breakout confirmation', () => {
