@@ -21,8 +21,9 @@ test('Cycle A does not combine separated qualifying windows into a pass', () => 
 test('Cycle A resets on missing or invalid delivery observations', () => {
   assert.equal(countConsecutiveQualifyingRolling5SessionWindows([60, 60, 60, 60, null, 60, 60, 60, 60, 60]), 1);
   assert.equal(countConsecutiveQualifyingRolling5SessionWindows([60, 60, 60, 60, Number.NaN, 60, 60, 60, 60, 60]), 1);
-  assert.equal(countConsecutiveQualifyingRolling5SessionWindows([60, 60, 60, 60, 101, 60, 60, 60, 60, 60]), 0);
-  assert.equal(countConsecutiveQualifyingRolling5SessionWindows([60, 60, 60, 60, -1, 60, 60, 60, 60, 60]), 0);
+  // Out-of-range observations break the prior run; five new valid sessions can qualify one new window.
+  assert.equal(countConsecutiveQualifyingRolling5SessionWindows([60, 60, 60, 60, 101, 60, 60, 60, 60, 60]), 1);
+  assert.equal(countConsecutiveQualifyingRolling5SessionWindows([60, 60, 60, 60, -1, 60, 60, 60, 60, 60]), 1);
 });
 
 test('Cycle A rejects invalid thresholds outside the delivery percentage range', () => {
