@@ -69,6 +69,14 @@ jobs:
       - name: NSE XBRL fundamental pilot tests
         run: npm run test:fundamental-pilot
 
+      - name: Stock selection policy tests
+        run: npm run test:stock-selection
+
+      - name: Validate cached 30-day NSE delivery A/B universe
+        run: |
+          mkdir -p validation-artifact
+          npm run validate:stock-selection-data | tee validation-artifact/stock-selection-data-report.json
+
       - name: TypeScript validation
         id: typecheck
         run: npm run lint
@@ -104,6 +112,6 @@ jobs:
           name: scanner-validation-${{ github.sha }}
           path: |
             dist/
-            validation-artifact/*.md
+            validation-artifact/*
           if-no-files-found: warn
           retention-days: 14

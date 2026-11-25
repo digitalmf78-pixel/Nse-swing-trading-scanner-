@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { classifySwingTier, countConsecutiveQualifyingRolling5SessionWindows, qualifiesIpoShortHistoryProvisional } from '../research/stock_selection/swing_tier_policy.ts';
 import path from 'node:path';
 import { parseBhavDateToIso, parseCsvRecords, toNum } from './csvParser.ts';
 import { classifyMarketCap, toIstDateIso } from './liveFetcher.ts';
@@ -868,12 +869,12 @@ class NsePipelineEngine {
     if(this.deliveryWindowStatus(asOfDate))return{deliveryCategory:'WAIT_FOR_DATA',rolling5dGt60Count:0,dailyGt60Count:0,valid30dCount:0};
     const ms=Date.parse(asOfDate+'T00:00:00Z'),from=new Date(ms-29*86400000).toISOString().slice(0,10);
     const sessions=this.expectedNseSessions(from,asOfDate),byDate=new Map(seriesSlice.map(r=>[r.date,r]));
-    const values=sessions.map(d=>{const v=byDate.get(d)?.delivPer;return v!==null&&v!==undefined&&Number.isFinite(v)?v:null;});
-    let dailyGt60Count=0,rolling5dGt60Count=0;
-    for(let i=0;i<values.length;i++){
-      const v=values[i];if(v!==null&&v>=60)dailyGt60Count++;
-      if(i>=4){const w=values.slice(i-4,i+1);if(w.every((x):x is number=>x!==null)&&w.reduce((a,x)=>a+x,0)/5>=60)rolling5dGt60Count++;}
-    }
+    const values=sessions.map(d=>{const v=byDate.get(d)?.delivPer;return v!==null&&v!==undefined&&Number.isFinite(v)&&v>=0&&v<=100?v:null;});
+    let dailyGt60Count=0;
+    for(const value of values){if(value!==null&&Number.isFinite(value)&&value>=60&&value<=100)dailyGt60Count++;}
+    // Cycle A: the five-session rolling average must qualify for five
+    // consecutive windows; separated qualifying windows cannot be combined.
+    const rolling5dGt60Count=countConsecutiveQualifyingRolling5SessionWindows(values,60);
     const A=rolling5dGt60Count>=5,B=dailyGt60Count>=5;
     const deliveryCategory:DeliveryCategory=A&&B?'A_AND_B':A?'A_ONLY':B?'B_ONLY':'NONE';
     return{deliveryCategory,rolling5dGt60Count,dailyGt60Count,valid30dCount:values.filter(v=>v!==null).length};
@@ -1463,6 +1464,13 @@ class NsePipelineEngine {
       const dailyGt60Count = delivSlice.dailyGt60Count;
       const valid30dCount = delivSlice.valid30dCount;
       const computedCategory = delivSlice.deliveryCategory;
+      const ipoShortHistoryValues = seriesHistory
+        .filter((row) => row.date >= new Date(Date.parse(this.latestSessionDate + 'T00:00:00Z') - 29 * 86400000).toISOString().slice(0, 10))
+        .map((row) => row.delivPer);
+      const ipoProvisional = isIpo &&
+        valid30dCount >= 2 &&
+        valid30dCount < 5 &&
+        qualifiesIpoShortHistoryProvisional(ipoShortHistoryValues, 60);
 
       const dynamicStreak=this.computeDynamicStreak(seriesHistory);
       const deliveryCategory:DeliveryCategory=computedCategory;
@@ -1627,32 +1635,16 @@ class NsePipelineEngine {
         deliveryCategory === 'A_ONLY' ||
         deliveryCategory === 'B_ONLY';
 
-      let swingTier: SwingTier = 'NONE';
-      const strictTrendPass = ema21AboveEma44 === true;
-      if (
-        strictTrendPass &&
-        liquidityPass &&
-        isDeliveryAB &&
-        rvolBand === 'HIGH' &&
-        (changePct ?? 0) > 0 &&
-        aboveEma21 === true &&
-        (delivQtyRatio ?? 0) >= 1.2 &&
-        rsi14 !== null &&
-        rsi14 >= 45 &&
-        rsi14 <= 78
-      ) {
-        swingTier = 'TIER_1_READY';
-      } else if (
-        strictTrendPass &&
-        liquidityPass &&
-        isDeliveryAB &&
-        aboveEma21 === true &&
-        ((delivQtyRatio ?? 0) >= 1.2 || rvolBand === 'HIGH')
-      ) {
-        swingTier = 'TIER_2_ACCUMULATION';
-      } else if (strictTrendPass && liquidityPass && isDeliveryAB && rvolBand === 'HIGH' && (changePct ?? 0) > 0) {
-        swingTier = 'TIER_3_RVOL_WATCH';
-      }
+      const swingTier: SwingTier = classifySwingTier({
+        liquidityPass,
+        deliveryQualified: isDeliveryAB,
+        ema21AboveEma44: ema21AboveEma44 === true,
+        aboveEma21: aboveEma21 === true,
+        deliveryQuantityRatio: delivQtyRatio,
+        relativeVolume: rvol,
+        changePct,
+        rsi14,
+      });
 
       const fund = this.fundamentalsBySymbol.get(sym);
       const symSignals = this.signalsBySymbol.get(sym);
@@ -1752,7 +1744,7 @@ class NsePipelineEngine {
         delivQtyRatio,
         delivValueCr,
         deliveryCategory,
-        deliveryStatus: deliveryDataWarning || dynamicStreak?.deliveryStatus || deliveryCategory,
+        deliveryStatus: deliveryDataWarning || (ipoProvisional ? 'IPO_PROVISIONAL' : dynamicStreak?.deliveryStatus || deliveryCategory),
         rolling5dGt60Count,
         dailyGt60Count,
         valid30dSessions: valid30dCount,
@@ -3196,39 +3188,35 @@ class NsePipelineEngine {
         );
 
       const seriesHistory = history.filter((d) => d.series === latest.series);
-      const window30d = seriesHistory.filter((d) => {
-        const ms = Date.parse(`${d.date}T00:00:00Z`);
-        return ms >= cutoff30dMs && d.delivPer !== null;
+      const seriesByDate = new Map(seriesHistory.map((d) => [d.date, d]));
+      const startDate = new Date(cutoff30dMs).toISOString().slice(0, 10);
+      let expectedDates: string[];
+      try {
+        expectedDates = this.expectedNseSessions(startDate, targetDate);
+      } catch {
+        continue;
+      }
+      const deliveryValues = expectedDates.map((date) => {
+        const value = seriesByDate.get(date)?.delivPer;
+        return value !== null && value !== undefined &&
+          Number.isFinite(value) && value >= 0 && value <= 100
+          ? value
+          : null;
       });
+      const validDeliveryValues = deliveryValues.filter(
+        (value): value is number => value !== null
+      );
+      const dailyGt60Count = deliveryValues.filter(
+        (value) => value !== null && value >= 60
+      ).length;
+      const rolling5dGt60Count =
+        countConsecutiveQualifyingRolling5SessionWindows(deliveryValues, 60);
 
-      let dailyGt60Count = 0;
-      let rolling5dGt60Count = 0;
-      for (let i = 0; i < window30d.length; i++) {
-        if ((window30d[i].delivPer ?? 0) >= 60.0) dailyGt60Count++;
-        if (i >= 4) {
-          const avg5 =
-            ((window30d[i - 4].delivPer ?? 0) +
-              (window30d[i - 3].delivPer ?? 0) +
-              (window30d[i - 2].delivPer ?? 0) +
-              (window30d[i - 1].delivPer ?? 0) +
-              (window30d[i].delivPer ?? 0)) /
-            5;
-          if (avg5 >= 60.0) rolling5dGt60Count++;
-        }
-      }
-
-      let isDeliveryAB = false;
-      if (window30d.length < 5) {
-        if (isIpo && window30d.length >= 2) {
-          const avgDelivShort =
-            window30d.reduce((acc, d) => acc + (d.delivPer ?? 0), 0) / window30d.length;
-          const passA = avgDelivShort >= 60.0;
-          const passB = dailyGt60Count >= Math.ceil(window30d.length * 0.6);
-          isDeliveryAB = passA || passB;
-        }
-      } else {
-        isDeliveryAB = rolling5dGt60Count >= 5 || dailyGt60Count >= 5;
-      }
+      // IPO short-history qualification is display-only (IPO_PROVISIONAL).
+      // Historical T1/T2 snapshots use the same full Delivery A/B gate as live tiers.
+      const isDeliveryAB =
+        validDeliveryValues.length >= 5 &&
+        (rolling5dGt60Count >= 5 || dailyGt60Count >= 5);
       if (!isDeliveryAB) continue;
 
       const minLiqLookback = isIpo ? 2 : 20;
@@ -3241,14 +3229,12 @@ class NsePipelineEngine {
       const priorSessions = history.slice(0, -1);
       const minRvolLookback = isIpo ? 2 : 20;
       let rvol: number | null = null;
-      let rvolBand: RvolBand = 'WAIT_FOR_DATA';
       let delivQtyRatio: number | null = null;
       if (priorSessions.length >= minRvolLookback) {
         const prevWindow = priorSessions.slice(-20);
         const avgVol = prevWindow.reduce((acc, s) => acc + s.volume, 0) / prevWindow.length;
         if (avgVol > 0) {
           rvol = latest.volume / avgVol;
-          rvolBand = rvol > 1.5 ? 'HIGH' : 'LOW';
         }
         const prevDeliv = prevWindow
           .map((s) => s.delivQty)
@@ -3266,7 +3252,16 @@ class NsePipelineEngine {
       const ema21Series = this.computeEmaSeries(closes, emaPeriod);
       const ema21 = ema21Series[ema21Series.length - 1] ?? null;
       const aboveEma21 = ema21 !== null ? latest.close > ema21 : null;
-      if (aboveEma21 !== true) continue;
+      const ema21FullSeries = closes.length >= 21 ? this.computeEmaSeries(closes, 21) : [];
+      const ema44Series = closes.length >= 44 ? this.computeEmaSeries(closes, 44) : [];
+      const ema21Strict = ema21FullSeries.length > 0
+        ? (ema21FullSeries[ema21FullSeries.length - 1] ?? null)
+        : null;
+      const ema44 = ema44Series.length > 0
+        ? (ema44Series[ema44Series.length - 1] ?? null)
+        : null;
+      const ema21AboveEma44 =
+        ema21Strict !== null && ema44 !== null ? ema21Strict > ema44 : null;
 
       const rsi14 =
         closes.length >= 15
@@ -3279,16 +3274,20 @@ class NsePipelineEngine {
           ? ((latest.close - latest.prevClose) / latest.prevClose) * 100
           : null;
 
-      let swingTier: 'TIER_1_READY' | 'TIER_2_ACCUMULATION' = 'TIER_2_ACCUMULATION';
+      const swingTier = classifySwingTier({
+        liquidityPass: true,
+        deliveryQualified: isDeliveryAB,
+        ema21AboveEma44: ema21AboveEma44 === true,
+        aboveEma21: aboveEma21 === true,
+        deliveryQuantityRatio: delivQtyRatio,
+        relativeVolume: rvol,
+        changePct,
+        rsi14,
+      });
       if (
-        rvolBand === 'HIGH' &&
-        (changePct ?? 0) > 0 &&
-        rsi14 !== null &&
-        rsi14 >= 45 &&
-        rsi14 <= 78
-      ) {
-        swingTier = 'TIER_1_READY';
-      }
+        swingTier !== 'TIER_1_READY' &&
+        swingTier !== 'TIER_2_ACCUMULATION'
+      ) continue;
 
       out.push({
         symbol: sym,
