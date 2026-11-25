@@ -107,10 +107,9 @@ test('blocks arbitrary standalone profit concepts even when standalone attributi
   }),/exact ProfitLossForPeriod/);
 });
 
-test('does not guess a taxonomy concept when issuer mapping is absent',()=>{
-  const report=buildSevenMetricXbrlPipeline('NON_FINANCIAL',current,prior,{
-    ...concepts,revenue:'in-capmkt:UnmappedRevenueExtension',
-  });
+test('does not guess a taxonomy concept when the mapped revenue fact is absent',()=>{
+  const noRevenue={...current,extraction:extraction('2026-04-01','2026-09-30',{profit:120,ocf:150})};
+  const report=buildSevenMetricXbrlPipeline('NON_FINANCIAL',noRevenue,prior,concepts);
   assert.equal(report.currentSelections.revenue.status,'MISSING_CONCEPT');
   assert.equal(report.candidateReport.auditMatrix.metrics.REVENUE_GROWTH.decision,'DATA_MISSING');
 });
@@ -142,4 +141,37 @@ test('ITC owner-attributable fact is selected, not total PAT',()=>{
   assert.equal(report.currentSelections.profit.fact?.numericValue,8562.53);
   assert.equal(report.priorSelections.profit.fact?.numericValue,10370.31);
   assert.equal(report.candidateReport.candidates.profitGrowth?.growthPercent,-17.43);
+});
+
+
+test('blocks an existing but semantically wrong revenue concept',()=>{
+  const wrongRevenue='in-capmkt:OtherIncome';
+  const wrongCurrent={...current,extraction:extraction('2026-04-01','2026-09-30',{profit:120,ocf:150})};
+  const wrongPrior={...prior,extraction:extraction('2025-04-01','2025-09-30',{profit:100,ocf:100})};
+  for(const filing of [wrongCurrent,wrongPrior]) {
+    filing.extraction.facts.push({
+      concept:wrongRevenue,contextRef:'duration',unitRef:'INR',rawValue:'500',
+      numericValue:500,decimals:'-3',scale:null,sign:null,format:null,
+      continuedAt:null,isNil:false,isInline:false,
+    });
+  }
+  assert.throws(()=>buildSevenMetricXbrlPipeline('NON_FINANCIAL',wrongCurrent,wrongPrior,{
+    ...concepts,revenue:wrongRevenue,
+  }),/exact RevenueFromOperations concept/);
+});
+
+test('blocks an existing but semantically wrong operating cash flow concept',()=>{
+  const wrongOcf='in-capmkt:CashAndCashEquivalentsAtEndOfPeriod';
+  const wrongCurrent={...current,extraction:extraction('2026-04-01','2026-09-30',{revenue:1200,profit:120})};
+  const wrongPrior={...prior,extraction:extraction('2025-04-01','2025-09-30',{revenue:1000,profit:100})};
+  for(const filing of [wrongCurrent,wrongPrior]) {
+    filing.extraction.facts.push({
+      concept:wrongOcf,contextRef:'duration',unitRef:'INR',rawValue:'900',
+      numericValue:900,decimals:'-3',scale:null,sign:null,format:null,
+      continuedAt:null,isNil:false,isInline:false,
+    });
+  }
+  assert.throws(()=>buildSevenMetricXbrlPipeline('NON_FINANCIAL',wrongCurrent,wrongPrior,{
+    ...concepts,operatingCashFlow:wrongOcf,
+  }),/exact CashFlowsFromUsedInOperatingActivities concept/);
 });
