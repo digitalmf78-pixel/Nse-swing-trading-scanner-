@@ -137,7 +137,7 @@ export const SelectedStockFundamentalDeepAudit: React.FC<{ symbol: string }> = (
         <div>
           <h3 className="text-sm font-semibold text-slate-900">Selected Stock — Official NSE Fundamental Deep Audit</h3>
           <p className="text-xs text-slate-500 mt-1">
-            Runs only for {symbol.toUpperCase()} opened from your scanner selection. Checks filing identity, exact periods, basis, original/revision history and all seven metric gates.
+            Run after selecting {symbol.toUpperCase()} from your scanner filters and opening its Stock Deep View. Checks filing identity, exact periods, basis, original/revision history and all seven metric gates.
           </p>
         </div>
         <button
