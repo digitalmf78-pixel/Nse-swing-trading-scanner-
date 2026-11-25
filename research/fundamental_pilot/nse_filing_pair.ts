@@ -31,6 +31,24 @@ export interface ResolvedNseFilingPair {
   prior: NseFilingRow;
 }
 
+
+const NSE_MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'] as const;
+
+/** NSE filing period dates use DD-MMM-YYYY; reject normalized/impossible dates. */
+function isValidNsePeriodDate(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  const match = /^(\\d{2})-([A-Z]{3})-(\\d{4})$/.exec(value);
+  if (!match) return false;
+  const day = Number(match[1]);
+  const month = NSE_MONTHS.indexOf(match[2] as typeof NSE_MONTHS[number]);
+  const year = Number(match[3]);
+  if (month < 0 || day < 1 || year < 1) return false;
+  const date = new Date(Date.UTC(year, month, day));
+  return date.getUTCFullYear() === year
+    && date.getUTCMonth() === month
+    && date.getUTCDate() === day;
+}
+
 function isOfficialNseArchiveUrl(value: unknown, folder: 'xbrl' | 'ixbrl'): value is string {
   if (typeof value !== 'string' || !value.trim()) return false;
   try {
@@ -52,7 +70,8 @@ export function resolveOriginalNseFilingPair(
   request: FilingPairRequest,
 ): ResolvedNseFilingPair {
   if (!Array.isArray(rows) || !request.symbol.trim() || !request.currentPeriod.trim()
-      || !request.priorPeriod.trim() || request.currentPeriod === request.priorPeriod) {
+      || !request.priorPeriod.trim() || request.currentPeriod === request.priorPeriod
+      || !isValidNsePeriodDate(request.currentPeriod) || !isValidNsePeriodDate(request.priorPeriod)) {
     throw new Error('Invalid NSE filing-pair request');
   }
 
@@ -91,7 +110,8 @@ export function findUniqueOriginalNseFiling(
   rows: NseFilingRow[],
   request: SingleOriginalFilingRequest,
 ): NseFilingRow | null {
-  if (!Array.isArray(rows) || !request.symbol.trim() || !request.period.trim()) {
+  if (!Array.isArray(rows) || !request.symbol.trim() || !request.period.trim()
+      || !isValidNsePeriodDate(request.period)) {
     throw new Error('Invalid NSE single-filing request');
   }
   const hits=rows.filter(row =>
