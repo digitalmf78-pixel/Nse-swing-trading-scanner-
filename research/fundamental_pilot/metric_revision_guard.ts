@@ -38,6 +38,16 @@ const invalid=(explanation:string,versions:RevisionMetricSnapshot[]=[]):Revision
   productionApproved:false,explanation,
 });
 
+function isStrictUtcTimestamp(value:string):boolean {
+  // Require an explicit UTC ISO timestamp. Date.parse alone accepts ambiguous
+  // strings and normalizes impossible calendar dates such as February 30.
+  if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/.test(value)) return false;
+  const parsed=new Date(value);
+  if(!Number.isFinite(parsed.getTime())) return false;
+  const normalized=parsed.toISOString();
+  return normalized===value || normalized.replace('.000Z','Z')===value;
+}
+
 /**
  * Research-only guard: a Revision label does not by itself prove that a changed
  * metric value is correct. A changed latest revision needs an exact statement
@@ -54,9 +64,10 @@ export function evaluateRevisionMetric(
 ):RevisionMetricDecision {
   const all=[original,...revisions];
   if(!period.trim()||!concept.trim()||!original.sequenceId.trim()||original.kind!=='Original'
-    ||revisions.some(r=>r.kind!=='Revision'||!r.sequenceId.trim())
+    ||original.revisionAt!==null
+    ||revisions.some(r=>r.kind!=='Revision'||!r.sequenceId.trim()||r.revisionAt===null||!isStrictUtcTimestamp(r.revisionAt))
     ||new Set(all.map(v=>v.sequenceId)).size!==all.length) {
-    return invalid('One unique Original and unique Revision sequence IDs are required',all);
+    return invalid('One unique Original (without a revision timestamp) and unique Revision rows with strict UTC ISO timestamps are required',all);
   }
   if(all.some(v=>v.value!==null&&!Number.isFinite(v.value))) return invalid('Metric values must be finite or null',all);
   if(all.some(v=>v.value===null)) return {
@@ -64,13 +75,9 @@ export function evaluateRevisionMetric(
     versionValues:all.map(v=>({sequenceId:v.sequenceId,kind:v.kind,value:v.value})),
     productionApproved:false,explanation:'At least one filing version has a missing metric value; no version is silently substituted.',
   };
-  const sorted=[...revisions].sort((a,b)=>{
-    if(!a.revisionAt||!b.revisionAt)return 0;
-    return Date.parse(a.revisionAt)-Date.parse(b.revisionAt);
-  });
-  if(sorted.some(v=>!v.revisionAt||!Number.isFinite(Date.parse(v.revisionAt)))
-    ||sorted.some((v,i)=>i>0&&Date.parse(v.revisionAt as string)<=Date.parse(sorted[i-1].revisionAt as string))) {
-    return invalid('Revision timestamps must be valid and strictly increasing after sorting',all);
+  const sorted=[...revisions].sort((a,b)=>Date.parse(a.revisionAt as string)-Date.parse(b.revisionAt as string));
+  if(sorted.some((v,i)=>i>0&&Date.parse(v.revisionAt as string)<=Date.parse(sorted[i-1].revisionAt as string))) {
+    return invalid('Revision timestamps must be strictly increasing after sorting',all);
   }
   const latest=sorted.at(-1);
   if(!latest) return {

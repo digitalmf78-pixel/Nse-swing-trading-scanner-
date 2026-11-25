@@ -44,7 +44,7 @@ test('wrong-period or wrong-basis cross-check is rejected',()=>{
 });
 
 test('duplicate sequence IDs are rejected',()=>{
-  const r=evaluateRevisionMetric('30-SEP-2025','Standalone',cross.concept,original,[rev('100',-456.85,'2026-07-21T11:08:34Z')]);
+  const r=evaluateRevisionMetric('30-SEP-2025','Standalone',cross.concept,original,[rev('100',-778.69,'2026-07-21T11:08:34Z')]);
   assert.equal(r.status,'BLOCKED_INVALID_REVISION_HISTORY');
 });
 
@@ -54,7 +54,26 @@ test('missing version value is not silently replaced by another version',()=>{
   assert.equal(r.selectedValue,null);
 });
 
-test('revision timestamps must be strictly increasing and valid',()=>{
-  const r=evaluateRevisionMetric('30-SEP-2025','Standalone',cross.concept,original,[rev('102',-778.69,'bad-date')]);
+test('revision timestamps must be strict UTC ISO timestamps',()=>{
+  for(const timestamp of ['bad-date','July 21, 2026','2026-07-21','2026-07-21T11:08:34','2026-07-21T11:08:34+05:30']) {
+    const r=evaluateRevisionMetric('30-SEP-2025','Standalone',cross.concept,original,[rev('102',-778.69,timestamp)]);
+    assert.equal(r.status,'BLOCKED_INVALID_REVISION_HISTORY',timestamp);
+  }
+});
+
+test('impossible calendar dates and invalid clock times are rejected',()=>{
+  for(const timestamp of ['2026-02-30T11:08:34Z','2026-07-21T25:08:34Z','2026-07-21T11:61:34Z']) {
+    const r=evaluateRevisionMetric('30-SEP-2025','Standalone',cross.concept,original,[rev('102',-778.69,timestamp)]);
+    assert.equal(r.status,'BLOCKED_INVALID_REVISION_HISTORY',timestamp);
+  }
+});
+
+test('original filing cannot carry a revision timestamp',()=>{
+  const r=evaluateRevisionMetric('30-SEP-2025','Standalone',cross.concept,{...original,revisionAt:'2026-01-01T00:00:00Z'},[]);
   assert.equal(r.status,'BLOCKED_INVALID_REVISION_HISTORY');
+});
+
+test('revision timestamps must be strictly increasing and valid',()=>{
+  const r=evaluateRevisionMetric('30-SEP-2025','Standalone',cross.concept,original,[rev('102',-778.69,'2026-07-21T11:08:34Z')]);
+  assert.equal(r.status,'REVISION_CHANGED_REVIEW_REQUIRED');
 });
