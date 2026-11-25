@@ -50,6 +50,26 @@ export function countConsecutiveQualifyingRolling5SessionWindows(
 }
 
 /**
+ * IPOs with only 2–4 valid delivery observations may be shown as provisional
+ * when the short sample meets the legacy 60% rule. This is informational only:
+ * it must never satisfy Delivery A/B or grant a swing tier.
+ */
+export function qualifiesIpoShortHistoryProvisional(
+  deliveryPercentages: Array<number | null>,
+  threshold = 60,
+): boolean {
+  if (!Number.isFinite(threshold) || threshold < 0 || threshold > 100) return false;
+  const valid = deliveryPercentages.filter(
+    (value): value is number =>
+      value !== null && Number.isFinite(value) && value >= 0 && value <= 100,
+  );
+  if (valid.length < 2 || valid.length >= 5) return false;
+  const average = valid.reduce((sum, value) => sum + value, 0) / valid.length;
+  const dailyAboveThreshold = valid.filter((value) => value >= threshold).length;
+  return average >= threshold || dailyAboveThreshold >= Math.ceil(valid.length * 0.6);
+}
+
+/**
  * T1 = fully confirmed breakout; T2 = aligned accumulation with delivery
  * expansion, awaiting breakout confirmation; T3 = liquid high-RVOL green
  * mover that has not met the stronger T1/T2 alignment.
