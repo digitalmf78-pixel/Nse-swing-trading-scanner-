@@ -1,39 +1,46 @@
-# M&M Q2 FY2026-27 NSE XBRL ratio-scale and disclosure conflict
+# M&M Q2 FY2026-27 NSE XBRL ratio percentage-to-times reconciliation
 
 ## Purpose
-Documentation-only research evidence for the NSE Main Board fundamental-data pilot. This filing demonstrates why raw XBRL ratio fields must not be assumed to use the same scale or be trusted without reconciling issuer remarks and the attached financial-results PDF.
+Documentation-only issuer evidence for the NSE Main Board fundamental-data pilot. This note corrects the preliminary interpretation that M&M's standalone Debt-Equity XBRL value conflicted with its financial-results PDF. The issuer explicitly states that the XBRL ratio fields are entered as percentages, while the financial-results ratios are presented in times.
 
-## Official source
-- Issuer: Mahindra & Mahindra Limited (NSE symbol: M&M; scrip code 500520).
-- NSE filing: Integrated Filing – IndAS, approved 5 November 2026.
-- URL: https://nsearchives.nseindia.com/corporate/ixbrl/INTEGRATED_FILING_INDAS_210288_05112026172253_iXBRL_WEB.html
+## Official sources
+1. NSE Integrated Filing – IndAS, approved 5 November 2026:
+   https://nsearchives.nseindia.com/corporate/ixbrl/INTEGRATED_FILING_INDAS_210288_05112026172253_iXBRL_WEB.html
+2. M&M official unaudited standalone and consolidated financial results PDF, approved 5 November 2026:
+   https://www.mahindra.com/sites/default/files/2026-11/1.%20Un-audited%20Standalone%20and%20Consolidated%20Financial%20Results%20of%20the%20Company%20for%20the%20Second%20Quarter%20and%20Half%20Year%20ended%2030%20September%202026.pdf
+
+## Source scope
+- Issuer: Mahindra & Mahindra Limited (NSE symbol M&M; scrip code 500520).
 - Reporting period: quarter ended 30 September 2026 and year-to-date half year ended 30 September 2026.
-- Basis: explicitly standalone (filing general information and financial-results section).
+- Basis: standalone.
 - Status: unaudited.
-- Financial statement presentation unit: INR lakhs.
+- Board approval date: 5 November 2026.
+- XBRL financial statement presentation unit: INR lakhs.
+- PDF ratio disclosures: times, displayed to two decimal places.
 
-## What the filing exposes
-The XBRL ratio rows report:
-- Debt-equity ratio: 0.6700 for quarter and half-year.
-- Debt service coverage ratio: 6866.4400 for quarter and 5860.8400 for half-year.
-- Interest service coverage ratio: 8955.4000 for quarter and 6609.2600 for half-year.
+## Issuer's explicit scale explanation
+In the NSE filing's Remarks section, the issuer states for each of Debt-Equity, Debt Service Coverage, and Interest Service Coverage that the financial-results values are in times, but the XBRL fields require percentage entry and were therefore updated in percent. The same remarks separately state the actual ratio in times.
 
-The issuer's remarks state that the financial-results ratios are in times, while the XBRL fields require percentage entry. The remarks give:
-- Debt-equity ratio: 0.01 times for quarter and half-year.
-- Debt service coverage ratio: 68.66 times for quarter and 58.61 times.
-- Interest service coverage ratio: 89.55 times for quarter and 66.09 times.
+This is issuer-specific evidence for interpreting these fields in this filing. Do not generalize the scaling rule to other issuers, filing templates, or XBRL concepts without their own evidence.
 
-## Critical reconciliation result
-The DSCR and ISCR XBRL figures are exactly 100 times the corresponding times values in the issuer remarks, consistent with a percentage-vs-times scaling transformation. The debt-equity row does not reconcile: the XBRL value 0.6700 is not 100 times the remark's 0.01 times, nor is it equal to the stated 0.01 times. This is an issuer-source internal inconsistency requiring review of the official financial-results PDF and/or issuer clarification.
+## Reconciliation
+Convert the XBRL percentage to times by dividing by 100, then compare with the issuer's two-decimal financial-results disclosure.
 
-Do not silently normalize the D/E figure, infer which D/E figure is correct, or assume the DSCR/ISCR scale behavior applies universally to other issuers or other XBRL fields. Preserve the raw source values and the issuer remarks separately with provenance.
+| Metric | XBRL quarter (%) | Converted quarter (times) | PDF/remarks quarter (times) | XBRL half-year (%) | Converted half-year (times) | PDF/remarks half-year (times) |
+|---|---:|---:|---:|---:|---:|---:|
+| Debt-Equity | 0.6700 | 0.0067 → 0.01 rounded | 0.01 | 0.6700 | 0.0067 → 0.01 rounded | 0.01 |
+| Debt Service Coverage | 6866.4400 | 68.6644 → 68.66 rounded | 68.66 | 5860.8400 | 58.6084 → 58.61 rounded | 58.61 |
+| Interest Service Coverage | 8955.4000 | 89.5540 → 89.55 rounded | 89.55 | 6609.2600 | 66.0926 → 66.09 rounded | 66.09 |
+
+The apparent D/E discrepancy is explained by display precision: 0.0067 times rounds to 0.01 times at two decimal places. The DSCR and ISCR values also reconcile after the issuer-stated percentage-to-times conversion and two-decimal rounding. No issuer-source contradiction remains for these three reported ratios in this filing.
 
 ## Data-policy conclusion
-- This single filing is evidence of a real XBRL scale hazard and a D/E contradiction; it is not a universal formula or scaling rule.
-- Do not use any of these ratio values as validated production fundamentals until the original financial-results PDF is independently reconciled and the D/E discrepancy is resolved.
-- Do not mix this standalone filing with consolidated values.
-- Record period, basis, audit status, unit, source URL, approval date, raw XBRL value, issuer-remark value, and reconciliation status separately.
-- Production approval: false.
+- Preserve raw XBRL percentage values and issuer-reported times values separately, with source provenance and original precision.
+- A normalized times value may be derived for this issuer/filing only after recording the issuer's explicit percentage-entry explanation and the divide-by-100 transformation.
+- Preserve the unrounded converted value as well as the PDF's rounded display value; do not overwrite one with the other.
+- Do not apply this mapping as a universal rule across issuers or XBRL fields.
+- Do not mix standalone values with consolidated values.
+- Production approval: false pending the normal broader validation and implementation review.
 - Runtime activation: false.
 
 ## Scope
