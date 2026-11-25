@@ -86,7 +86,7 @@ export function resolveOriginalRevisionHistory(
   const monthIndex: Record<string, number> = { JAN:0,FEB:1,MAR:2,APR:3,MAY:4,JUN:5,JUL:6,AUG:7,SEP:8,OCT:9,NOV:10,DEC:11 };
   const timestamp = (row: NseRevisionRow): number => {
     const value = row.revised_Date || row.creation_Date || row.broadcast_Date || '';
-    const m = /^(\\d{2})-([A-Z]{3})-(\\d{4}) (\\d{2}):(\\d{2}):(\\d{2})$/i.exec(value);
+    const m = /^(\d{2})-([A-Z]{3})-(\d{4}) (\d{2}):(\d{2}):(\d{2})$/i.exec(value);
     const month = m ? monthIndex[m[2].toUpperCase()] : undefined;
     if (!m || month === undefined) throw new Error(`Unrecognized NSE revision timestamp: ${value}`);
     const day=Number(m[1]),year=Number(m[3]),hour=Number(m[4]),minute=Number(m[5]),second=Number(m[6]);
