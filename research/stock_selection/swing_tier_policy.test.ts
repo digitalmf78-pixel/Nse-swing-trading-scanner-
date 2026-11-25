@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   classifySwingTier,
   countConsecutiveQualifyingRolling5SessionWindows,
+  qualifiesIpoShortHistoryProvisional,
 } from './swing_tier_policy.ts';
 
 test('Cycle A passes only after five consecutive qualifying rolling windows', () => {
@@ -76,4 +77,15 @@ test('Tier 3 requires liquid delivery-qualified high-RVOL green mover, not EMA a
   assert.equal(classifySwingTier(base), 'TIER_3_RVOL_WATCH');
   assert.equal(classifySwingTier({ ...base, deliveryQualified: false }), 'NONE');
   assert.equal(classifySwingTier({ ...base, liquidityPass: false }), 'NONE');
+});
+
+test('IPO short history is provisional only for 2–4 valid observations meeting the legacy 60% rule', () => {
+  assert.equal(qualifiesIpoShortHistoryProvisional([65, 55]), true);
+  assert.equal(qualifiesIpoShortHistoryProvisional([60, null, 40]), true);
+  assert.equal(qualifiesIpoShortHistoryProvisional([60, 60, 40, 40]), true);
+  assert.equal(qualifiesIpoShortHistoryProvisional([60]), false);
+  assert.equal(qualifiesIpoShortHistoryProvisional([60, 60, 60, 60, 60]), false);
+  assert.equal(qualifiesIpoShortHistoryProvisional([40, 50, 55]), false);
+  assert.equal(qualifiesIpoShortHistoryProvisional([60, 101]), false);
+  assert.equal(qualifiesIpoShortHistoryProvisional([60, 60], 101), false);
 });
