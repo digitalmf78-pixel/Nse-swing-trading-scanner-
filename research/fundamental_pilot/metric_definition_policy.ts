@@ -42,7 +42,7 @@ const INDUSTRIAL: Record<FundamentalMetric,Omit<MetricDefinitionPolicy,'metric'|
     readiness:'CANDIDATE_ONLY',
     candidateFormula:'(current same-period profit attributable to owners of parent / prior-year same-period profit attributable to owners of parent - 1) * 100 for consolidated; standalone entity ProfitLossForPeriod for standalone',
     requiredFacts:['Consolidated: ProfitOrLossAttributableToOwnersOfParent current and prior year','Standalone: ProfitLossForPeriod current and prior year','same XBRL unit','same filing basis','undimensioned group/entity context'],
-    hardGates:['Exact quarter/YTD/FY calendar alignment','Consolidated numerator must be allocated to owners of parent; reject unallocated total group profit','Standalone numerator must be entity profit for period','Official statement-row and attribution reconciliation','Prior-period base > 0'],
+    hardGates:['Exact quarter/YTD/FY calendar alignment','Original/revision history resolved','Consolidated numerator must be allocated to owners of parent; reject unallocated total group profit','Standalone numerator must be entity profit for period','Official statement-row and attribution reconciliation','Prior-period base > 0'],
     caveats:['Do not substitute PBT for PAT','Do not mix continuing operations and total profit','Non-controlling interest can materially change total group profit versus owners PAT; retain both raw facts but use the declared attribution policy'],
   },
   ROE: {
@@ -54,10 +54,10 @@ const INDUSTRIAL: Record<FundamentalMetric,Omit<MetricDefinitionPolicy,'metric'|
   },
   ROCE: {
     readiness:'CANDIDATE_ONLY',
-    candidateFormula:'EBIT for exact duration / average opening and closing capital employed * 100; annualize quarter/YTD EBIT by 365 / exact period days, but not FY',
-    requiredFacts:['EBIT from an explicitly mapped statement row or reconciled PBT plus finance costs','Opening capital employed','Closing capital employed','Documented treatment of lease liabilities, cash and investments'],
-    hardGates:['Resolve EBIT definition including associate/JV presentation and exceptional items','Define capital employed perimeter consistently (equity plus interest-bearing debt, with documented lease policy)','Opening and closing balances must be same-basis and same-currency','Exact duration and annualization policy must be applied consistently','Reject zero/negative average capital employed and reconcile to statements'],
-    caveats:['PBT plus finance costs is only a candidate EBIT bridge after both rows and associate/JV treatment are reconciled','Different lease and excess-cash policies materially change ROCE'],
+    candidateFormula:'Explicitly reported EBIT for the exact duration / average opening and closing capital employed * 100; annualize quarter/YTD EBIT by 365 / exact period days, but not FY',
+    requiredFacts:['Explicitly reported EBIT reconciled to the official statement row','Opening capital employed','Closing capital employed','Documented treatment of lease liabilities, cash and investments'],
+    hardGates:['Require an issuer-level reported EBIT fact reconciled to the official statement; PBT plus finance costs is not an accepted proxy','Define capital employed perimeter consistently (total equity plus interest-bearing debt, with documented lease policy)','Opening and closing balances must be same-basis and same-currency','Exact duration and annualization policy must be applied consistently','Reject zero/negative average capital employed and reconcile to statements'],
+    caveats:['Do not infer EBIT from PBT plus finance costs: exceptional items, associates/JVs and discontinued operations may make the bridge wrong','Different lease and excess-cash policies materially change ROCE'],
   },
   DEBT_EQUITY: {
     readiness:'CANDIDATE_ONLY',
