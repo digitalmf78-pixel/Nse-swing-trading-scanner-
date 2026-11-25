@@ -869,7 +869,7 @@ class NsePipelineEngine {
     if(this.deliveryWindowStatus(asOfDate))return{deliveryCategory:'WAIT_FOR_DATA',rolling5dGt60Count:0,dailyGt60Count:0,valid30dCount:0};
     const ms=Date.parse(asOfDate+'T00:00:00Z'),from=new Date(ms-29*86400000).toISOString().slice(0,10);
     const sessions=this.expectedNseSessions(from,asOfDate),byDate=new Map(seriesSlice.map(r=>[r.date,r]));
-    const values=sessions.map(d=>{const v=byDate.get(d)?.delivPer;return v!==null&&v!==undefined&&Number.isFinite(v)?v:null;});
+    const values=sessions.map(d=>{const v=byDate.get(d)?.delivPer;return v!==null&&v!==undefined&&Number.isFinite(v)&&v>=0&&v<=100?v:null;});
     let dailyGt60Count=0;
     for(const value of values){if(value!==null&&Number.isFinite(value)&&value>=60&&value<=100)dailyGt60Count++;}
     // Cycle A: the five-session rolling average must qualify for five
