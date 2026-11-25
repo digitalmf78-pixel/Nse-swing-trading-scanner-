@@ -159,7 +159,7 @@ export const SwingTierSpecPanel: React.FC<SwingTierSpecPanelProps> = ({
                 </span>
               </div>
               <p className="text-[11px] text-slate-700 leading-relaxed">
-                <strong>Matlab:</strong> Silent institutional buying chal rahi hai (Delivery A/B + EMA21 ke upar + DelivQty expansion), bas abhi RVOL &gt; 1.5x breakout candle aana baaki hai.
+                <strong>Matlab:</strong> Delivery A/B ke saath EMA21 aur EMA44 trend alignment + delivery quantity expansion dikh raha hai. Abhi complete breakout confirmation (RVOL, green close aur RSI range) nahi mila hai.
               </p>
               <ul className="space-y-1 text-[11px] font-mono text-slate-700 list-disc list-inside tabular-nums">
                 <li>20D Avg Turnover &gt;= ₹1.5 Cr (Liquid)</li>
@@ -183,7 +183,7 @@ export const SwingTierSpecPanel: React.FC<SwingTierSpecPanelProps> = ({
                 </span>
               </div>
               <p className="text-[11px] text-slate-700 leading-relaxed">
-                <strong>Matlab:</strong> 30D Delivery A/B first filter pass ho chuka hai; aaj high volume ke saath green move aaya hai, lekin EMA21 / DelivQty alignment abhi confirm nahi hua. Radar par rakhen.
+                <strong>Matlab:</strong> 30D Delivery A/B aur liquidity filter pass hai; aaj high RVOL ke saath green close hai, lekin T1/T2 ka EMA trend aur delivery-quantity alignment complete nahi hua. Radar par rakhen.
               </p>
               <ul className="space-y-1 text-[11px] font-mono text-slate-700 list-disc list-inside tabular-nums">
                 <li>20D Avg Turnover &gt;= ₹1.5 Cr (Liquid)</li>
@@ -191,7 +191,7 @@ export const SwingTierSpecPanel: React.FC<SwingTierSpecPanelProps> = ({
                 <li>20D RVOL &gt; 1.50x (Volume surge)</li>
                 <li>EOD Change % &gt; 0% (Green close)</li>
                 <li className="text-slate-500">
-                  Waiting for: EMA21 / DelivQty alignment
+                  EMA21 + EMA44 trend / DeliveryQty alignment incomplete
                 </li>
               </ul>
             </div>
@@ -202,7 +202,7 @@ export const SwingTierSpecPanel: React.FC<SwingTierSpecPanelProps> = ({
               <strong>Selection Flow:</strong> Pehle poore verified NSE Main Board par <strong>30D Delivery Cycle A OR B</strong> first filter → phir T1 / T2 / T3 → 3M Result Gate &amp; Fundamental Audit (&gt;=4/7) → Stock Detail me U-Turn Zone &amp; ATR Stop.
             </span>
             <span className="font-mono text-slate-500">
-              Cycle A = 30D me kam se kam 5 consecutive 5-session windows ka average &gt;= 60% · Cycle B = 30D me kam se kam 5 sessions ka delivery &gt;= 60% · A OR B
+              Cycle A = 30D me kam se kam 5 <strong>consecutive</strong> rolling 5-session windows ka average &gt;= 60% · Cycle B = 30D me kam se kam 5 sessions ka delivery &gt;= 60% · A OR B
             </span>
           </div>
         </div>
