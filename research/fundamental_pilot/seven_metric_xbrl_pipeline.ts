@@ -104,6 +104,17 @@ export function buildSevenMetricXbrlPipeline(
   conceptMap:IssuerMetricConceptMap,
 ):SevenMetricXbrlPipelineReport {
   if (current.basis!==prior.basis) throw new Error('Current and prior filing basis must match before profit-attribution mapping');
+
+  // A caller-supplied concept map is not trusted merely because the QName exists.
+  // Enforce the accounting role before selecting any facts.
+  if (conceptLocalName(conceptMap.revenue)!=='revenuefromoperations') {
+    throw new Error('Revenue Growth must use the exact RevenueFromOperations concept; arbitrary revenue-like concepts are not accepted');
+  }
+  if (conceptMap.operatingCashFlow!==null
+      && conceptLocalName(conceptMap.operatingCashFlow)!=='cashflowsfromusedinoperatingactivities') {
+    throw new Error('Operating Cash Flow must use the exact CashFlowsFromUsedInOperatingActivities concept; profit, cash-equivalent and net-cash-movement concepts are not accepted');
+  }
+
   const profitLocalName=conceptLocalName(conceptMap.profit);
   if (current.basis==='CONSOLIDATED'
       && (conceptMap.profitAttribution!=='OWNERS_OF_PARENT'
