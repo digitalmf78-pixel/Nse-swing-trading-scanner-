@@ -26,6 +26,7 @@ import { StockBacktestCard } from './StockBacktestCard';
 import { InstitutionalFlowChart } from './InstitutionalFlowChart';
 import { UTurnStrategyMonitor } from './UTurnStrategyMonitor';
 import { FundamentalAuditTable } from './FundamentalAuditTable';
+import { SelectedStockFundamentalDeepAudit } from './SelectedStockFundamentalDeepAudit';
 import { SwingTierSpecPanel } from './SwingTierSpecPanel';
 import { UpcomingEventsNewsPanel } from './UpcomingEventsNewsPanel';
 import { QuarterlyEpsValuationPanel } from './QuarterlyEpsValuationPanel';
@@ -1606,6 +1607,9 @@ export const StockDetailView: React.FC<StockDetailViewProps> = ({
               )}
             </div>
           </div>
+
+          {/* Official NSE seven-metric research is explicitly user-triggered and scoped to this selected scanner stock. */}
+          <SelectedStockFundamentalDeepAudit symbol={data.summary.symbol} />
 
           {/* Fundamental Audit Table (Symbol -> NSE/BSE Exchange Mapping, Timestamp, Freshness) */}
           <FundamentalAuditTable
