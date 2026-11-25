@@ -314,10 +314,17 @@ export function resolveGrowthResearchStatus(
   return revenueStable && profitStable ? 'CANDIDATE_READY' : 'REVISION_REVIEW_REQUIRED';
 }
 
+function isStrictIsoCalendarDate(value: string): boolean {
+  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) return false;
+  const parsed = new Date(value + 'T00:00:00Z');
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0,10) === value;
+}
+
 export function classifyNsePeriodType(periodStart: string, periodEnd: string): 'QUARTER' | 'YTD' | 'FY' | null {
+  if (!isStrictIsoCalendarDate(periodStart) || !isStrictIsoCalendarDate(periodEnd)) return null;
   const startMs = Date.parse(periodStart + 'T00:00:00Z');
   const endMs = Date.parse(periodEnd + 'T00:00:00Z');
-  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || startMs > endMs) return null;
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || startMs >= endMs) return null;
   const days = Math.round((endMs - startMs) / 86400000) + 1;
   if (days >= 75 && days <= 105) return 'QUARTER';
   if (days >= 165 && days <= 195) return 'YTD';
