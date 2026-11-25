@@ -1,16 +1,18 @@
 {
-  "generatedAtUtc": "2026-11-24T23:28:04.461Z",
+  "generatedAtUtc": "2026-11-25T23:04:28.629Z",
   "source": "NSE official sec_bhavdata_full daily Bhavcopy",
   "retentionPolicy": "Append-only; never overwrite a validated session; preserve at least the latest 200 expected NSE trading sessions.",
   "requiredTradingSessions": 200,
-  "asOfDate": "2026-11-24",
-  "startDate": "2026-02-02",
-  "endDate": "2026-11-23",
+  "asOfDate": "2026-11-25",
+  "startDate": "2026-02-03",
+  "endDate": "2026-11-25",
   "expectedSessions": 200,
   "availableSessions": 200,
   "missingSessions": [],
-  "downloadedDates": [],
-  "latestCachedSession": "2026-11-23",
+  "downloadedDates": [
+    "2026-11-25"
+  ],
+  "latestCachedSession": "2026-11-25",
   "status": "READY",
   "errors": []
 }
