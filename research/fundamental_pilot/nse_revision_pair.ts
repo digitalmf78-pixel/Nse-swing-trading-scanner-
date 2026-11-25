@@ -87,10 +87,22 @@ export function resolveOriginalRevisionHistory(
   const timestamp = (row: NseRevisionRow): number => {
     const value = row.revised_Date || row.creation_Date || row.broadcast_Date || '';
     const m = /^(\d{2})-([A-Z]{3})-(\d{4}) (\d{2}):(\d{2}):(\d{2})$/i.exec(value);
-    if (!m || monthIndex[m[2].toUpperCase()] === undefined) throw new Error(`Unrecognized NSE revision timestamp: ${value}`);
-    return Date.UTC(Number(m[3]),monthIndex[m[2].toUpperCase()],Number(m[1]),Number(m[4]),Number(m[5]),Number(m[6]));
+    const month = m ? monthIndex[m[2].toUpperCase()] : undefined;
+    if (!m || month === undefined) throw new Error(`Unrecognized NSE revision timestamp: ${value}`);
+    const day=Number(m[1]),year=Number(m[3]),hour=Number(m[4]),minute=Number(m[5]),second=Number(m[6]);
+    if (hour>23 || minute>59 || second>59) throw new Error(`Invalid NSE revision clock time: ${value}`);
+    const parsed=Date.UTC(year,month,day,hour,minute,second);
+    const date=new Date(parsed);
+    // Date.UTC normalizes impossible dates (e.g. 31-Feb) rather than rejecting
+    // them, so compare every calendar component before accepting the timestamp.
+    if (date.getUTCFullYear()!==year || date.getUTCMonth()!==month || date.getUTCDate()!==day
+        || date.getUTCHours()!==hour || date.getUTCMinutes()!==minute || date.getUTCSeconds()!==second) {
+      throw new Error(`Invalid NSE revision calendar date: ${value}`);
+    }
+    return parsed;
   };
-  revisions.sort((a,b)=>timestamp(a)-timestamp(b));
+  const revisionTimes=new Map(revisions.map(row=>[row,timestamp(row)]));
+  revisions.sort((a,b)=>(revisionTimes.get(a) as number)-(revisionTimes.get(b) as number));
   return { original: originals[0], revisions, apiDuplicateRows };
 }
 

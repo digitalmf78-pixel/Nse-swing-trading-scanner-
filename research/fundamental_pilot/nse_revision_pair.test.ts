@@ -73,3 +73,26 @@ test('rejects conflicting API rows that reuse a sequence ID',()=>{
   const conflicting={...revision,revision_Remark:'Different remark'};
   assert.throws(()=>resolveOriginalRevisionHistory([base('Original','1'),revision,conflicting],request),/Conflicting NSE API rows/);
 });
+
+
+test('rejects impossible NSE revision calendar dates instead of Date.UTC normalization',()=>{
+  for(const revised_Date of ['31-FEB-2026 14:41:13','29-FEB-2025 14:41:13','00-JUL-2026 14:41:13','32-JUL-2026 14:41:13']) {
+    const invalid={...base('Revision','2'),revised_Date};
+    assert.throws(()=>resolveOriginalRevisionHistory([base('Original','1'),invalid],request),/Invalid NSE revision calendar date/);
+  }
+});
+
+test('rejects out-of-range NSE revision clock components',()=>{
+  for(const revised_Date of ['31-JUL-2026 24:00:00','31-JUL-2026 14:60:00','31-JUL-2026 14:41:60']) {
+    const invalid={...base('Revision','2'),revised_Date};
+    assert.throws(()=>resolveOriginalRevisionHistory([base('Original','1'),invalid],request),/Invalid NSE revision clock time/);
+  }
+});
+
+test('accepts leap day only in a leap year and retains chronological order',()=>{
+  const leap={...base('Revision','2'),revised_Date:'29-FEB-2024 14:41:13'};
+  const later={...base('Revision','3'),revised_Date:'01-MAR-2024 09:00:00'};
+  const history=resolveOriginalRevisionHistory([base('Original','1'),later,leap],request);
+  assert.equal(history.revisions[0]?.seq_Id,'2');
+  assert.equal(history.revisions[1]?.seq_Id,'3');
+});
