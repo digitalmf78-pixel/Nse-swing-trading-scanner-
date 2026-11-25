@@ -55,17 +55,20 @@ test('ROCE requires total equity and blocks owner-only equity even for consolida
   f.facts=f.facts.filter(x=>!x.concept.endsWith(':Equity'));
   const result=resolveNseRatioFactMap('ROCE','NON_FINANCIAL','CONSOLIDATED',f);
   assert.equal(result.status,'BLOCKED_MISSING_CONCEPT');
-  assert.deepEqual(result.missingRoles,['TOTAL_EQUITY']);
+  assert.deepEqual(result.missingRoles,['REPORTED_EBIT','TOTAL_EQUITY']);
 });
 
-test('ROCE maps PBT, finance costs, total equity and borrowings but never invents EBIT',()=>{
+test('ROCE blocks PBT plus finance costs until a verified reported EBIT QName exists',()=>{
   const result=resolveNseRatioFactMap('ROCE','NON_FINANCIAL','STANDALONE',filing());
-  assert.equal(result.status,'CANDIDATE_FACT_MAP');
-  assert.equal(result.concepts.PBT,'in-capmkt:ProfitBeforeTax');
-  assert.equal(result.concepts.FINANCE_COSTS,'in-capmkt:FinanceCosts');
+  assert.equal(result.status,'BLOCKED_MISSING_CONCEPT');
+  assert.deepEqual(result.missingRoles,['REPORTED_EBIT']);
+  assert.equal(result.concepts.PBT,undefined);
+  assert.equal(result.concepts.FINANCE_COSTS,undefined);
   assert.equal(result.concepts.TOTAL_EQUITY,'in-capmkt:Equity');
-  assert.equal(result.concepts.PROFIT_NUMERATOR,undefined);
-  assert.match(result.explanation,/No facts were selected and no ratio was calculated/);
+  assert.equal(result.concepts.CURRENT_BORROWINGS,'in-capmkt:BorrowingsCurrent');
+  assert.equal(result.concepts.NONCURRENT_BORROWINGS,'in-capmkt:BorrowingsNoncurrent');
+  assert.equal(result.productionApproved,false);
+  assert.match(result.explanation,/PBT plus FinanceCosts is not accepted as an EBIT proxy/);
 });
 
 test('Interest Coverage blocks PBT plus FinanceCosts until a verified reported EBIT QName exists',()=>{
