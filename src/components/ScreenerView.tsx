@@ -871,7 +871,7 @@ export const ScreenerView: React.FC<ScreenerViewProps> = ({
                 {
                   key: 'TIER_3_RVOL_WATCH',
                   label: 'T3 RVOL',
-                  tip: 'Early Volume Mover: Liq>=1.5Cr + RVOL>1.5x + Green close (without Deliv A/B / EMA21)',
+                  tip: 'High RVOL Watch: Liq>=1.5Cr + 30D Delivery A/B + RVOL>1.5x + Green close; T1/T2 EMA trend or delivery-quantity alignment incomplete',
                 },
               ].map((opt) => (
                 <button
