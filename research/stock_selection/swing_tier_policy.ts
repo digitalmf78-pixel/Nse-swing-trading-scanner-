@@ -17,21 +17,22 @@ export interface SwingTierInputs {
 
 /**
  * Cycle A requires five consecutive qualifying rolling five-session windows.
- * A window qualifies only when all five daily delivery percentages are present
- * and their arithmetic mean is >= threshold. Missing/invalid data resets the run.
+ * A window qualifies only when all five daily delivery percentages are present,
+ * finite, within 0–100, and their arithmetic mean is >= threshold.
+ * Missing/invalid data resets the run.
  */
 export function countConsecutiveQualifyingRolling5SessionWindows(
   deliveryPercentages: Array<number | null>,
   threshold = 60,
 ): number {
-  if (!Number.isFinite(threshold)) return 0;
+  if (!Number.isFinite(threshold) || threshold < 0 || threshold > 100) return 0;
   let currentRun = 0;
   let longestRun = 0;
 
   for (let end = 4; end < deliveryPercentages.length; end += 1) {
     const window = deliveryPercentages.slice(end - 4, end + 1);
     const valid = window.length === 5 && window.every(
-      (value) => value !== null && Number.isFinite(value),
+      (value) => value !== null && Number.isFinite(value) && value >= 0 && value <= 100,
     );
     const average = valid
       ? (window as number[]).reduce((sum, value) => sum + value, 0) / 5
