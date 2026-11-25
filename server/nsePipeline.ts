@@ -3218,14 +3218,12 @@ class NsePipelineEngine {
       const priorSessions = history.slice(0, -1);
       const minRvolLookback = isIpo ? 2 : 20;
       let rvol: number | null = null;
-      let rvolBand: RvolBand = 'WAIT_FOR_DATA';
       let delivQtyRatio: number | null = null;
       if (priorSessions.length >= minRvolLookback) {
         const prevWindow = priorSessions.slice(-20);
         const avgVol = prevWindow.reduce((acc, s) => acc + s.volume, 0) / prevWindow.length;
         if (avgVol > 0) {
           rvol = latest.volume / avgVol;
-          rvolBand = rvol > 1.5 ? 'HIGH' : 'LOW';
         }
         const prevDeliv = prevWindow
           .map((s) => s.delivQty)
