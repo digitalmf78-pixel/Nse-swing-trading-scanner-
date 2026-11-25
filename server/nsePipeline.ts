@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { classifySwingTier, countConsecutiveQualifyingRolling5SessionWindows } from '../research/stock_selection/swing_tier_policy.ts';
 import path from 'node:path';
 import { parseBhavDateToIso, parseCsvRecords, toNum } from './csvParser.ts';
 import { classifyMarketCap, toIstDateIso } from './liveFetcher.ts';
@@ -869,11 +870,11 @@ class NsePipelineEngine {
     const ms=Date.parse(asOfDate+'T00:00:00Z'),from=new Date(ms-29*86400000).toISOString().slice(0,10);
     const sessions=this.expectedNseSessions(from,asOfDate),byDate=new Map(seriesSlice.map(r=>[r.date,r]));
     const values=sessions.map(d=>{const v=byDate.get(d)?.delivPer;return v!==null&&v!==undefined&&Number.isFinite(v)?v:null;});
-    let dailyGt60Count=0,rolling5dGt60Count=0;
-    for(let i=0;i<values.length;i++){
-      const v=values[i];if(v!==null&&v>=60)dailyGt60Count++;
-      if(i>=4){const w=values.slice(i-4,i+1);if(w.every((x):x is number=>x!==null)&&w.reduce((a,x)=>a+x,0)/5>=60)rolling5dGt60Count++;}
-    }
+    let dailyGt60Count=0;
+    for(const value of values){if(value!==null&&value>=60)dailyGt60Count++;}
+    // Cycle A: the five-session rolling average must qualify for five
+    // consecutive windows; separated qualifying windows cannot be combined.
+    const rolling5dGt60Count=countConsecutiveQualifyingRolling5SessionWindows(values,60);
     const A=rolling5dGt60Count>=5,B=dailyGt60Count>=5;
     const deliveryCategory:DeliveryCategory=A&&B?'A_AND_B':A?'A_ONLY':B?'B_ONLY':'NONE';
     return{deliveryCategory,rolling5dGt60Count,dailyGt60Count,valid30dCount:values.filter(v=>v!==null).length};
@@ -1627,32 +1628,16 @@ class NsePipelineEngine {
         deliveryCategory === 'A_ONLY' ||
         deliveryCategory === 'B_ONLY';
 
-      let swingTier: SwingTier = 'NONE';
-      const strictTrendPass = ema21AboveEma44 === true;
-      if (
-        strictTrendPass &&
-        liquidityPass &&
-        isDeliveryAB &&
-        rvolBand === 'HIGH' &&
-        (changePct ?? 0) > 0 &&
-        aboveEma21 === true &&
-        (delivQtyRatio ?? 0) >= 1.2 &&
-        rsi14 !== null &&
-        rsi14 >= 45 &&
-        rsi14 <= 78
-      ) {
-        swingTier = 'TIER_1_READY';
-      } else if (
-        strictTrendPass &&
-        liquidityPass &&
-        isDeliveryAB &&
-        aboveEma21 === true &&
-        ((delivQtyRatio ?? 0) >= 1.2 || rvolBand === 'HIGH')
-      ) {
-        swingTier = 'TIER_2_ACCUMULATION';
-      } else if (strictTrendPass && liquidityPass && isDeliveryAB && rvolBand === 'HIGH' && (changePct ?? 0) > 0) {
-        swingTier = 'TIER_3_RVOL_WATCH';
-      }
+      const swingTier: SwingTier = classifySwingTier({
+        liquidityPass,
+        deliveryQualified: isDeliveryAB,
+        ema21AboveEma44: ema21AboveEma44 === true,
+        aboveEma21: aboveEma21 === true,
+        deliveryQuantityRatio: delivQtyRatio,
+        relativeVolume: rvol,
+        changePct,
+        rsi14,
+      });
 
       const fund = this.fundamentalsBySymbol.get(sym);
       const symSignals = this.signalsBySymbol.get(sym);
