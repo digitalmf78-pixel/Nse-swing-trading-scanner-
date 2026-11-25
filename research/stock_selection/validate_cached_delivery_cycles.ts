@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { countConsecutiveQualifyingRolling5SessionWindows } from './swing_tier_policy.ts';
+import { nsePipeline } from '../../server/nsePipeline.ts';
 const root = process.cwd();
 const sessionsDir = path.join(root, 'data/cache/bhavcopy-200d/sessions');
 const calendar = JSON.parse(fs.readFileSync(path.join(root, 'data/inputs/nse_trading_calendar.json'), 'utf8'));
@@ -19,4 +20,23 @@ const fileMap=new Map(files.map(x=>[x.date,path.join(sessionsDir,x.name)])); con
 const maps=dates.map(d=>{ const file=fileMap.get(d); if(!file) throw new Error('Missing cached file for '+d); return readEq(file); }); const universe=Array.from(maps[maps.length-1]!.keys());
 let complete=0,incomplete=0,invalid=0,a=0,b=0,both=0,either=0,neither=0;
 for(const sym of universe){ const values: Array<number | null> = maps.map(m=>m.has(sym)?(m.get(sym) ?? null):null); const valid=values.filter(v=>v!==null).length; if(valid===21) complete++; else incomplete++; invalid+=21-valid; const pa=countConsecutiveQualifyingRolling5SessionWindows(values,60)>=5; const pb=values.filter(v=>v!==null&&v>=60&&v<=100).length>=5; if(pa)a++; if(pb)b++; if(pa&&pb)both++; if(pa||pb)either++; else neither++; }
-console.log(JSON.stringify({result:'PASS',source:'Committed official NSE sec_bhavdata_full EQ Bhavcopy cache',latestSession:latest,window:{startDate:start,endDate:latest,calendarDays:30,expectedSessions:dates.length,sessionsChecked:maps.length,missingSessions:missing},universe:{latestSessionEqSymbols:universe.length,complete21SessionHistory:complete,incompleteHistory:incomplete,invalidOrMissingObservations:invalid},deliveryGate:{thresholdPct:60,cycleA:'5 consecutive qualifying rolling 5-session windows',cycleB:'at least 5 valid individual sessions at >=60%',cycleAPass:a,cycleBPass:b,bothPass:both,eitherPass:either,neitherPass:neither},note:'Validates cached delivery A/B only; not EMA/RVOL/price-action tier classification.'},null,2));
+const engineRows = nsePipeline.getAllScreenerRows();
+const engineLatest = nsePipeline.getLatestSessionRefIso();
+if (engineLatest !== latest) throw new Error('Scanner engine latest session ' + engineLatest + ' differs from cached delivery validation ' + latest);
+const tier1 = engineRows.filter(r => r.swingTier === 'TIER_1_READY').length;
+const tier2 = engineRows.filter(r => r.swingTier === 'TIER_2_ACCUMULATION').length;
+const tier3 = engineRows.filter(r => r.swingTier === 'TIER_3_RVOL_WATCH').length;
+const tieredRows = engineRows.filter(r => r.swingTier !== 'NONE');
+const validDeliveryCategories = new Set(['A_AND_B','A_ONLY','B_ONLY']);
+const tierDeliveryViolations = tieredRows.filter(r => !validDeliveryCategories.has(r.deliveryCategory));
+if (tierDeliveryViolations.length) throw new Error('Tier assigned without Delivery A/B: ' + tierDeliveryViolations.slice(0,10).map(r => r.symbol).join(','));
+const provisionalRows = engineRows.filter(r => r.deliveryStatus === 'IPO_PROVISIONAL');
+const provisionalTierViolations = provisionalRows.filter(r => r.swingTier !== 'NONE');
+if (provisionalTierViolations.length) throw new Error('IPO provisional status incorrectly received a normal tier: ' + provisionalTierViolations.map(r => r.symbol).join(','));
+const liveSnapshot = nsePipeline.getT1T2SnapshotForDate(latest).map(r => r.symbol).sort();
+const liveExpected = engineRows.filter(r => r.swingTier === 'TIER_1_READY' || r.swingTier === 'TIER_2_ACCUMULATION').map(r => r.symbol).sort();
+if (JSON.stringify(liveSnapshot) !== JSON.stringify(liveExpected)) throw new Error('Latest-date T1/T2 snapshot does not match live screener rows');
+const priorDate = dates[dates.length - 2];
+const historicalSnapshot = nsePipeline.getT1T2SnapshotForDate(priorDate);
+const historicalTierCounts = { tier1: historicalSnapshot.filter(r => r.swingTier === 'TIER_1_READY').length, tier2: historicalSnapshot.filter(r => r.swingTier === 'TIER_2_ACCUMULATION').length };
+console.log(JSON.stringify({result:'PASS',source:'Committed official NSE sec_bhavdata_full EQ Bhavcopy cache',latestSession:latest,window:{startDate:start,endDate:latest,calendarDays:30,expectedSessions:dates.length,sessionsChecked:maps.length,missingSessions:missing},universe:{latestSessionEqSymbols:universe.length,complete21SessionHistory:complete,incompleteHistory:incomplete,invalidOrMissingObservations:invalid},scannerEngine:{latestSession:engineLatest,rows:engineRows.length,tier1,tier2,tier3,deliveryTierViolations:tierDeliveryViolations.length,ipoProvisionalRows:provisionalRows.length,ipoProvisionalWithTier:provisionalTierViolations.length,latestT1T2SnapshotMatchesLive:true,historicalSnapshotDate:priorDate,historicalSnapshotT1T2:historicalTierCounts},deliveryGate:{thresholdPct:60,cycleA:'5 consecutive qualifying rolling 5-session windows',cycleB:'at least 5 valid individual sessions at >=60%',cycleAPass:a,cycleBPass:b,bothPass:both,eitherPass:either,neitherPass:neither},note:'Validates cached delivery A/B only; not EMA/RVOL/price-action tier classification.'},null,2));
