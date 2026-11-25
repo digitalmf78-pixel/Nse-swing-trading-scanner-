@@ -69,6 +69,9 @@ jobs:
       - name: NSE XBRL fundamental pilot tests
         run: npm run test:fundamental-pilot
 
+      - name: Stock selection policy tests
+        run: npm run test:stock-selection
+
       - name: TypeScript validation
         id: typecheck
         run: npm run lint
